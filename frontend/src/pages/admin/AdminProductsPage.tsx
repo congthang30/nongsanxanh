@@ -6,6 +6,7 @@ import { formatVnd } from '../../lib/format';
 import { PageHeader } from '../../dashboard/components/PageHeader';
 import { DataTable } from '../../dashboard/components/DataTable';
 import { StatusBadge } from '../../dashboard/components/StatusBadge';
+import { BarcodeManagerModal } from './BarcodeManagerModal';
 
 interface ProductRow {
   id: string; name: string; slug: string; status: string;
@@ -18,6 +19,7 @@ export default function AdminProductsPage() {
   const qc = useQueryClient();
   const { push } = useToastStore();
   const [creating, setCreating] = useState(false);
+  const [barcodeProductId, setBarcodeProductId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-products'],
@@ -41,12 +43,29 @@ export default function AdminProductsPage() {
           { key: 'origin', title: 'Xuat xu', render: (r) => r.originRegion ?? '—' },
           { key: 'price', title: 'Gia tu', align: 'right', render: (r) => r.fromPrice ? `${formatVnd(r.fromPrice)}/${r.unit}` : '—' },
           { key: 'status', title: 'Trang thai', render: (r) => <StatusBadge status={r.status} /> },
+          {
+            key: 'act', title: '', align: 'right', render: (r) => (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setBarcodeProductId(r.id)}
+                title="Quan ly ma vach POS"
+              >
+                Ma vach
+              </button>
+            ),
+          },
         ]}
       />
       {creating && (
         <CreateProductModal
           onClose={() => setCreating(false)}
           onDone={() => { setCreating(false); qc.invalidateQueries({ queryKey: ['admin-products'] }); }}
+        />
+      )}
+      {barcodeProductId && (
+        <BarcodeManagerModal
+          productId={barcodeProductId}
+          onClose={() => setBarcodeProductId(null)}
         />
       )}
     </>

@@ -23,6 +23,7 @@ const TABS = [
   { code: 'PACKED', label: 'Da dong goi' },
   { code: 'READY_FOR_DELIVERY', label: 'San sang giao' },
   { code: 'OUT_FOR_DELIVERY', label: 'Dang giao' },
+  { code: 'DELIVERY_FAILED', label: 'Giao that bai' },
   { code: 'COMPLETED', label: 'Hoan tat' },
 ];
 
@@ -85,6 +86,29 @@ export default function StoreManagerOrders() {
                     {a.label}
                   </button>
                 ))}
+                {(o.status === 'DELIVERY_FAILED' || o.delivery?.status === 'FAILED') && (
+                  <>
+                    <button
+                      className="dash-btn dash-btn-sm dash-btn-primary"
+                      disabled={act.isPending}
+                      onClick={() => act.mutate({ id: o.id, path: 'reassign-delivery' })}
+                    >
+                      Giao lai
+                    </button>
+                    <button
+                      className="dash-btn dash-btn-sm"
+                      disabled={act.isPending}
+                      onClick={() => {
+                        const reason = prompt('Ly do huy va hoan kho?');
+                        if (reason && reason.trim()) {
+                          act.mutate({ id: o.id, path: 'cancel-restock', body: { reason: reason.trim() } });
+                        }
+                      }}
+                    >
+                      Huy &amp; hoan kho
+                    </button>
+                  </>
+                )}
                 {['PLACED', 'STORE_CONFIRMED', 'PICKING', 'PACKED', 'READY_FOR_DELIVERY'].includes(o.status) && (
                   <button className="dash-btn dash-btn-sm" disabled={act.isPending} onClick={() => act.mutate({ id: o.id, path: 'cancel', body: { reason: 'Manager huy don' } })}>
                     Huy

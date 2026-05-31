@@ -458,8 +458,8 @@ resolveStoreForOrder(address, cartItems):
 Rule bat buoc:
 
 ```text
-Nearest store is not always selected.
-Selected store = nearest serviceable active store that can fulfill every item in the order.
+Nearest store is not always the fulfillment store.
+Auto assigned store = nearest serviceable active store that can fulfill every item in the order.
 ```
 
 Vi du:
@@ -498,15 +498,15 @@ Store resolver can ho tro 3 ngu canh khac nhau:
 
 ```text
 Browsing without cart:
-  selected = nearest active serviceable store
+  autoAssignedStore = nearest active serviceable store
   purpose = show nearby store catalog/inventory
 
 Product detail / add one item:
-  selected = nearest active serviceable store that has requested variant quantity
+  autoAssignedStore = nearest active serviceable store that has requested variant quantity
   purpose = avoid showing "het hang" if nearby next store can fulfill that item
 
 Cart / checkout / order:
-  selected = nearest active serviceable store that can fulfill every cart item
+  autoAssignedStore = nearest active serviceable store that can fulfill every cart item
   purpose = one order, one store, full fulfillment
 ```
 
@@ -1411,7 +1411,7 @@ Customer login
 -> Checkout
 -> System re-runs resolver from final delivery address
 -> If nearest store lacks any item, system tries next nearest serviceable store
--> Order created with storeId = selected nearest store that has full stock
+-> Order created with storeId = autoAssignedStore that has full stock
 -> Customer tracks order
 ```
 

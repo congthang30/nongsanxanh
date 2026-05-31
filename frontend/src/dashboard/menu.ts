@@ -77,6 +77,7 @@ const STORE_MANAGER_GROUPS: MenuGroup[] = [
     title: 'Ban hang tai quay (POS)',
     items: [
       { to: '/pos', label: 'Man hinh thu ngan', icon: '' },
+      { to: '/pos/returns', label: 'Tra hang / Hoan tien', icon: '' },
       { to: '/store-manager/pos-reports', label: 'Bao cao POS', icon: '' },
     ],
   },
@@ -107,6 +108,7 @@ const WAREHOUSE_GROUPS: MenuGroup[] = [
     items: [
       { to: '/warehouse/pick', label: 'Soan hang', icon: '' },
       { to: '/warehouse/inventory', label: 'Ton kho', icon: '' },
+      { to: '/warehouse/transactions', label: 'Lich su nhap/xuat', icon: '' },
     ],
   },
 ];

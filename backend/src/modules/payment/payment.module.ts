@@ -9,6 +9,6 @@ import { OrdersModule } from '../orders/orders.module';
   imports: [ConfigModule, OrdersModule],
   controllers: [PaymentController],
   providers: [PaymentService, VnpayService],
-  exports: [PaymentService],
+  exports: [PaymentService, VnpayService],
 })
 export class PaymentModule {}

@@ -1,0 +1,83 @@
+/* AddressSearchInput - autocomplete dia chi tu OpenStreetMap. */
+.addr-search {
+  position: relative;
+}
+.addr-search-spinner {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+.addr-search-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  z-index: 50;
+  max-height: 280px;
+  overflow-y: auto;
+  box-shadow: 0 14px 40px -14px rgba(15, 23, 42, 0.18);
+}
+.addr-search-list li button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+  color: #0f172a;
+}
+.addr-search-list li button:hover {
+  background: #f1f5f9;
+}
+
+.addr-picked {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid #16a34a;
+  border-radius: 10px;
+  background: #f0fdf4;
+}
+.addr-picked-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.addr-picked-body strong {
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.addr-picked-meta {
+  font-size: 12px;
+}
+.addr-picked-clear {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.addr-picked-clear:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}

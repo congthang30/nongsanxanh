@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '../../lib/api';
 import { useToastStore } from '../../lib/toast.store';
@@ -8,6 +9,7 @@ import { StatusBadge } from '../../dashboard/components/StatusBadge';
 interface Job {
   id: string; status: string; codAmount: number | null; codCollected: boolean;
   dropoffName: string | null; dropoffPhone: string | null; dropoffAddress: string | null;
+  dropoffLat: number | null; dropoffLng: number | null;
   distanceKm: number | null; failureReason: string | null;
   order: {
     orderNumber: string; grandTotal: number; paymentMethod: string; status: string;
@@ -29,6 +31,8 @@ const NEXT_ACTION: Record<string, { label: string; path: string }[]> = {
 export default function ShipperConsolePage({ scope }: { scope: 'active' | 'history' }) {
   const qc = useQueryClient();
   const { push } = useToastStore();
+  const [failModal, setFailModal] = useState<Job | null>(null);
+  const [codModal, setCodModal] = useState<Job | null>(null);
 
   const { data: jobs, isLoading } = useQuery({
     queryKey: ['shipper-jobs', scope],
@@ -42,15 +46,26 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
-  const fail = (id: string) => {
-    const reason = window.prompt('Ly do giao that bai?');
-    if (reason) act.mutate({ id, path: 'failed', body: { reason } });
+  // F-16: mo Google Maps directions
+  const openMaps = (j: Job) => {
+    const dest =
+      j.dropoffLat != null && j.dropoffLng != null
+        ? `${j.dropoffLat},${j.dropoffLng}`
+        : encodeURIComponent(j.dropoffAddress ?? '');
+    if (!dest) return;
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${dest}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
   };
 
-  const deliver = (j: Job) => {
-    const cod = j.order.paymentMethod === 'COD' && j.codAmount;
-    const collected = cod ? window.confirm(`Da thu COD ${formatVnd(j.codAmount ?? 0)}?`) : false;
-    act.mutate({ id: j.id, path: 'delivered', body: { codCollected: collected } });
+  const onDeliver = (j: Job) => {
+    if (j.order.paymentMethod === 'COD' && j.codAmount) {
+      setCodModal(j);
+    } else {
+      act.mutate({ id: j.id, path: 'delivered', body: { codCollected: false } });
+    }
   };
 
   return (
@@ -73,10 +88,23 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
                 <div className="muted" style={{ fontSize: 13 }}>{j.store.formattedAddress}</div>
               </div>
               <div>
-                <div className="muted" style={{ fontSize: 12 }}>Giao den</div>
-                <strong>{j.dropoffName}</strong>
-                <div className="muted" style={{ fontSize: 13 }}>{j.dropoffPhone}</div>
-                <div className="muted" style={{ fontSize: 13 }}>{j.dropoffAddress}</div>
+                <div className="between" style={{ alignItems: 'flex-start' }}>
+                  <div>
+                    <div className="muted" style={{ fontSize: 12 }}>Giao den</div>
+                    <strong>{j.dropoffName}</strong>
+                    <div className="muted" style={{ fontSize: 13 }}>{j.dropoffPhone}</div>
+                    <div className="muted" style={{ fontSize: 13 }}>{j.dropoffAddress}</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="dash-btn dash-btn-sm"
+                    onClick={() => openMaps(j)}
+                    aria-label="Mo chi duong tren Google Maps"
+                    title="Mo chi duong"
+                  >
+                    Chi duong
+                  </button>
+                </div>
               </div>
             </div>
             <div className="muted" style={{ fontSize: 13, margin: '8px 0' }}>
@@ -92,13 +120,13 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
                 <div className="dash-row-actions">
                   {(NEXT_ACTION[j.status] ?? []).map((a) =>
                     a.path === 'delivered' ? (
-                      <button key={a.path} className="dash-btn dash-btn-sm dash-btn-primary" disabled={act.isPending} onClick={() => deliver(j)}>{a.label}</button>
+                      <button key={a.path} className="dash-btn dash-btn-sm dash-btn-primary" disabled={act.isPending} onClick={() => onDeliver(j)}>{a.label}</button>
                     ) : (
                       <button key={a.path} className="dash-btn dash-btn-sm dash-btn-primary" disabled={act.isPending} onClick={() => act.mutate({ id: j.id, path: a.path })}>{a.label}</button>
                     ),
                   )}
                   {['OUT_FOR_DELIVERY', 'ARRIVED_AT_CUSTOMER'].includes(j.status) && (
-                    <button className="dash-btn dash-btn-sm" disabled={act.isPending} onClick={() => fail(j.id)}>Giao that bai</button>
+                    <button className="dash-btn dash-btn-sm" disabled={act.isPending} onClick={() => setFailModal(j)}>Giao that bai</button>
                   )}
                 </div>
               )}
@@ -114,6 +142,114 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
           </div>
         )}
       </div>
+
+      {/* F-15: Modal nhap ly do that bai */}
+      {failModal && (
+        <FailReasonModal
+          job={failModal}
+          busy={act.isPending}
+          onClose={() => setFailModal(null)}
+          onConfirm={(reason) => {
+            act.mutate({ id: failModal.id, path: 'failed', body: { reason } });
+            setFailModal(null);
+          }}
+        />
+      )}
+      {/* F-15: Modal xac nhan COD */}
+      {codModal && (
+        <CodConfirmModal
+          job={codModal}
+          busy={act.isPending}
+          onClose={() => setCodModal(null)}
+          onConfirm={(collected) => {
+            act.mutate({ id: codModal.id, path: 'delivered', body: { codCollected: collected } });
+            setCodModal(null);
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function FailReasonModal({
+  job,
+  busy,
+  onClose,
+  onConfirm,
+}: {
+  job: Job;
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState('');
+  return (
+    <div className="dash-modal-overlay" onClick={onClose}>
+      <div className="dash-modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Don giao that bai</h2>
+        <p className="muted" style={{ marginBottom: 12 }}>#{job.order.orderNumber} · {job.dropoffName}</p>
+        <label style={{ display: 'block' }}>
+          Ly do (bat buoc) <span style={{ color: '#dc2626' }}>*</span>
+          <textarea
+            className="input"
+            rows={3}
+            autoFocus
+            placeholder="VD: Khach khong nghe may, sai dia chi, khong ai nhan..."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            style={{ marginTop: 6 }}
+          />
+        </label>
+        <div className="flex gap-sm" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
+          <button className="btn btn-ghost" onClick={onClose}>Huy</button>
+          <button
+            className="btn btn-primary"
+            disabled={busy || reason.trim().length < 3}
+            onClick={() => onConfirm(reason.trim())}
+          >
+            Xac nhan that bai
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CodConfirmModal({
+  job,
+  busy,
+  onClose,
+  onConfirm,
+}: {
+  job: Job;
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: (collected: boolean) => void;
+}) {
+  return (
+    <div className="dash-modal-overlay" onClick={onClose}>
+      <div className="dash-modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Xac nhan giao thanh cong</h2>
+        <p className="muted" style={{ marginBottom: 12 }}>
+          Don COD #{job.order.orderNumber} · Khach: <strong>{job.dropoffName}</strong>
+        </p>
+        <div
+          className="card"
+          style={{ padding: 14, background: '#fef3c7', borderColor: '#fcd34d', marginBottom: 14 }}
+        >
+          <p style={{ margin: 0, fontSize: 14 }}>
+            Tong thu COD: <strong style={{ fontSize: 18 }}>{formatVnd(job.codAmount ?? 0)}</strong>
+          </p>
+        </div>
+        <div className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
+          <button className="btn btn-ghost" disabled={busy} onClick={() => onConfirm(false)}>
+            Chua thu duoc
+          </button>
+          <button className="btn btn-primary" disabled={busy} onClick={() => onConfirm(true)}>
+            Da nhan du tien
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

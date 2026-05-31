@@ -368,11 +368,18 @@ export class AdminService {
 
   // ============ Users / roles ============
 
-  listUsers(role?: string) {
+  listUsers(filter: { role?: string; storeId?: string }) {
+    const where: Prisma.UserWhereInput = {};
+    if (filter.role) {
+      where.userRoles = { some: { role: { code: filter.role } } };
+    }
+    if (filter.storeId) {
+      where.storeMemberships = {
+        some: { storeId: filter.storeId, status: 'ACTIVE' },
+      };
+    }
     return this.prisma.user.findMany({
-      where: role
-        ? { userRoles: { some: { role: { code: role } } } }
-        : undefined,
+      where,
       orderBy: { createdAt: 'desc' },
       take: 300,
       include: {
@@ -380,7 +387,7 @@ export class AdminService {
         userRoles: { include: { role: { select: { code: true } } } },
         storeMemberships: {
           where: { status: 'ACTIVE' },
-          include: { store: { select: { name: true } } },
+          include: { store: { select: { id: true, name: true, code: true } } },
         },
       },
     });

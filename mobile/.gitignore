@@ -1,0 +1,12 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+.DS_Store
+# Local env (chua key). Giữ .env.example trong repo.
+.env
+.env.local
+ios/
+android/
+expo-env.d.ts

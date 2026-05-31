@@ -9,10 +9,10 @@ import {
 } from 'class-validator';
 
 export class AddCartItemDto {
-  @ApiProperty()
+  @ApiPropertyOptional({ description: 'Khong con dung - store duoc resolve theo dia chi khi checkout' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  storeId: string;
+  storeId?: string;
 
   @ApiProperty()
   @IsString()

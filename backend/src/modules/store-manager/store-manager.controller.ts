@@ -79,6 +79,25 @@ export class StoreManagerController {
     return this.fulfillment.cancelByStore(user, id, body.reason ?? 'Manager huy don');
   }
 
+  /** Manager giao lai don da FAILED cho shipper chinh. */
+  @Post('orders/:id/reassign-delivery')
+  reassignDelivery(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    return this.manager.reassignDelivery(user, id);
+  }
+
+  /** Manager huy don voi hoan kho (vd khach bom hang sau FAILED). */
+  @Post('orders/:id/cancel-restock')
+  cancelRestock(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: { reason: string },
+  ) {
+    return this.manager.cancelWithRestock(user, id, body.reason ?? 'Manager huy don, hoan kho');
+  }
+
   // ---- Staff ----
 
   @Get('staff')

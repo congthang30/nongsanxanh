@@ -117,8 +117,8 @@ export class AdminController {
 
   // ---- Users / roles ----
   @Get('users')
-  users(@Query('role') role?: string) {
-    return this.admin.listUsers(role);
+  users(@Query('role') role?: string, @Query('storeId') storeId?: string) {
+    return this.admin.listUsers({ role, storeId });
   }
 
   @Patch('users/:id/roles')

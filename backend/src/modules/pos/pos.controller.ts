@@ -21,6 +21,9 @@ import { BarcodeService } from './barcode.service';
 import { POSReturnService } from './pos-return.service';
 import { POSReportService } from './pos-report.service';
 import { StoreScopeService } from '../store/store-scope.service';
+import { VnpayService } from '../payment/vnpay.service';
+import { Req } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   CloseShiftDto,
   CreateReturnDto,
@@ -49,6 +52,7 @@ export class POSController {
     private readonly returns: POSReturnService,
     private readonly reports: POSReportService,
     private readonly scope: StoreScopeService,
+    private readonly vnpay: VnpayService,
   ) {}
 
   // ---------------- Shifts ----------------
@@ -158,6 +162,27 @@ export class POSController {
   @Get('sales/:id/receipt')
   receipt(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.sales.getReceipt(user, id);
+  }
+
+  /** Tao URL thanh toan VNPay sandbox de encode vao QR cho khach quet. */
+  @Get('sales/:id/vnpay-qr')
+  async vnpayQr(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const sale = await this.sales.getSale(user, id);
+    const ipAddr =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket?.remoteAddress ||
+      '127.0.0.1';
+    const payUrl = this.vnpay.createPaymentUrl({
+      orderNumber: sale.saleNumber,
+      amount: sale.grandTotal,
+      ipAddr,
+      orderInfo: `Thanh toan POS ${sale.saleNumber}`,
+    });
+    return { payUrl, amount: sale.grandTotal, saleNumber: sale.saleNumber };
   }
 
   // ---------------- Manager: void/return/reports ----------------

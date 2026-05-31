@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { ProductCard, ProductSummary } from '../components/ProductCard';
-import { StorePicker } from '../components/StorePicker';
 import './home.css';
 
 interface ProductListResponse {
@@ -138,10 +137,6 @@ export default function HomePage() {
                   {tag}
                 </button>
               ))}
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <StorePicker />
             </div>
 
             <div className="hero-stats">

@@ -97,47 +97,36 @@ export class CartService {
       });
     }
 
-    // Neu cart da thuoc store khac -> bao loi (mot store / gio)
-    if (cart.storeId && cart.storeId !== dto.storeId) {
-      throw new BadRequestException({
-        code: 'CART_OTHER_STORE',
-        message:
-          'Gio hang dang thuoc cua hang khac. Vui long thanh toan hoac xoa gio truoc khi mua tu cua hang moi.',
-      });
-    }
-
-    const available = await this.inventory.getAvailableInStore(
-      dto.storeId,
-      dto.variantId,
-    );
+    // Ton kho GOP toan he thong (chua resolve cua hang - lam o buoc checkout theo dia chi)
+    const available = await this.inventory.getAggregateAvailable(dto.variantId);
     const existing = await this.prisma.cartItem.findUnique({
       where: { cartId_variantId: { cartId: cart.id, variantId: dto.variantId } },
     });
     const newQty = (existing ? Number(existing.quantity) : 0) + dto.quantity;
+    if (available <= 0) {
+      throw new BadRequestException({
+        code: 'OUT_OF_STOCK',
+        message: 'San pham nay hien het hang o tat ca cua hang',
+      });
+    }
     if (newQty > available) {
       throw new BadRequestException({
         code: 'INSUFFICIENT_STOCK',
-        message: `Cua hang chi con ${available} ${variant.unit}`,
+        message: `Toan he thong chi con ${available} ${variant.unit}`,
       });
     }
 
-    await this.prisma.$transaction([
-      this.prisma.cart.update({
-        where: { id: cart.id },
-        data: { storeId: dto.storeId },
-      }),
-      this.prisma.cartItem.upsert({
-        where: {
-          cartId_variantId: { cartId: cart.id, variantId: dto.variantId },
-        },
-        create: {
-          cartId: cart.id,
-          variantId: dto.variantId,
-          quantity: dto.quantity,
-        },
-        update: { quantity: newQty },
-      }),
-    ]);
+    await this.prisma.cartItem.upsert({
+      where: {
+        cartId_variantId: { cartId: cart.id, variantId: dto.variantId },
+      },
+      create: {
+        cartId: cart.id,
+        variantId: dto.variantId,
+        quantity: dto.quantity,
+      },
+      update: { quantity: newQty },
+    });
     return this.buildCartView(cart.id);
   }
 
@@ -157,17 +146,12 @@ export class CartService {
         message: 'Khong tim thay item',
       });
     }
-    if (cart.storeId) {
-      const available = await this.inventory.getAvailableInStore(
-        cart.storeId,
-        item.variantId,
-      );
-      if (dto.quantity > available) {
-        throw new BadRequestException({
-          code: 'INSUFFICIENT_STOCK',
-          message: `Cua hang chi con ${available}`,
-        });
-      }
+    const available = await this.inventory.getAggregateAvailable(item.variantId);
+    if (dto.quantity > available) {
+      throw new BadRequestException({
+        code: 'INSUFFICIENT_STOCK',
+        message: `Toan he thong chi con ${available}`,
+      });
     }
     await this.prisma.cartItem.update({
       where: { id: itemId },
@@ -390,9 +374,11 @@ export class CartService {
     });
 
     const variantIds = items.map((it) => it.variantId);
+    // Co store (sau khi quote checkout) -> dung ton/gia cua store do.
+    // Chua co store -> dung ton GOP toan he thong + gia goc.
     const availMap = storeId
       ? await this.inventory.getAvailabilityMap(storeId, variantIds)
-      : new Map<string, number>();
+      : await this.inventory.getAggregateAvailabilityMap(variantIds);
     const priceMap = storeId
       ? await this.inventory.getStorePrices(storeId, variantIds)
       : new Map<string, number>();

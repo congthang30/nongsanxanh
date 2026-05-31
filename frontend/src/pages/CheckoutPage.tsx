@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api, getErrorMessage } from '../lib/api';
 import { useCartStore } from '../lib/cart.store';
-import { useStoreContext } from '../lib/store.store';
 import { useToastStore } from '../lib/toast.store';
 import { formatVnd } from '../lib/format';
 import './checkout.css';
@@ -38,8 +37,7 @@ interface Quote {
 interface Prediction { placeId: string; description: string; }
 
 export default function CheckoutPage() {
-  const { items, storeName, subtotal, hasIssues, fetch } = useCartStore();
-  const { setStore } = useStoreContext();
+  const { items, subtotal, hasIssues, fetch } = useCartStore();
   const { push } = useToastStore();
   const navigate = useNavigate();
 
@@ -74,20 +72,15 @@ export default function CheckoutPage() {
     }
   }, [addresses, addressId]);
 
-  // Quote: resolve store + tinh phi theo dia chi
+  // Quote: he thong tu dong tim cua hang gan nhat theo dia chi (an, khong hien ra UI)
+  // de tinh phi giao + kiem tra khu vuc co phuc vu khong.
   useEffect(() => {
     if (items.length === 0 || !addressId) { setQuote(null); return; }
     api
       .post('/cart/checkout/quote', { addressId, paymentMethod, couponCode: couponCode || undefined })
-      .then((r) => {
-        const q = r.data.data as Quote;
-        setQuote(q);
-        if (q.serviceable && q.store) {
-          setStore({ id: q.store.id, name: q.store.name, code: q.store.code, province: q.store.province, district: q.store.district });
-        }
-      })
+      .then((r) => setQuote(r.data.data as Quote))
       .catch(() => setQuote(null));
-  }, [items.length, addressId, couponCode, paymentMethod, setStore]);
+  }, [items.length, addressId, couponCode, paymentMethod]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -126,7 +119,7 @@ export default function CheckoutPage() {
 
   const saveAddress = async () => {
     if (!recipientName || !phone) { push('Nhap ten nguoi nhan va SDT', 'error'); return; }
-    if (!picked) { push('Hay chon khu vuc tu goi y ban do', 'error'); return; }
+    if (!picked) { push('Hay nhap dia chi tu goi y ban do', 'error'); return; }
     const detail = addressDetail.trim();
     const fullAddress = detail ? `${detail}, ${picked.formattedAddress}` : picked.formattedAddress;
     const { province, district, ward } = extractParts(picked.formattedAddress);
@@ -268,42 +261,35 @@ export default function CheckoutPage() {
             </div>
           </section>
 
-          {/* Store fulfillment */}
-          <section className="card checkout-block">
-            <h3>Cua hang phuc vu</h3>
-            {!addressId && <p className="muted" style={{ marginTop: 8 }}>Chon dia chi de he thong tim cua hang gan nhat.</p>}
-            {quote && quote.serviceable && quote.store && (
-              <div className="card" style={{ padding: 14, marginTop: 12, background: '#f0fdf4', borderColor: '#86efac' }}>
-                <div className="between" style={{ marginBottom: 6 }}>
-                  <strong>🏪 {quote.store.name}</strong>
-                  <span className="pill pill-green">Phuc vu khu vuc cua ban</span>
+          {/* F-04: chi hien banner khi khong co cua hang ACTIVE nao */}
+          {(quote?.reason === 'NO_ACTIVE_STORE' || (quote?.inventoryWarnings && quote.inventoryWarnings.length > 0)) && (
+            <section className="card checkout-block">
+              {quote?.reason === 'NO_ACTIVE_STORE' && (
+                <div className="card" style={{ padding: 14, background: '#fef2f2', borderColor: '#fca5a5', color: '#991b1b' }}>
+                  Hien chua co cua hang nao dang hoat dong. Vui long quay lai sau.
                 </div>
-                <div className="muted" style={{ fontSize: 13 }}>
-                  {quote.store.district ? `${quote.store.district}, ` : ''}{quote.store.province}
-                  {quote.distanceKm != null && <> · cach ~{quote.distanceKm.toFixed(1)} km</>}
-                  {quote.etaText && <> · {quote.etaText}</>}
+              )}
+              {quote?.inventoryWarnings && quote.inventoryWarnings.length > 0 && (
+                <div className="card" style={{ padding: 12, marginTop: quote?.reason === 'NO_ACTIVE_STORE' ? 10 : 0, background: '#fffbeb', borderColor: '#fcd34d', fontSize: 13 }}>
+                  Mot so san pham khong du ton kho de giao den dia chi nay:
+                  <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                    {quote.inventoryWarnings.map((w) => (
+                      <li key={w.variantId}>{w.name} (con {w.available})</li>
+                    ))}
+                  </ul>
                 </div>
-                <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
-                  Phi giao: <strong>{quote.shippingFee === 0 ? 'Mien phi' : formatVnd(quote.shippingFee)}</strong>
-                </div>
+              )}
+            </section>
+          )}
+
+          {/* F-09: Hint gia cap nhat theo cua hang phuc vu */}
+          {quote && quote.serviceable && quote.subtotal !== subtotal && quote.store && (
+            <section className="card checkout-block">
+              <div className="card" style={{ padding: 12, background: '#eff6ff', borderColor: '#93c5fd', color: '#1e40af', fontSize: 13 }}>
+                Gia da cap nhat theo cua hang phuc vu <strong>{quote.store.name}</strong>. Tam tinh moi: <strong>{formatVnd(quote.subtotal)}</strong>.
               </div>
-            )}
-            {notServiceable && (
-              <div className="card" style={{ padding: 14, marginTop: 12, background: '#fef2f2', borderColor: '#fca5a5', color: '#991b1b' }}>
-                {quote?.message ?? 'Khu vuc nay chua duoc cua hang nao phuc vu day du.'}
-              </div>
-            )}
-            {quote?.inventoryWarnings && quote.inventoryWarnings.length > 0 && (
-              <div className="card" style={{ padding: 12, marginTop: 10, background: '#fffbeb', borderColor: '#fcd34d', fontSize: 13 }}>
-                ⚠️ Mot so san pham khong du ton tai cua hang nay:
-                <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
-                  {quote.inventoryWarnings.map((w) => (
-                    <li key={w.variantId}>{w.name} (con {w.available})</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </section>
+            </section>
+          )}
 
           {/* Payment */}
           <section className="card checkout-block">
@@ -328,7 +314,6 @@ export default function CheckoutPage() {
         {/* Summary */}
         <aside className="card checkout-summary">
           <h3>Don hang ({items.length})</h3>
-          {storeName && <div className="muted" style={{ fontSize: 13, marginBottom: 8 }}>🏪 {storeName}</div>}
           <div className="stack gap-sm checkout-items">
             {items.map((it) => (
               <div key={it.id} className="between checkout-line">
@@ -344,7 +329,13 @@ export default function CheckoutPage() {
           <div className="summary-row"><span className="muted">Tam tinh</span><span>{formatVnd(quote?.subtotal ?? subtotal)}</span></div>
           <div className="summary-row">
             <span className="muted">Phi giao hang</span>
-            <span>{quote ? (quote.shippingFee === 0 ? 'Mien phi' : formatVnd(quote.shippingFee)) : '—'}</span>
+            <span>
+              {quote && typeof quote.shippingFee === 'number'
+                ? quote.shippingFee === 0
+                  ? 'Mien phi'
+                  : formatVnd(quote.shippingFee)
+                : '—'}
+            </span>
           </div>
           {quote && quote.discountTotal > 0 && (
             <div className="summary-row" style={{ color: 'var(--green-600)' }}>

@@ -4,6 +4,7 @@ import { useAuthStore } from '../../lib/auth.store';
 import { useCartStore } from '../../lib/cart.store';
 import { ChatWidget } from '../ChatWidget';
 import { NotificationBell } from '../NotificationBell';
+import { CartIcon } from '../icons';
 import './layout.css';
 
 export function CustomerLayout() {
@@ -49,7 +50,7 @@ export function CustomerLayout() {
 
           <div className="header-actions">
             <Link to="/cart" className="cart-btn" aria-label="Gio hang">
-              🛒
+              <CartIcon />
               {count > 0 && <span className="cart-count">{count}</span>}
             </Link>
             {user ? (

@@ -1,8 +1,8 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '../../lib/api';
 import { useToastStore } from '../../lib/toast.store';
 import { PageHeader } from '../components/PageHeader';
-import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
 
 interface PickOrder {
@@ -14,6 +14,20 @@ interface PickOrder {
 export default function WarehousePick() {
   const qc = useQueryClient();
   const { push } = useToastStore();
+  // F-18: state checkbox theo orderId -> Set<itemId>
+  const [picked, setPicked] = useState<Record<string, Set<string>>>({});
+
+  const togglePick = (orderId: string, itemId: string) => {
+    setPicked((prev) => {
+      const set = new Set(prev[orderId] ?? []);
+      if (set.has(itemId)) set.delete(itemId);
+      else set.add(itemId);
+      return { ...prev, [orderId]: set };
+    });
+  };
+
+  const allPicked = (o: PickOrder) =>
+    o.items.length > 0 && o.items.every((it) => picked[o.id]?.has(it.id));
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['wh-pick'],
@@ -22,7 +36,16 @@ export default function WarehousePick() {
 
   const act = useMutation({
     mutationFn: ({ id, path }: { id: string; path: string }) => api.post(`/warehouse/orders/${id}/${path}`, {}),
-    onSuccess: () => { push('Da cap nhat'); qc.invalidateQueries({ queryKey: ['wh-pick'] }); },
+    onSuccess: (_data, vars) => {
+      push('Da cap nhat');
+      qc.invalidateQueries({ queryKey: ['wh-pick'] });
+      // reset checkbox cua don nay
+      setPicked((prev) => {
+        const next = { ...prev };
+        delete next[vars.id];
+        return next;
+      });
+    },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
@@ -44,8 +67,18 @@ export default function WarehousePick() {
             <ul className="wh-pick-items">
               {o.items.map((it) => (
                 <li key={it.id}>
-                  <input type="checkbox" /> {it.productNameSnapshot}
-                  <strong> x{Number(it.quantity)} {it.unitSnapshot}</strong>
+                  <label className="flex gap-sm" style={{ alignItems: 'center', cursor: o.status === 'PICKING' ? 'pointer' : 'default' }}>
+                    <input
+                      type="checkbox"
+                      checked={picked[o.id]?.has(it.id) ?? false}
+                      onChange={() => togglePick(o.id, it.id)}
+                      disabled={o.status !== 'PICKING'}
+                    />
+                    <span>
+                      {it.productNameSnapshot}
+                      <strong> x{Number(it.quantity)} {it.unitSnapshot}</strong>
+                    </span>
+                  </label>
                 </li>
               ))}
             </ul>
@@ -56,8 +89,13 @@ export default function WarehousePick() {
                 </button>
               )}
               {o.status === 'PICKING' && (
-                <button className="dash-btn dash-btn-sm dash-btn-primary" disabled={act.isPending} onClick={() => act.mutate({ id: o.id, path: 'packed' })}>
-                  Hoan tat dong goi
+                <button
+                  className="dash-btn dash-btn-sm dash-btn-primary"
+                  disabled={act.isPending || !allPicked(o)}
+                  title={!allPicked(o) ? 'Hay tick day du tat ca san pham truoc' : ''}
+                  onClick={() => act.mutate({ id: o.id, path: 'packed' })}
+                >
+                  Hoan tat dong goi ({(picked[o.id]?.size ?? 0)}/{o.items.length})
                 </button>
               )}
             </div>

@@ -6,7 +6,17 @@ import { PageHeader } from '../components/PageHeader';
 import { StatCard } from '../components/StatCard';
 
 interface Dashboard {
-  store: { name: string; code: string; status: string } | null;
+  store: {
+    name: string;
+    code: string;
+    status: string;
+    primaryShipper: {
+      id: string;
+      email: string | null;
+      phone: string | null;
+      profile: { fullName: string | null } | null;
+    } | null;
+  } | null;
   counts: Record<string, number>;
   ordersToday: number;
   revenueToday: number;
@@ -49,6 +59,19 @@ export default function StoreManagerDashboard() {
           <strong>Nhan vien</strong>
           <span className="muted">Quan ly nhan su cua hang</span>
         </Link>
+        <div className="dash-quick-card" style={{ cursor: 'default' }}>
+          <strong>Shipper chinh</strong>
+          {data?.store?.primaryShipper ? (
+            <span className="muted">
+              {data.store.primaryShipper.profile?.fullName ?? data.store.primaryShipper.email}
+              {data.store.primaryShipper.phone ? ` · ${data.store.primaryShipper.phone}` : ''}
+            </span>
+          ) : (
+            <span className="muted" style={{ color: '#dc2626' }}>
+              Chua gan. Lien he admin de gan shipper chinh.
+            </span>
+          )}
+        </div>
       </div>
 
       {data && data.lowStockItems.length > 0 && (

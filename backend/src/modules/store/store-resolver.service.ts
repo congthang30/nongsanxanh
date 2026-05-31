@@ -62,13 +62,11 @@ function areaEquals(a?: string | null, b?: string | null): boolean {
 /**
  * Dich vu chon cua hang phu hop nhat cho mot dia chi giao hang.
  *
- * Thuat toan (theo spec muc 6.3):
- *   1. Lay store ACTIVE.
- *   2. Loc store co service area match dia chi (ward > district > province > radius).
- *   3. Loc store co primary shipper.
- *   4. Loc store du ton cho tat ca cart items.
- *   5. Tinh distance, sap xep theo specificity desc roi distance asc.
- *   6. Chon store dau tien.
+ * Mo hinh moi (BHX-style):
+ *   - KHONG dung serviceArea de gating. Cua hang phuc vu MOI dia chi du xa.
+ *   - Chon cua hang co khoang cach NGAN NHAT toi dia chi giao.
+ *   - Yeu cau: store ACTIVE + co primaryShipper ACTIVE + du ton kho cho cart.
+ *   - Phi ship tinh theo distance that su (ShippingQuoteService).
  */
 @Injectable()
 export class StoreResolverService {
@@ -82,7 +80,6 @@ export class StoreResolverService {
     const stores = await this.prisma.store.findMany({
       where: { status: 'ACTIVE' },
       include: {
-        serviceAreas: { where: { status: 'ACTIVE' } },
         primaryShipper: { select: { id: true, status: true } },
       },
     });
@@ -90,11 +87,7 @@ export class StoreResolverService {
     const candidates: StoreCandidate[] = [];
 
     for (const store of stores) {
-      // --- Service area match ---
-      const { matched, specificity } = this.matchServiceArea(store, input);
-      if (!matched) continue;
-
-      // --- Distance ---
+      // --- Distance (uu tien geo provider, fallback haversine) ---
       let distanceKm: number | null = null;
       if (
         input.lat != null &&
@@ -102,11 +95,23 @@ export class StoreResolverService {
         store.lat != null &&
         store.lng != null
       ) {
-        const d = await this.geo.distance(
-          { lat: store.lat, lng: store.lng },
-          { lat: input.lat, lng: input.lng },
-        );
-        distanceKm = d.distanceKm;
+        try {
+          const d = await this.geo.distance(
+            { lat: store.lat, lng: store.lng },
+            { lat: input.lat, lng: input.lng },
+          );
+          distanceKm = Number.isFinite(d.distanceKm) ? d.distanceKm : null;
+        } catch {
+          distanceKm = null;
+        }
+        if (distanceKm == null) {
+          distanceKm = this.haversine(
+            store.lat,
+            store.lng,
+            input.lat,
+            input.lng,
+          );
+        }
       }
 
       // --- Shipper ---
@@ -133,7 +138,7 @@ export class StoreResolverService {
       }
 
       const serviceable = hasShipper && inStock;
-      let reason = 'NEAREST_SERVICEABLE_STORE';
+      let reason = 'NEAREST_STORE';
       if (!hasShipper) reason = 'STORE_NO_SHIPPER';
       else if (!inStock) reason = 'STORE_OUT_OF_STOCK';
 
@@ -144,7 +149,7 @@ export class StoreResolverService {
         province: store.province,
         district: store.district,
         distanceKm,
-        areaSpecificity: specificity,
+        areaSpecificity: 0, // legacy field, no longer used for ranking
         hasShipper,
         inStock,
         outOfStockVariantIds,
@@ -153,11 +158,9 @@ export class StoreResolverService {
       });
     }
 
-    // Sap xep: serviceable truoc, specificity cao hon, distance gan hon
+    // Sap xep: serviceable truoc, distance gan hon (null distance xuong cuoi)
     const sorted = candidates.sort((a, b) => {
       if (a.serviceable !== b.serviceable) return a.serviceable ? -1 : 1;
-      if (a.areaSpecificity !== b.areaSpecificity)
-        return b.areaSpecificity - a.areaSpecificity;
       const da = a.distanceKm ?? Number.MAX_SAFE_INTEGER;
       const db = b.distanceKm ?? Number.MAX_SAFE_INTEGER;
       return da - db;
@@ -170,10 +173,10 @@ export class StoreResolverService {
     if (selected) {
       reason = 'OK';
     } else if (candidates.length === 0) {
-      reason = 'NO_STORE_FOR_AREA';
-    } else if (candidates.some((c) => !c.inStock)) {
+      reason = 'NO_ACTIVE_STORE';
+    } else if (candidates.every((c) => !c.inStock)) {
       reason = 'STORE_OUT_OF_STOCK';
-    } else if (candidates.some((c) => !c.hasShipper)) {
+    } else if (candidates.every((c) => !c.hasShipper)) {
       reason = 'STORE_NO_SHIPPER';
     } else {
       reason = 'NO_SERVICEABLE_STORE';
@@ -187,62 +190,6 @@ export class StoreResolverService {
       assignmentReason: selected ? selected.reason : null,
       assignmentDistanceKm: selected ? selected.distanceKm : null,
     };
-  }
-
-  private matchServiceArea(
-    store: { serviceArea?: never; serviceAreas: { province: string; district: string | null; ward: string | null; radiusKm: number | null }[]; lat: number | null; lng: number | null },
-    input: ResolveInput,
-  ): { matched: boolean; specificity: number } {
-    let best = -1;
-    for (const area of store.serviceAreas) {
-      // Ward match (specificity 3)
-      if (
-        area.ward &&
-        input.ward &&
-        areaEquals(area.province, input.province) &&
-        areaEquals(area.district, input.district) &&
-        areaEquals(area.ward, input.ward)
-      ) {
-        best = Math.max(best, 3);
-        continue;
-      }
-      // District match (specificity 2)
-      if (
-        area.district &&
-        input.district &&
-        areaEquals(area.province, input.province) &&
-        areaEquals(area.district, input.district)
-      ) {
-        best = Math.max(best, 2);
-        continue;
-      }
-      // Province match (specificity 1) - only if area has no district constraint
-      if (
-        !area.district &&
-        input.province &&
-        areaEquals(area.province, input.province)
-      ) {
-        best = Math.max(best, 1);
-        continue;
-      }
-      // Radius match (specificity 0)
-      if (
-        area.radiusKm != null &&
-        store.lat != null &&
-        store.lng != null &&
-        input.lat != null &&
-        input.lng != null
-      ) {
-        const dist = this.haversine(
-          store.lat,
-          store.lng,
-          input.lat,
-          input.lng,
-        );
-        if (dist <= area.radiusKm) best = Math.max(best, 0);
-      }
-    }
-    return { matched: best >= 0, specificity: best };
   }
 
   private haversine(lat1: number, lng1: number, lat2: number, lng2: number) {

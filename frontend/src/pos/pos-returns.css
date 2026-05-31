@@ -1,0 +1,227 @@
+/* ============================================================
+   POS RETURNS / REFUNDS — Manager only.
+   Re-uses pos-* tokens from pos.css; adds layout for the page.
+   ============================================================ */
+.pos-returns-root {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(34, 197, 94, 0.08), transparent),
+    var(--pos-bg);
+  color: var(--pos-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+.pos-returns-topbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--pos-border);
+  background: rgba(19, 28, 49, 0.7);
+  backdrop-filter: blur(10px);
+}
+.pos-returns-topbar h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.pos-returns-topbar .pos-link-btn { width: max-content; }
+
+.pos-returns-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 22px 0;
+  border-bottom: 1px solid var(--pos-border);
+}
+.pos-returns-tab {
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  color: var(--pos-muted);
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.12s, border-color 0.12s;
+}
+.pos-returns-tab:hover { color: var(--pos-text); }
+.pos-returns-tab.active {
+  color: var(--pos-accent);
+  border-bottom-color: var(--pos-accent);
+}
+
+.pos-returns-body {
+  flex: 1;
+  padding: 22px;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.pos-returns-section {
+  background: var(--pos-panel);
+  border: 1px solid var(--pos-border);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
+.pos-returns-section h3 {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pos-text);
+}
+
+/* ---- Sale list ---- */
+.pos-returns-sale-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.pos-returns-sale-card {
+  text-align: left;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--pos-border);
+  background: var(--pos-panel-2);
+  color: var(--pos-text);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.12s, transform 0.12s;
+}
+.pos-returns-sale-card:hover { border-color: var(--pos-muted); }
+.pos-returns-sale-card.active {
+  border-color: var(--pos-accent);
+  background: rgba(34, 197, 94, 0.1);
+}
+.pos-returns-sale-num { font-weight: 700; font-size: 14.5px; letter-spacing: 0.5px; }
+.pos-returns-sale-meta { color: var(--pos-muted); font-size: 12px; margin-top: 4px; }
+.pos-returns-sale-amount {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--pos-accent);
+  margin-top: 8px;
+}
+.pos-returns-sale-time { color: var(--pos-muted); font-size: 11px; margin-top: 2px; }
+
+/* ---- Item picker ---- */
+.pos-returns-item-list { display: flex; flex-direction: column; gap: 10px; }
+.pos-returns-item {
+  border: 1.5px solid var(--pos-border);
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--pos-panel-2);
+  transition: border-color 0.12s;
+}
+.pos-returns-item.active { border-color: var(--pos-accent); }
+.pos-returns-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.pos-returns-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.pos-returns-checkbox input { width: 18px; height: 18px; accent-color: var(--pos-accent); }
+.pos-returns-item-qty { color: var(--pos-muted); font-size: 12.5px; }
+.pos-returns-item-controls {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--pos-border);
+  flex-wrap: wrap;
+}
+.pos-returns-item-controls label {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  color: var(--pos-muted);
+  gap: 4px;
+}
+.pos-returns-restock {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  color: var(--pos-text) !important;
+  font-size: 13px !important;
+}
+.pos-returns-input {
+  width: 100px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--pos-border);
+  background: var(--pos-panel);
+  color: var(--pos-text);
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+}
+.pos-returns-input:focus { border-color: var(--pos-accent); }
+.pos-returns-item-total { margin-left: auto; font-size: 13px; color: var(--pos-muted); }
+.pos-returns-item-total b { color: var(--pos-accent); font-size: 15px; }
+
+/* ---- Reason ---- */
+.pos-returns-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--pos-border);
+  background: var(--pos-panel-2);
+  color: var(--pos-text);
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+  outline: none;
+}
+.pos-returns-textarea:focus { border-color: var(--pos-accent); }
+
+/* ---- Summary footer ---- */
+.pos-returns-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px;
+  margin-top: 8px;
+  background: var(--pos-panel);
+  border: 1px solid var(--pos-border);
+  border-radius: 14px;
+}
+.pos-returns-summary div { display: flex; flex-direction: column; gap: 4px; }
+.pos-returns-summary span { color: var(--pos-muted); font-size: 13px; }
+.pos-returns-summary strong { color: var(--pos-accent); font-size: 24px; font-weight: 800; }
+.pos-returns-summary .pos-btn { min-width: 200px; }
+
+/* ---- Returns list cards ---- */
+.pos-returns-list { display: flex; flex-direction: column; gap: 12px; }
+.pos-returns-return-card {
+  background: var(--pos-panel);
+  border: 1px solid var(--pos-border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.pos-returns-refund {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--pos-accent);
+}
+
+@media (max-width: 700px) {
+  .pos-returns-topbar { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pos-returns-topbar h1 { grid-column: 1 / -1; order: -1; text-align: center; font-size: 16px; }
+  .pos-returns-body { padding: 14px; }
+  .pos-returns-summary { flex-direction: column; gap: 12px; align-items: stretch; }
+  .pos-returns-summary .pos-btn { width: 100%; }
+}

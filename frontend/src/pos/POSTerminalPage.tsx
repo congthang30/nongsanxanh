@@ -17,6 +17,7 @@ import { WeightModal } from './components/WeightModal';
 import { ReasonModal } from './components/ReasonModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { ShiftModal } from './components/ShiftModal';
+import { fetchPosVnpayQR, PosVnpayQR } from '../lib/pos-qr';
 import './pos.css';
 
 const QUICK_CASH = [50000, 100000, 200000, 500000];
@@ -44,6 +45,9 @@ export default function POSTerminalPage() {
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [shiftModal, setShiftModal] = useState<'open' | 'close' | null>(null);
   const [shiftBusy, setShiftBusy] = useState(false);
+
+  const [vnpQr, setVnpQr] = useState<PosVnpayQR | null>(null);
+  const [vnpQrLoading, setVnpQrLoading] = useState(false);
 
   const scanRef = useRef<HTMLInputElement>(null);
 
@@ -278,6 +282,29 @@ export default function POSTerminalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sale, method, cashGiven]);
 
+  // ----- VNPay QR: fetch URL signed tu backend khi cashier chon VNPAY -----
+  useEffect(() => {
+    if (
+      method !== 'VNPAY' ||
+      !sale ||
+      sale.status !== 'DRAFT' ||
+      sale.items.length === 0 ||
+      sale.grandTotal <= 0
+    ) {
+      setVnpQr(null);
+      setVnpQrLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setVnpQrLoading(true);
+    fetchPosVnpayQR(sale.id)
+      .then((data) => { if (!cancelled) setVnpQr(data); })
+      .catch((e) => { if (!cancelled) push(getErrorMessage(e), 'error'); })
+      .finally(() => { if (!cancelled) setVnpQrLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [method, sale?.id, sale?.grandTotal, sale?.status, sale?.items.length]);
+
   const isPaid = sale?.status === 'PAID';
   const isVoided = sale?.status === 'VOIDED';
   const editable = sale?.status === 'DRAFT' || sale?.status === 'HELD';
@@ -306,6 +333,13 @@ export default function POSTerminalPage() {
               ○ Mo ca ban hang
             </button>
           )}
+          {(user?.roles.includes('STORE_MANAGER') ||
+            user?.roles.includes('ADMIN') ||
+            user?.roles.includes('SUPER_ADMIN')) && (
+            <Link to="/pos/returns" className="pos-link-btn">
+              Tra hang
+            </Link>
+          )}
           <Link to="/store" className="pos-link-btn">
             Thoat
           </Link>
@@ -319,7 +353,12 @@ export default function POSTerminalPage() {
           <div className="pos-card pos-scan-wrap">
             <div className="pos-card-title">Quet ma vach / Tim san pham</div>
             <div className="pos-scan-field">
-              <span className="pos-scan-icon">▤</span>
+              <span className="pos-scan-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="5" width="18" height="14" rx="2" />
+                  <path d="M6 9v6M9 9v6M12 9v6M15 9v6M18 9v6" />
+                </svg>
+              </span>
               <input
                 ref={scanRef}
                 className="pos-scan-input pos-tabular"
@@ -376,7 +415,10 @@ export default function POSTerminalPage() {
             <div className="pos-bill-scroll">
               {!sale || sale.items.length === 0 ? (
                 <div className="pos-empty">
-                  <div className="pos-empty-icon">▤</div>
+                  <svg className="pos-empty-icon-svg" viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                    <path d="M6 9v6M9 9v6M12 9v6M15 9v6M18 9v6" />
+                  </svg>
                   <div>Quet ma vach de them san pham</div>
                 </div>
               ) : (
@@ -404,7 +446,15 @@ export default function POSTerminalPage() {
                       <button
                         className="pos-item-del"
                         disabled={!editable}
-                        onClick={() => removeItem(it.id)}
+                        onClick={() => {
+                          if (
+                            it.lineTotal > 100000 || it.quantity > 5
+                          ) {
+                            if (!confirm(`Xoa "${it.name}" (${it.quantity} ${it.unit} · ${formatVnd(it.lineTotal)})?`)) return;
+                          }
+                          removeItem(it.id);
+                        }}
+                        aria-label={`Xoa ${it.name}`}
                         title="Xoa"
                       >
                         ✕
@@ -448,7 +498,7 @@ export default function POSTerminalPage() {
             ) : (
               <>
                 <div className="pos-pay-methods">
-                  {(['CASH', 'BANK_TRANSFER_MANUAL', 'CARD', 'VNPAY'] as POSPaymentMethod[]).map((m) => (
+                  {(['CASH', 'VNPAY'] as POSPaymentMethod[]).map((m) => (
                     <button
                       key={m}
                       className={`pos-pay-method ${method === m ? 'active' : ''}`}
@@ -485,6 +535,44 @@ export default function POSTerminalPage() {
                   </>
                 ) : (
                   <>
+                    {method === 'VNPAY' && grandTotal > 0 && (
+                      <div className="pos-qr-block">
+                        <div className="pos-qr-brand">
+                          <span className="pos-qr-brand-vn">VN</span>
+                          <span className="pos-qr-brand-pay">PAY</span>
+                          <span className="pos-qr-brand-tag">QR</span>
+                        </div>
+                        {vnpQrLoading || !vnpQr ? (
+                          <div className="pos-qr-img pos-qr-loading">
+                            <span className="pos-spinner pos-spinner-dark" />
+                          </div>
+                        ) : (
+                          <a
+                            href={vnpQr.payUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Mo trang thanh toan tren may cashier (test)"
+                          >
+                            <img
+                              className="pos-qr-img"
+                              src={vnpQr.imageUrl}
+                              alt="QR thanh toan VNPay"
+                            />
+                          </a>
+                        )}
+                        <div className="pos-qr-info">
+                          <span className="pos-qr-line">
+                            So tien: <b className="pos-tabular">{formatVnd(grandTotal)}</b>
+                          </span>
+                          <span className="pos-qr-line">
+                            Ma don: {vnpQr?.saleNumber ?? sale?.saleNumber}
+                          </span>
+                          <span className="pos-qr-line pos-qr-hint">
+                            Khach mo app VNPay / ngan hang &gt; quet QR &gt; xac nhan.
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     <label className="pos-field-label">Ma tham chieu (tuy chon)</label>
                     <input
                       className="pos-input"

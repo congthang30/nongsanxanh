@@ -4,15 +4,13 @@ import { useState } from 'react';
 import { api } from '../lib/api';
 import { formatVnd } from '../lib/format';
 import { useCartStore } from '../lib/cart.store';
-import { useStoreContext } from '../lib/store.store';
 import { useToastStore } from '../lib/toast.store';
 import { getErrorMessage } from '../lib/api';
-import { StorePicker } from '../components/StorePicker';
 import './product-detail.css';
 
 interface Variant {
   id: string; sku: string; unit: string; price: number;
-  compareAtPrice: number | null; available: number;
+  compareAtPrice: number | null; available: number; storeCoverage?: number;
 }
 interface ProductDetail {
   id: string; name: string; description: string | null; originRegion: string | null;
@@ -32,22 +30,16 @@ interface Review {
 export default function ProductDetailPage() {
   const { slug } = useParams();
   const { add } = useCartStore();
-  const { store } = useStoreContext();
   const { push } = useToastStore();
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
   const [adding, setAdding] = useState(false);
 
-  // Neu da chon store -> lay chi tiet theo store (gia + ton thuc te). Neu chua -> catalog global.
+  // San pham la global cua he thong; ton kho hien thi la GOP toan he thong.
   const { data: product, isLoading } = useQuery({
-    queryKey: ['product', slug, store?.id],
-    queryFn: () => {
-      const url = store
-        ? `/stores/${store.id}/products/${slug}`
-        : `/products/${slug}`;
-      return api.get(url).then((r) => r.data.data as ProductDetail);
-    },
+    queryKey: ['product', slug],
+    queryFn: () => api.get(`/products/${slug}`).then((r) => r.data.data as ProductDetail),
   });
 
   const { data: reviews } = useQuery({
@@ -70,15 +62,15 @@ export default function ProductDetailPage() {
   }
 
   const variant = product.variants.find((v) => v.id === selectedVariant) ?? product.variants[0];
-  const hasStore = !!store;
-  const available = hasStore ? (variant?.available ?? 0) : 1;
+  const available = variant?.available ?? 0;
+  const inStock = available > 0;
 
   const handleAdd = async () => {
     if (!variant) return;
-    if (!store) { push('Vui long chon khu vuc giao hang truoc', 'error'); return; }
+    if (!inStock) { push('San pham nay hien het hang', 'error'); return; }
     setAdding(true);
     try {
-      await add(store.id, variant.id, qty);
+      await add(variant.id, qty);
       push(`Da them ${qty} ${variant.unit} ${product.name} vao gio`);
     } catch (e) {
       push(getErrorMessage(e), 'error');
@@ -131,32 +123,31 @@ export default function ProductDetailPage() {
           </div>
 
           <div style={{ margin: '12px 0' }}>
-            <StorePicker compact />
+            {product.variants.length > 1 && (
+              <div className="variant-row">
+                {product.variants.map((v) => (
+                  <button
+                    key={v.id}
+                    className={`btn btn-sm ${variant?.id === v.id ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => setSelectedVariant(v.id)}
+                  >
+                    {v.unit}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {product.variants.length > 1 && (
-            <div className="variant-row">
-              {product.variants.map((v) => (
-                <button
-                  key={v.id}
-                  className={`btn btn-sm ${variant?.id === v.id ? 'btn-primary' : 'btn-ghost'}`}
-                  onClick={() => setSelectedVariant(v.id)}
-                >
-                  {v.unit}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {hasStore ? (
-            <p className={`detail-stock ${available > 0 ? 'in' : 'out'}`}>
-              {available > 0
-                ? `Con hang tai ${store?.name} (${available} ${variant?.unit})`
-                : `Tam het hang tai ${store?.name}`}
-            </p>
-          ) : (
-            <p className="detail-stock muted">Chon khu vuc de xem ton kho va dat hang.</p>
-          )}
+          <p className={`detail-stock ${inStock ? 'in' : 'out'}`}>
+            {inStock
+              ? 'Con hang - giao tu cua hang gan ban'
+              : 'Tam het hang o tat ca cua hang'}
+            {inStock && variant?.storeCoverage != null && variant.storeCoverage > 0 && (
+              <span className="muted" style={{ marginLeft: 8, fontSize: 13, fontWeight: 400 }}>
+                · Co san tai {variant.storeCoverage} cua hang
+              </span>
+            )}
+          </p>
 
           <div className="qty-row">
             <div className="qty-stepper">
@@ -166,7 +157,7 @@ export default function ProductDetailPage() {
             </div>
             <button
               className="btn btn-primary"
-              disabled={!variant || (hasStore && available <= 0) || adding}
+              disabled={!variant || !inStock || adding}
               onClick={handleAdd}
             >
               Them vao gio

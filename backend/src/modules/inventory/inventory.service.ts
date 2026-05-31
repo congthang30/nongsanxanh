@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InventoryTxType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 
@@ -58,6 +58,69 @@ export class StoreInventoryService {
     return map;
   }
 
+  /**
+   * Ton kha dung GOP toan he thong (tat ca cua hang ACTIVE) cho 1 variant.
+   * Dung khi khach duyet catalog / them gio ma chua resolve cua hang.
+   */
+  async getAggregateAvailable(variantId: string): Promise<number> {
+    const rows = await this.prisma.storeInventory.findMany({
+      where: {
+        variantId,
+        status: 'ACTIVE',
+        store: { status: 'ACTIVE' },
+      },
+      select: { quantityOnHand: true, reservedQuantity: true },
+    });
+    return rows.reduce(
+      (sum, r) => sum + Math.max(0, Number(r.quantityOnHand) - Number(r.reservedQuantity)),
+      0,
+    );
+  }
+
+  /** Map ton kha dung GOP toan he thong cho nhieu variant (1 query). */
+  async getAggregateAvailabilityMap(
+    variantIds: string[],
+  ): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (variantIds.length === 0) return map;
+    const rows = await this.prisma.storeInventory.findMany({
+      where: {
+        variantId: { in: variantIds },
+        status: 'ACTIVE',
+        store: { status: 'ACTIVE' },
+      },
+      select: { variantId: true, quantityOnHand: true, reservedQuantity: true },
+    });
+    for (const r of rows) {
+      const avail = Math.max(0, Number(r.quantityOnHand) - Number(r.reservedQuantity));
+      map.set(r.variantId, (map.get(r.variantId) ?? 0) + avail);
+    }
+    for (const id of variantIds) if (!map.has(id)) map.set(id, 0);
+    return map;
+  }
+
+  /** So cua hang dang con hang cho moi variant (de hien "con o N khu vuc"). */
+  async getStoreCoverageMap(
+    variantIds: string[],
+  ): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (variantIds.length === 0) return map;
+    const rows = await this.prisma.storeInventory.findMany({
+      where: {
+        variantId: { in: variantIds },
+        status: 'ACTIVE',
+        store: { status: 'ACTIVE' },
+      },
+      select: { variantId: true, quantityOnHand: true, reservedQuantity: true },
+    });
+    for (const r of rows) {
+      const avail = Number(r.quantityOnHand) - Number(r.reservedQuantity);
+      if (avail > 0) map.set(r.variantId, (map.get(r.variantId) ?? 0) + 1);
+    }
+    for (const id of variantIds) if (!map.has(id)) map.set(id, 0);
+    return map;
+  }
+
   /** Gia ban thuc te cua variant tai store (uu tien salePrice -> priceOverride -> basePrice). */
   async getStorePrices(
     storeId: string,
@@ -88,12 +151,27 @@ export class StoreInventoryService {
     actorId?: string,
   ): Promise<void> {
     for (const line of lines) {
-      const inv = await tx.storeInventory.findUnique({
-        where: { storeId_variantId: { storeId, variantId: line.variantId } },
-      });
-      const before = inv ? Number(inv.quantityOnHand) : 0;
-      const reserved = inv ? Number(inv.reservedQuantity) : 0;
-      const available = inv && inv.status === 'ACTIVE' ? before - reserved : 0;
+      // Lock row store_inventories (SELECT ... FOR UPDATE) de chong race khi
+      // nhieu checkout dat cung luc cho mon cuoi cung -> tranh oversell.
+      // Phai khoa truoc khi validate (check-then-act tren row da khoa).
+      const locked = await tx.$queryRaw<
+        {
+          id: string;
+          quantity_on_hand: string;
+          reserved_quantity: string;
+          status: string;
+        }[]
+      >(Prisma.sql`
+        SELECT id, quantity_on_hand, reserved_quantity, status
+        FROM store_inventories
+        WHERE store_id = ${storeId} AND variant_id = ${line.variantId}
+        FOR UPDATE
+      `);
+      const inv = locked[0];
+      const before = inv ? Number(inv.quantity_on_hand) : 0;
+      const reserved = inv ? Number(inv.reserved_quantity) : 0;
+      const available =
+        inv && inv.status === 'ACTIVE' ? before - reserved : 0;
       if (!inv || available < line.quantity) {
         throw new BadRequestException({
           code: 'INSUFFICIENT_STOCK',
@@ -349,11 +427,92 @@ export class StoreInventoryService {
       });
   }
 
-  listTransactions(storeId: string, variantId?: string) {
+  listTransactions(
+    storeId: string,
+    filter?: { variantId?: string; type?: InventoryTxType; from?: string; to?: string },
+  ) {
+    const where: Prisma.InventoryTransactionWhereInput = { storeId };
+    if (filter?.variantId) where.variantId = filter.variantId;
+    if (filter?.type) where.type = filter.type;
+    if (filter?.from || filter?.to) {
+      where.createdAt = {};
+      if (filter.from) (where.createdAt as { gte?: Date; lte?: Date }).gte = new Date(filter.from);
+      if (filter.to) (where.createdAt as { gte?: Date; lte?: Date }).lte = new Date(filter.to);
+    }
     return this.prisma.inventoryTransaction.findMany({
-      where: { storeId, variantId },
+      where,
       orderBy: { createdAt: 'desc' },
       take: 200,
+      include: {
+        store: { select: { name: true, code: true } },
+      },
+    });
+  }
+
+  /**
+   * Xuat kho/hu hang. Tru onHand + log EXPORT (chuyen di) hoac POS_LOSS (hu, mat).
+   * Reason bat buoc.
+   */
+  async exportStock(
+    storeId: string,
+    variantId: string,
+    quantity: number,
+    reason: string,
+    kind: 'EXPORT' | 'LOSS',
+    actorId: string,
+  ) {
+    if (quantity <= 0) {
+      throw new BadRequestException({
+        code: 'INVALID_QUANTITY',
+        message: 'So luong xuat phai > 0',
+      });
+    }
+    if (!reason || reason.trim().length < 3) {
+      throw new BadRequestException({
+        code: 'REASON_REQUIRED',
+        message: 'Vui long ghi ly do xuat/hu',
+      });
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.storeInventory.findUnique({
+        where: { storeId_variantId: { storeId, variantId } },
+      });
+      if (!existing) {
+        throw new NotFoundException({
+          code: 'INVENTORY_NOT_FOUND',
+          message: 'San pham chua co trong kho cua hang',
+        });
+      }
+      const before = Number(existing.quantityOnHand);
+      const reserved = Number(existing.reservedQuantity);
+      const available = before - reserved;
+      if (quantity > available) {
+        throw new BadRequestException({
+          code: 'INSUFFICIENT_AVAILABLE',
+          message: `Ton kha dung con ${available}, khong the xuat ${quantity}`,
+        });
+      }
+      const after = before - quantity;
+      const inv = await tx.storeInventory.update({
+        where: { id: existing.id },
+        data: {
+          quantityOnHand: after,
+          status: after === 0 && reserved === 0 ? 'OUT_OF_STOCK' : existing.status,
+        },
+      });
+      await tx.inventoryTransaction.create({
+        data: {
+          storeId,
+          variantId,
+          type: kind === 'LOSS' ? InventoryTxType.POS_LOSS : InventoryTxType.EXPORT,
+          quantity,
+          beforeQty: before,
+          afterQty: after,
+          reason: reason.trim(),
+          createdBy: actorId,
+        },
+      });
+      return inv;
     });
   }
 

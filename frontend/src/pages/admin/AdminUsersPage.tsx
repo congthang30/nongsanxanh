@@ -29,11 +29,26 @@ export default function AdminUsersPage() {
   const qc = useQueryClient();
   const { push } = useToastStore();
   const [role, setRole] = useState('');
+  const [storeId, setStoreId] = useState('');
   const [editing, setEditing] = useState<UserRow | null>(null);
 
+  const { data: stores } = useQuery({
+    queryKey: ['admin-stores-lite'],
+    queryFn: () =>
+      api.get('/admin/stores').then((r) => r.data.data as { id: string; code: string; name: string }[]),
+  });
+
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-users', role],
-    queryFn: () => api.get('/admin/users', { params: role ? { role } : {} }).then((r) => r.data.data as UserRow[]),
+    queryKey: ['admin-users', role, storeId],
+    queryFn: () =>
+      api
+        .get('/admin/users', {
+          params: {
+            role: role || undefined,
+            storeId: storeId || undefined,
+          },
+        })
+        .then((r) => r.data.data as UserRow[]),
   });
 
   const statusMut = useMutation({
@@ -45,12 +60,23 @@ export default function AdminUsersPage() {
   return (
     <>
       <PageHeader title="Nguoi dung & vai tro" subtitle="Quan ly tai khoan va phan quyen" />
-      <div className="dash-table-card" style={{ padding: 12, marginBottom: 16, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div className="dash-table-card" style={{ padding: 12, marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {ROLE_FILTERS.map((r) => (
           <button key={r.code} className={`dash-btn dash-btn-sm ${role === r.code ? 'dash-btn-primary' : ''}`} onClick={() => setRole(r.code)}>
             {r.label}
           </button>
         ))}
+        <select
+          className="input"
+          style={{ marginLeft: 'auto', maxWidth: 240, height: 34, fontSize: 13 }}
+          value={storeId}
+          onChange={(e) => setStoreId(e.target.value)}
+        >
+          <option value="">Tat ca cua hang</option>
+          {stores?.map((s) => (
+            <option key={s.id} value={s.id}>{s.code} - {s.name}</option>
+          ))}
+        </select>
       </div>
       <DataTable<UserRow>
         rows={data ?? []}

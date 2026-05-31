@@ -40,6 +40,7 @@ import StoreStaffOrders from './dashboard/pages/StoreStaffOrders';
 import WarehouseDashboard from './dashboard/pages/WarehouseDashboard';
 import WarehousePick from './dashboard/pages/WarehousePick';
 import WarehouseInventory from './dashboard/pages/WarehouseInventory';
+import WarehouseTransactions from './dashboard/pages/WarehouseTransactions';
 
 // Shipper
 import ShipperDashboard from './dashboard/pages/ShipperDashboard';
@@ -51,6 +52,7 @@ import SupportConsolePage from './pages/support/SupportConsolePage';
 
 // POS (cashier terminal + manager reports)
 import POSTerminalPage from './pos/POSTerminalPage';
+import POSReturnsPage from './pos/POSReturnsPage';
 import POSReportsPage from './dashboard/pages/POSReportsPage';
 
 const ADMIN = ['ADMIN', 'SUPER_ADMIN'];
@@ -132,6 +134,14 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/pos/returns"
+          element={
+            <ProtectedRoute roles={['STORE_MANAGER', ...ADMIN]}>
+              <POSReturnsPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ============ WAREHOUSE ============ */}
         <Route
@@ -145,6 +155,7 @@ export default function App() {
           <Route path="/warehouse/dashboard" element={<WarehouseDashboard />} />
           <Route path="/warehouse/pick" element={<WarehousePick />} />
           <Route path="/warehouse/inventory" element={<WarehouseInventory />} />
+          <Route path="/warehouse/transactions" element={<WarehouseTransactions />} />
         </Route>
 
         {/* ============ SHIPPER ============ */}
@@ -173,13 +184,6 @@ export default function App() {
           <Route path="/staff/dashboard" element={<StaffDashboardPage />} />
           <Route path="/staff/tickets" element={<SupportConsolePage />} />
         </Route>
-
-        {/* Legacy redirects */}
-        <Route path="/seller" element={<Navigate to="/" replace />} />
-        <Route path="/seller/*" element={<Navigate to="/" replace />} />
-        <Route path="/shops/*" element={<Navigate to="/products" replace />} />
-        <Route path="/admin/dispatch" element={<Navigate to="/admin/orders" replace />} />
-        <Route path="/admin/shops" element={<Navigate to="/admin/stores" replace />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

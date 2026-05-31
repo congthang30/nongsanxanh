@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, ProductStatus } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { StoreInventoryService } from '../inventory/inventory.service';
 import { ProductQueryDto } from './dto/catalog.dto';
 
 /**
@@ -14,7 +15,10 @@ import { ProductQueryDto } from './dto/catalog.dto';
  */
 @Injectable()
 export class CatalogService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly inventory: StoreInventoryService,
+  ) {}
 
   listCategories() {
     return this.prisma.category.findMany({
@@ -60,8 +64,13 @@ export class CatalogService {
       this.prisma.product.count({ where }),
     ]);
 
+    // Ton kho GOP toan he thong cho variant dai dien (de hien con/het hang)
+    const variantIds = items.map((p) => p.variants[0]?.id).filter(Boolean) as string[];
+    const availMap = await this.inventory.getAggregateAvailabilityMap(variantIds);
+
     const data = items.map((p) => {
       const v0 = p.variants[0];
+      const available = v0 ? availMap.get(v0.id) ?? 0 : 0;
       return {
         id: p.id,
         name: p.name,
@@ -74,6 +83,7 @@ export class CatalogService {
         image: p.images[0]?.url ?? null,
         fromPrice: v0?.price ?? null,
         unit: v0?.unit ?? null,
+        available,
       };
     });
 
@@ -99,7 +109,18 @@ export class CatalogService {
         message: 'Khong tim thay san pham',
       });
     }
-    return product;
+    // Gan ton kho GOP toan he thong cho moi variant + so khu vuc con hang
+    const variantIds = product.variants.map((v) => v.id);
+    const availMap = await this.inventory.getAggregateAvailabilityMap(variantIds);
+    const coverageMap = await this.inventory.getStoreCoverageMap(variantIds);
+    return {
+      ...product,
+      variants: product.variants.map((v) => ({
+        ...v,
+        available: availMap.get(v.id) ?? 0,
+        storeCoverage: coverageMap.get(v.id) ?? 0,
+      })),
+    };
   }
 
   async autocomplete(q: string) {

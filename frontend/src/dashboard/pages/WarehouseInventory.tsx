@@ -19,7 +19,7 @@ export default function WarehouseInventory() {
   const { push } = useToastStore();
   const [lowOnly, setLowOnly] = useState(false);
   const [q, setQ] = useState('');
-  const [modal, setModal] = useState<{ row: InvRow; mode: 'import' | 'adjust' } | null>(null);
+  const [modal, setModal] = useState<{ row: InvRow; mode: 'import' | 'adjust' | 'export' } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['wh-inventory', lowOnly, q],
@@ -50,6 +50,7 @@ export default function WarehouseInventory() {
             key: 'act', title: 'Thao tac', render: (r) => (
               <div className="dash-row-actions">
                 <button className="dash-btn dash-btn-sm dash-btn-primary" onClick={() => setModal({ row: r, mode: 'import' })}>Nhap</button>
+                <button className="dash-btn dash-btn-sm" onClick={() => setModal({ row: r, mode: 'export' })} disabled={r.available <= 0}>Xuat / hu</button>
                 <button className="dash-btn dash-btn-sm" onClick={() => setModal({ row: r, mode: 'adjust' })}>Kiem ke</button>
               </div>
             ),
@@ -69,36 +70,103 @@ export default function WarehouseInventory() {
 }
 
 function StockModal({ row, mode, onClose, onDone }: {
-  row: InvRow; mode: 'import' | 'adjust'; onClose: () => void; onDone: () => void;
+  row: InvRow; mode: 'import' | 'adjust' | 'export'; onClose: () => void; onDone: () => void;
 }) {
   const { push } = useToastStore();
   const [value, setValue] = useState('');
   const [reason, setReason] = useState('');
+  const [exportKind, setExportKind] = useState<'EXPORT' | 'LOSS'>('EXPORT');
 
   const mut = useMutation({
-    mutationFn: () => mode === 'import'
-      ? api.post('/warehouse/inventory/import', { variantId: row.variantId, quantity: Number(value), reason: reason || undefined })
-      : api.post('/warehouse/inventory/adjust', { variantId: row.variantId, newQuantity: Number(value), reason: reason || undefined }),
-    onSuccess: () => { push(mode === 'import' ? 'Da nhap hang' : 'Da dieu chinh ton'); onDone(); },
+    mutationFn: () => {
+      if (mode === 'import') {
+        return api.post('/warehouse/inventory/import', {
+          variantId: row.variantId,
+          quantity: Number(value),
+          reason: reason || undefined,
+        });
+      }
+      if (mode === 'adjust') {
+        return api.post('/warehouse/inventory/adjust', {
+          variantId: row.variantId,
+          newQuantity: Number(value),
+          reason: reason || undefined,
+        });
+      }
+      // export
+      return api.post('/warehouse/inventory/export', {
+        variantId: row.variantId,
+        quantity: Number(value),
+        reason,
+        kind: exportKind,
+      });
+    },
+    onSuccess: () => {
+      push(mode === 'import'
+        ? 'Da nhap hang'
+        : mode === 'adjust'
+        ? 'Da dieu chinh ton'
+        : exportKind === 'LOSS' ? 'Da ghi nhan hu hang' : 'Da xuat kho');
+      onDone();
+    },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
+
+  const reasonRequired = mode === 'export';
+  const valueLabel = mode === 'import'
+    ? 'So luong nhap them'
+    : mode === 'adjust'
+    ? 'So luong ton thuc te moi'
+    : 'So luong xuat / danh hu';
+  const title = mode === 'import'
+    ? 'Nhap hang'
+    : mode === 'adjust'
+    ? 'Kiem ke / dieu chinh'
+    : 'Xuat kho / Ghi nhan hu hang';
+  const submitDisabled =
+    !value ||
+    (reasonRequired && reason.trim().length < 3) ||
+    mut.isPending;
 
   return (
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>{mode === 'import' ? 'Nhap hang' : 'Kiem ke / dieu chinh'}</h2>
-        <p className="muted">{row.productName} ({row.sku}) — ton hien tai: {row.quantityOnHand} {row.unit}</p>
+        <h2>{title}</h2>
+        <p className="muted">{row.productName} ({row.sku}) — ton hien tai: {row.quantityOnHand} {row.unit} · kha dung: {row.available}</p>
+        {mode === 'export' && (
+          <div className="flex gap-sm" style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              className={`dash-btn dash-btn-sm ${exportKind === 'EXPORT' ? 'dash-btn-primary' : ''}`}
+              onClick={() => setExportKind('EXPORT')}
+            >
+              Xuat / chuyen di
+            </button>
+            <button
+              type="button"
+              className={`dash-btn dash-btn-sm ${exportKind === 'LOSS' ? 'dash-btn-primary' : ''}`}
+              onClick={() => setExportKind('LOSS')}
+            >
+              Hu hong / mat
+            </button>
+          </div>
+        )}
         <label style={{ display: 'block', marginTop: 12 }}>
-          {mode === 'import' ? 'So luong nhap them' : 'So luong ton thuc te moi'}
+          {valueLabel}
           <input className="input" type="number" value={value} onChange={(e) => setValue(e.target.value)} autoFocus />
         </label>
         <label style={{ display: 'block', marginTop: 10 }}>
-          Ly do (tuy chon)
-          <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} />
+          Ly do {reasonRequired && <span style={{ color: '#dc2626' }}>*</span>}
+          <input
+            className="input"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={reasonRequired ? 'VD: Hu vi van chuyen, het han...' : 'Tuy chon'}
+          />
         </label>
         <div className="flex gap-sm" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
           <button className="btn btn-ghost" onClick={onClose}>Huy</button>
-          <button className="btn btn-primary" disabled={!value || mut.isPending} onClick={() => mut.mutate()}>Xac nhan</button>
+          <button className="btn btn-primary" disabled={submitDisabled} onClick={() => mut.mutate()}>Xac nhan</button>
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@ import {
   AuthUser,
   CurrentUser,
 } from '../../common/decorators/current-user.decorator';
-import { AdjustStockDto, ImportStockDto, MarkPackedDto } from './dto/warehouse.dto';
+import { AdjustStockDto, ExportStockDto, ImportStockDto, MarkPackedDto } from './dto/warehouse.dto';
 
 /**
  * Warehouse Staff console - scope theo cua hang cua nhan vien.
@@ -77,8 +77,11 @@ export class WarehouseController {
   transactions(
     @CurrentUser() user: AuthUser,
     @Query('variantId') variantId?: string,
+    @Query('type') type?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    return this.warehouse.listTransactions(user, variantId);
+    return this.warehouse.listTransactions(user, { variantId, type, from, to });
   }
 
   @Post('inventory/import')
@@ -93,6 +96,18 @@ export class WarehouseController {
       dto.variantId,
       dto.newQuantity,
       dto.reason,
+    );
+  }
+
+  /** Xuat kho hoac danh hu hang (reason bat buoc). */
+  @Post('inventory/export')
+  exportStock(@CurrentUser() user: AuthUser, @Body() dto: ExportStockDto) {
+    return this.warehouse.exportStock(
+      user,
+      dto.variantId,
+      dto.quantity,
+      dto.reason,
+      dto.kind ?? 'EXPORT',
     );
   }
 }

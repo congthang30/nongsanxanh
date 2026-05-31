@@ -3,8 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import { api } from '../lib/api';
 import { ProductCard, ProductSummary } from '../components/ProductCard';
-import { StorePicker } from '../components/StorePicker';
-import { useStoreContext } from '../lib/store.store';
 
 interface Category { id: string; name: string; slug: string; }
 interface ProductListResponse { data: ProductSummary[]; meta: { total: number; page: number; totalPages: number }; }
@@ -14,19 +12,16 @@ export default function ProductListPage() {
   const [q, setQ] = useState(searchParams.get('q') ?? '');
   const categoryId = searchParams.get('categoryId') ?? '';
   const sort = searchParams.get('sort') ?? 'newest';
-  const { store } = useStoreContext();
-
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: () => api.get('/categories').then((r) => r.data.data as Category[]),
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['products', { q: searchParams.get('q'), categoryId, sort, store: store?.id }],
+    queryKey: ['products', { q: searchParams.get('q'), categoryId, sort }],
     queryFn: () => {
-      const url = store ? `/stores/${store.id}/products` : '/products';
       return api
-        .get(url, {
+        .get('/products', {
           params: {
             q: searchParams.get('q') || undefined,
             categoryId: categoryId || undefined,
@@ -50,13 +45,7 @@ export default function ProductListPage() {
       <div className="stack gap" style={{ marginBottom: 28 }}>
         <div className="between" style={{ flexWrap: 'wrap', gap: 12 }}>
           <h1>San pham nong san</h1>
-          <StorePicker />
         </div>
-        {!store && (
-          <p className="muted">
-            Chon khu vuc giao hang de xem san pham va gia tai cua hang gan ban.
-          </p>
-        )}
         <form
           onSubmit={(e) => { e.preventDefault(); setParam('q', q); }}
           className="flex gap-sm"
@@ -110,7 +99,7 @@ export default function ProductListPage() {
       ) : (
         <div className="card" style={{ padding: 48, textAlign: 'center' }}>
           <p className="muted">
-            {store ? 'Cua hang nay chua co san pham phu hop.' : 'Khong tim thay san pham phu hop.'}
+            Khong tim thay san pham phu hop.
           </p>
         </div>
       )}

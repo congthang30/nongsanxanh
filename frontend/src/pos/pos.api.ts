@@ -98,6 +98,47 @@ export interface CashierShift {
   note: string | null;
 }
 
+export interface SaleListItem {
+  id: string;
+  saleNumber: string;
+  storeName: string;
+  cashierName: string;
+  status: POSSaleStatus;
+  paymentStatus: string;
+  grandTotal: number;
+  itemCount: number;
+  paidAt: string | null;
+  createdAt: string;
+}
+
+export interface POSReturn {
+  id: string;
+  originalSaleId: string;
+  storeId: string;
+  cashierId: string;
+  approvedBy: string | null;
+  refundAmount: number;
+  reason: string;
+  status: 'REQUESTED' | 'APPROVED' | 'COMPLETED' | 'REJECTED';
+  createdAt: string;
+  completedAt: string | null;
+  items: {
+    id: string;
+    saleItemId: string;
+    quantity: number;
+    refundAmount: number;
+    restockable: boolean;
+  }[];
+  originalSale?: { saleNumber: string };
+  cashier?: { profile?: { fullName?: string }; email?: string };
+}
+
+export interface CreateReturnPayload {
+  saleId: string;
+  reason: string;
+  items: { saleItemId: string; quantity: number; restockable: boolean }[];
+}
+
 export interface ReceiptData {
   saleNumber: string;
   status: string;
@@ -156,6 +197,22 @@ export const posApi = {
   voidSale: (saleId: string, reason: string) =>
     unwrap<POSSale>(api.post(`/pos/sales/${saleId}/void`, { reason })),
   receipt: (saleId: string) => unwrap<ReceiptData>(api.get(`/pos/sales/${saleId}/receipt`)),
+  vnpayQr: (saleId: string) =>
+    unwrap<{ payUrl: string; amount: number; saleNumber: string }>(
+      api.get(`/pos/sales/${saleId}/vnpay-qr`),
+    ),
+
+  // ---- Manager: returns + sales listing ----
+  listSales: (params: { from?: string; to?: string; status?: POSSaleStatus; storeId?: string }) =>
+    unwrap<SaleListItem[]>(api.get('/pos/sales', { params })),
+  listReturns: (storeId?: string) =>
+    unwrap<POSReturn[]>(api.get('/pos/returns', { params: storeId ? { storeId } : {} })),
+  createReturn: (payload: CreateReturnPayload) =>
+    unwrap<POSReturn>(api.post('/pos/returns', payload)),
+  approveReturn: (id: string) =>
+    unwrap<POSReturn>(api.post(`/pos/returns/${id}/approve`, {})),
+  completeReturn: (id: string) =>
+    unwrap<POSReturn>(api.post(`/pos/returns/${id}/complete`, {})),
 };
 
 export const PAYMENT_LABELS: Record<POSPaymentMethod, string> = {

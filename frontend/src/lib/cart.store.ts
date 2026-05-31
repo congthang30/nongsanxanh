@@ -37,7 +37,7 @@ interface CartState {
   hasIssues: boolean;
   loading: boolean;
   fetch: () => Promise<void>;
-  add: (storeId: string, variantId: string, quantity: number) => Promise<void>;
+  add: (variantId: string, quantity: number) => Promise<void>;
   update: (itemId: string, quantity: number) => Promise<void>;
   remove: (itemId: string) => Promise<void>;
 }
@@ -72,9 +72,9 @@ export const useCartStore = create<CartState>((set) => ({
       set({ loading: false });
     }
   },
-  add: async (storeId, variantId, quantity) => {
+  add: async (variantId, quantity) => {
     const view = await unwrap<CartView>(
-      api.post('/cart/items', { storeId, variantId, quantity }),
+      api.post('/cart/items', { variantId, quantity }),
     );
     apply(set, view);
   },

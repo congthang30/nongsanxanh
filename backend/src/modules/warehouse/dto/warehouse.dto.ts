@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -64,4 +65,30 @@ export class AdjustStockDto {
   @IsOptional()
   @IsString()
   reason?: string;
+}
+
+export class ExportStockDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  variantId: string;
+
+  @ApiProperty({ example: 5, description: 'So luong xuat kho hoac hu hong' })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.001)
+  quantity: number;
+
+  @ApiProperty({ description: 'Ly do (bat buoc)' })
+  @IsString()
+  @IsNotEmpty()
+  reason: string;
+
+  @ApiPropertyOptional({
+    enum: ['EXPORT', 'LOSS'],
+    description: 'EXPORT=chuyen di, LOSS=hu hong/mat',
+  })
+  @IsOptional()
+  @IsIn(['EXPORT', 'LOSS'])
+  kind?: 'EXPORT' | 'LOSS';
 }

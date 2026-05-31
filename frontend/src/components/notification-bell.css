@@ -7,17 +7,18 @@
   position: relative;
   background: transparent;
   border: none;
-  font-size: 1.25rem;
   cursor: pointer;
   width: 40px;
   height: 40px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  transition: background 0.18s ease;
+  color: var(--ink-700, #334155);
+  transition: background 0.18s ease, color 0.18s ease;
 }
 .notif-bell:hover {
   background: rgba(0, 0, 0, 0.06);
+  color: var(--green-600, #16a34a);
 }
 
 .notif-badge {

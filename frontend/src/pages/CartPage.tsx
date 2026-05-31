@@ -1,15 +1,13 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCartStore } from '../lib/cart.store';
-import { useStoreContext } from '../lib/store.store';
 import { useAuthStore } from '../lib/auth.store';
 import { formatVnd } from '../lib/format';
 import './cart.css';
 
 export default function CartPage() {
-  const { items, storeName, subtotal, hasIssues, fetch, update, remove, loading } =
+  const { items, subtotal, hasIssues, fetch, update, remove, loading } =
     useCartStore();
-  const { store } = useStoreContext();
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
@@ -39,12 +37,7 @@ export default function CartPage() {
 
   return (
     <div className="container section">
-      <h1 style={{ marginBottom: 8 }}>Gio hang</h1>
-      {(storeName || store) && (
-        <div className="cart-store-banner">
-          Mua tu cua hang: <strong>{storeName ?? store?.name}</strong>
-        </div>
-      )}
+      <h1 style={{ marginBottom: 16 }}>Gio hang</h1>
 
       <div className="cart-layout">
         <div className="stack gap">

@@ -93,8 +93,25 @@ export class ShipperService {
     return delivery;
   }
 
-  /** ASSIGNED -> PICKED_FROM_STORE (shipper da lay hang tu cua hang). */
+  /**
+   * ASSIGNED -> PICKED_FROM_STORE (shipper da lay hang tu cua hang).
+   * Guard: chi cho lay hang khi don da READY_FOR_DELIVERY (cua hang da dong goi
+   * + danh dau san sang giao). Tranh shipper "nhay" buoc khi don con dang soan
+   * -> dan toi desync order/delivery.
+   */
   async pickedFromStore(shipperId: string, deliveryId: string) {
+    const delivery = await this.loadOwnedDelivery(shipperId, deliveryId);
+    const order = await this.prisma.order.findUnique({
+      where: { id: delivery.orderId },
+      select: { status: true },
+    });
+    if (order && order.status !== OrderStatus.READY_FOR_DELIVERY) {
+      throw new BadRequestException({
+        code: 'ORDER_NOT_READY',
+        message:
+          'Don chua san sang giao. Cua hang can dong goi va danh dau san sang giao truoc khi shipper lay hang.',
+      });
+    }
     return this.advance(
       shipperId,
       deliveryId,
@@ -123,7 +140,13 @@ export class ShipperService {
     );
   }
 
-  /** -> DELIVERED. Commit inventory, order -> DELIVERED -> COMPLETED, thu COD. */
+  /**
+   * -> DELIVERED. Commit inventory, order -> DELIVERED.
+   *   - COD + da thu tien: payment SUCCESS, order -> COMPLETED.
+   *   - COD + CHUA thu tien: giu order o DELIVERED (chua COMPLETED), payment van
+   *     PENDING, ghi audit de quan ly doi soat sau. Khong "hoan tat" don chua thu tien.
+   *   - Tra truoc (online): order -> COMPLETED (payment da SUCCESS tu callback).
+   */
   async delivered(shipperId: string, deliveryId: string, codCollected?: boolean) {
     const delivery = await this.loadOwnedDelivery(shipperId, deliveryId);
     if (!canDeliveryTransition(delivery.status, DeliveryStatus.DELIVERED)) {
@@ -132,26 +155,30 @@ export class ShipperService {
         message: `Khong the chuyen tu ${delivery.status} sang DELIVERED`,
       });
     }
+    const isCod = !!delivery.codAmount;
+    const codCollectedFinal = isCod ? !!codCollected : false;
     await this.prisma.$transaction(async (tx) => {
       await tx.delivery.update({
         where: { id: deliveryId },
         data: {
           status: DeliveryStatus.DELIVERED,
           deliveredAt: new Date(),
-          codCollected: delivery.codAmount ? !!codCollected : false,
+          codCollected: codCollectedFinal,
         },
       });
       await tx.deliveryEvent.create({
         data: {
           deliveryId,
           status: DeliveryStatus.DELIVERED,
-          note: 'Giao thanh cong',
+          note: isCod && !codCollectedFinal
+            ? 'Giao thanh cong - CHUA thu COD (cho doi soat)'
+            : 'Giao thanh cong',
           actorId: shipperId,
         },
       });
-      // Commit inventory
+      // Commit inventory (hang da giao cho khach)
       await this.inventory.commitForOrder(tx, delivery.orderId, shipperId);
-      // Order: OUT_FOR_DELIVERY -> DELIVERED -> COMPLETED
+      // Order: -> DELIVERED truoc
       await this.orderTransition(
         tx,
         delivery.orderId,
@@ -159,23 +186,43 @@ export class ShipperService {
         shipperId,
         'Shipper giao thanh cong',
       );
-      await this.orderTransition(
-        tx,
-        delivery.orderId,
-        OrderStatus.COMPLETED,
-        shipperId,
-        'Hoan tat don',
-      );
-      // COD payment
-      if (delivery.codAmount && codCollected) {
-        await tx.payment.updateMany({
-          where: { orderId: delivery.orderId, method: 'COD' },
-          data: { status: PaymentStatus.SUCCESS, paidAt: new Date() },
-        });
-        await tx.order.update({
-          where: { id: delivery.orderId },
-          data: { paymentStatus: PaymentStatus.SUCCESS },
-        });
+
+      if (isCod && !codCollectedFinal) {
+        // Ngoai le: da giao nhung chua thu duoc tien. Khong COMPLETED, khong
+        // danh dau payment SUCCESS. Quan ly/admin doi soat sau.
+        await this.audit.log(
+          {
+            action: 'COD_NOT_COLLECTED',
+            actorId: shipperId,
+            targetType: 'Delivery',
+            targetId: deliveryId,
+            storeId: delivery.storeId,
+            metadata: {
+              orderId: delivery.orderId,
+              codAmount: delivery.codAmount,
+            },
+          },
+          tx,
+        );
+      } else {
+        // COD da thu HOAC tra truoc online -> hoan tat don.
+        if (isCod && codCollectedFinal) {
+          await tx.payment.updateMany({
+            where: { orderId: delivery.orderId, method: 'COD' },
+            data: { status: PaymentStatus.SUCCESS, paidAt: new Date() },
+          });
+          await tx.order.update({
+            where: { id: delivery.orderId },
+            data: { paymentStatus: PaymentStatus.SUCCESS },
+          });
+        }
+        await this.orderTransition(
+          tx,
+          delivery.orderId,
+          OrderStatus.COMPLETED,
+          shipperId,
+          'Hoan tat don',
+        );
       }
     });
     this.events.emit('order.delivered', { orderId: delivery.orderId });
@@ -280,8 +327,20 @@ export class ShipperService {
     reason: string,
   ) {
     const order = await tx.order.findUnique({ where: { id: orderId } });
-    if (!order) return;
-    if (!canTransition(order.status, to)) return; // skip neu khong hop le
+    if (!order) {
+      throw new BadRequestException({
+        code: 'ORDER_NOT_FOUND',
+        message: 'Khong tim thay don hang lien ket voi don giao',
+      });
+    }
+    // Khong nuot loi am tham: neu transition khong hop le -> bao loi de phat hien
+    // desync giua order va delivery state thay vi de don "ket" trang thai cu.
+    if (!canTransition(order.status, to)) {
+      throw new BadRequestException({
+        code: 'ORDER_DELIVERY_DESYNC',
+        message: `Trang thai don (${order.status}) khong cho phep chuyen sang ${to}. Vui long kiem tra lai quy trinh xu ly don.`,
+      });
+    }
     await tx.order.update({ where: { id: orderId }, data: { status: to } });
     await tx.orderStatusHistory.create({
       data: { orderId, fromStatus: order.status, toStatus: to, actorId, reason },

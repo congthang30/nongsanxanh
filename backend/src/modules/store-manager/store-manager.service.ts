@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { OrderStatus } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { DeliveryStatus, OrderStatus } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { StoreScopeService } from '../store/store-scope.service';
 import { StoreInventoryService } from '../inventory/inventory.service';
+import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 
 const COMPLETED_STATUSES: OrderStatus[] = [
@@ -20,6 +22,8 @@ export class StoreManagerService {
     private readonly prisma: PrismaService,
     private readonly scope: StoreScopeService,
     private readonly inventory: StoreInventoryService,
+    private readonly audit: AuditService,
+    private readonly events: EventEmitter2,
   ) {}
 
   private async resolveStoreId(user: AuthUser): Promise<string> {
@@ -72,7 +76,19 @@ export class StoreManagerService {
       this.inventory.listInventory(storeId, { lowStockOnly: true }),
       this.prisma.store.findUnique({
         where: { id: storeId },
-        select: { name: true, code: true, status: true },
+        select: {
+          name: true,
+          code: true,
+          status: true,
+          primaryShipper: {
+            select: {
+              id: true,
+              email: true,
+              phone: true,
+              profile: { select: { fullName: true } },
+            },
+          },
+        },
       }),
     ]);
 
@@ -180,5 +196,148 @@ export class StoreManagerService {
         .map(([date, v]) => ({ date, ...v }))
         .sort((a, b) => a.date.localeCompare(b.date)),
     };
+  }
+
+  /**
+   * Giao lai don sau khi shipper bao FAILED. Tao Delivery moi voi shipper chinh,
+   * dua order ve READY_FOR_DELIVERY. Chi cho phep khi order DELIVERY_FAILED hoac
+   * delivery hien tai dang FAILED.
+   */
+  async reassignDelivery(user: AuthUser, orderId: string) {
+    const storeId = await this.resolveStoreId(user);
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { delivery: true },
+    });
+    if (!order || order.storeId !== storeId) {
+      throw new NotFoundException({
+        code: 'ORDER_NOT_FOUND',
+        message: 'Khong tim thay don trong cua hang',
+      });
+    }
+    const isFailed =
+      order.status === OrderStatus.DELIVERY_FAILED ||
+      order.delivery?.status === DeliveryStatus.FAILED;
+    if (!isFailed) {
+      throw new BadRequestException({
+        code: 'ORDER_NOT_FAILED',
+        message: 'Don chua o trang thai giao that bai',
+      });
+    }
+    const store = await this.prisma.store.findUnique({
+      where: { id: storeId },
+    });
+    if (!store?.primaryShipperId) {
+      throw new BadRequestException({
+        code: 'NO_PRIMARY_SHIPPER',
+        message: 'Cua hang chua gan shipper chinh',
+      });
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // Reset delivery -> ASSIGNED voi shipper chinh
+      if (order.delivery) {
+        await tx.delivery.update({
+          where: { id: order.delivery.id },
+          data: {
+            shipperId: store.primaryShipperId!,
+            status: DeliveryStatus.ASSIGNED,
+            failureReason: null,
+            pickedAt: null,
+            deliveredAt: null,
+            events: {
+              create: {
+                status: DeliveryStatus.ASSIGNED,
+                note: `Manager giao lai cho shipper chinh`,
+                actorId: user.id,
+              },
+            },
+          },
+        });
+      }
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: OrderStatus.READY_FOR_DELIVERY },
+      });
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId,
+          fromStatus: order.status,
+          toStatus: OrderStatus.READY_FOR_DELIVERY,
+          actorId: user.id,
+          reason: 'Manager yeu cau giao lai',
+        },
+      });
+      await this.audit.log(
+        {
+          action: 'ORDER_REASSIGN_DELIVERY',
+          actorId: user.id,
+          targetType: 'Order',
+          targetId: orderId,
+          storeId,
+          metadata: { newShipperId: store.primaryShipperId },
+        },
+        tx,
+      );
+    });
+    this.events.emit('order.reassigned', { orderId });
+    return this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { delivery: true },
+    });
+  }
+
+  /**
+   * Manager huy don kem hoan ton kho. Dung khi giao that bai khong reassign duoc
+   * (khach bom hang, het hang, v.v.). Inventory.releaseForOrder cong lai stock.
+   */
+  async cancelWithRestock(user: AuthUser, orderId: string, reason: string) {
+    const storeId = await this.resolveStoreId(user);
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+    if (!order || order.storeId !== storeId) {
+      throw new NotFoundException({
+        code: 'ORDER_NOT_FOUND',
+        message: 'Khong tim thay don trong cua hang',
+      });
+    }
+    if (order.status === OrderStatus.CANCELLED || order.status === OrderStatus.DELIVERED) {
+      throw new BadRequestException({
+        code: 'ORDER_NOT_CANCELLABLE',
+        message: 'Don da hoan tat hoac da huy',
+      });
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await this.inventory.releaseForOrder(tx, orderId, user.id);
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: OrderStatus.CANCELLED },
+      });
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId,
+          fromStatus: order.status,
+          toStatus: OrderStatus.CANCELLED,
+          actorId: user.id,
+          reason: reason || 'Manager huy don, hoan kho',
+        },
+      });
+      await this.audit.log(
+        {
+          action: 'ORDER_CANCELLED_RESTOCK',
+          actorId: user.id,
+          targetType: 'Order',
+          targetId: orderId,
+          storeId,
+          metadata: { reason },
+        },
+        tx,
+      );
+    });
+    this.events.emit('order.cancelled', { orderId });
+    return this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
   }
 }

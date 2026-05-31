@@ -16,10 +16,11 @@ interface OrderDetail {
   subtotal: number; discountTotal: number; shippingFee: number; grandTotal: number; note: string | null;
   createdAt: string;
   recipientName: string; recipientPhone: string; deliveryAddress: string; deliveryNote: string | null;
+  assignmentDistanceKm: number | null;
   items: { id: string; productNameSnapshot: string; unitSnapshot: string; unitPrice: number; quantity: string; lineTotal: number; productId: string }[];
   statusHistory: { id: string; toStatus: string; reason: string | null; createdAt: string }[];
   store: { id: string; name: string; code: string; phone: string | null; province: string; district: string | null } | null;
-  delivery: { id: string; status: string; events: { id: string; status: string; note: string | null; createdAt: string }[] } | null;
+  delivery: { id: string; status: string; distanceKm: number | null; events: { id: string; status: string; note: string | null; createdAt: string }[] } | null;
 }
 
 export default function OrderDetailPage() {
@@ -175,7 +176,14 @@ export default function OrderDetailPage() {
             <h3 style={{ marginBottom: 14 }}>Thanh toan</h3>
             <div className="summary-row between"><span className="muted">Tam tinh</span><span>{formatVnd(order.subtotal)}</span></div>
             {order.discountTotal > 0 && <div className="summary-row between" style={{ color: 'var(--green-600)' }}><span>Giam gia</span><span>&minus;{formatVnd(order.discountTotal)}</span></div>}
-            <div className="summary-row between"><span className="muted">Phi giao</span><span>{order.shippingFee === 0 ? 'Mien phi' : formatVnd(order.shippingFee)}</span></div>
+            <div className="summary-row between">
+              <span className="muted">
+                Phi giao{order.assignmentDistanceKm != null && (
+                  <span style={{ fontSize: 12, color: '#94a3b8' }}> &middot; {Math.round(order.assignmentDistanceKm * 10) / 10} km</span>
+                )}
+              </span>
+              <span>{order.shippingFee === 0 ? 'Mien phi' : formatVnd(order.shippingFee)}</span>
+            </div>
             <div className="summary-divider" />
             <div className="summary-row between summary-total"><strong>Tong</strong><strong className="price">{formatVnd(order.grandTotal)}</strong></div>
             <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>

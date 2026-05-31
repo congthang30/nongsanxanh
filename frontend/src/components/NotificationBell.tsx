@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { BellIcon } from './icons';
 import './notification-bell.css';
 
 interface Notification {
@@ -111,7 +112,7 @@ export function NotificationBell() {
         aria-label="Thông báo"
         id="notif-bell-btn"
       >
-        🔔
+        <BellIcon />
         {unread > 0 && <span className="notif-badge">{unread > 99 ? '99+' : unread}</span>}
       </button>
 

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { InventoryTxType } from '@prisma/client';
 import { StoreInventoryService } from '../inventory/inventory.service';
 import { StoreScopeService } from '../store/store-scope.service';
 import { AuditService } from '../audit/audit.service';
@@ -26,9 +27,17 @@ export class WarehouseService {
     return this.inventory.listInventory(storeId, { lowStockOnly: true });
   }
 
-  async listTransactions(user: AuthUser, variantId?: string) {
+  async listTransactions(
+    user: AuthUser,
+    filter: { variantId?: string; type?: string; from?: string; to?: string },
+  ) {
     const storeId = await this.scope.requireUserStoreId(user.id);
-    return this.inventory.listTransactions(storeId, variantId);
+    return this.inventory.listTransactions(storeId, {
+      variantId: filter.variantId,
+      type: filter.type ? (filter.type as InventoryTxType) : undefined,
+      from: filter.from,
+      to: filter.to,
+    });
   }
 
   async importStock(
@@ -77,6 +86,34 @@ export class WarehouseService {
       targetId: result.id,
       storeId,
       metadata: { variantId, newQuantity, reason },
+    });
+    return result;
+  }
+
+  /** Xuat kho hoac danh hu hang. Reason bat buoc. */
+  async exportStock(
+    user: AuthUser,
+    variantId: string,
+    quantity: number,
+    reason: string,
+    kind: 'EXPORT' | 'LOSS',
+  ) {
+    const storeId = await this.scope.requireUserStoreId(user.id);
+    const result = await this.inventory.exportStock(
+      storeId,
+      variantId,
+      quantity,
+      reason,
+      kind,
+      user.id,
+    );
+    await this.audit.log({
+      action: kind === 'LOSS' ? 'INVENTORY_LOSS' : 'INVENTORY_EXPORT',
+      actorId: user.id,
+      targetType: 'StoreInventory',
+      targetId: result.id,
+      storeId,
+      metadata: { variantId, quantity, reason, kind },
     });
     return result;
   }
