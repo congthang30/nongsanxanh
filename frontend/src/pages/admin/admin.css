@@ -1,0 +1,190 @@
+/* Shared admin styles */
+
+.admin-head {
+  margin-bottom: 24px;
+}
+.admin-head h1 {
+  margin-bottom: 4px;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-wrap: wrap;
+}
+.admin-tab {
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #64748b;
+  transition: all 0.15s;
+}
+.admin-tab:hover {
+  color: #0f172a;
+}
+.admin-tab-active {
+  color: var(--green-700, #15803d);
+  border-bottom-color: var(--green-500, #22c55e);
+  font-weight: 600;
+}
+
+.shipper-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.shipper-row {
+  text-align: left;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.1s;
+}
+.shipper-row:hover {
+  border-color: var(--green-500, #22c55e);
+}
+.shipper-row-picked {
+  border-color: var(--green-500, #22c55e);
+  background: var(--green-50, #f0fdf4);
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.drawer {
+  background: white;
+  width: 100%;
+  max-width: 520px;
+  border-radius: 16px 16px 0 0;
+  max-height: 80vh;
+  overflow: auto;
+}
+@media (min-width: 768px) {
+  .drawer-backdrop {
+    align-items: center;
+  }
+  .drawer {
+    border-radius: 16px;
+    max-height: 85vh;
+  }
+}
+.drawer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.drawer-head h3 {
+  margin: 0;
+}
+.drawer-body {
+  padding: 20px;
+}
+
+/* Shipper job cards */
+.job-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.job-card {
+  padding: 18px;
+}
+.job-section {
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 3px solid #94a3b8;
+  margin: 10px 0;
+}
+.job-section-deliver {
+  border-left-color: var(--green-500, #22c55e);
+  background: #f0fdf4;
+}
+.job-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+.job-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  margin: 12px 0;
+  align-items: center;
+}
+.cod-badge {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.alert-error {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.job-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+/* Pill colors */
+.pill-blue {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+/* Stat highlight */
+.todo-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.todo-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.todo-list li:last-child {
+  border-bottom: none;
+}
+.todo-list a {
+  color: var(--green-700, #15803d);
+  font-weight: 600;
+  text-decoration: none;
+}
+.todo-list a:hover {
+  text-decoration: underline;
+}
+
+.btn-xs {
+  padding: 4px 8px;
+  font-size: 12px;
+}

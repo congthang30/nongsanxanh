@@ -1,0 +1,46 @@
+.app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.site-main { flex: 1; }
+
+/* Header */
+.site-header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.header-inner { display: flex; align-items: center; gap: 32px; height: 72px; }
+.brand { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 800; font-size: 22px; }
+.brand-logo { font-size: 26px; }
+.brand-name span { color: var(--green-600); }
+.main-nav { display: flex; gap: 28px; flex: 1; }
+.main-nav a { font-weight: 600; color: var(--ink-700); position: relative; padding: 6px 0; transition: color 0.2s; }
+.main-nav a:hover { color: var(--green-600); }
+.main-nav a.active { color: var(--green-700); }
+.main-nav a.active::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+  background: var(--gradient-leaf); border-radius: 3px;
+}
+.header-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+.cart-btn { position: relative; font-size: 22px; padding: 6px; }
+.cart-count {
+  position: absolute; top: -4px; right: -6px; background: var(--orange-500); color: #fff;
+  font-size: 11px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center; padding: 0 4px;
+}
+.user-menu { display: flex; align-items: center; gap: 12px; }
+.user-name { font-weight: 600; font-size: 14px; color: var(--ink-700); }
+
+/* Footer */
+.site-footer { background: var(--green-900); color: #cfe8d6; margin-top: 48px; }
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 32px; padding: 56px 0 32px; }
+.footer-grid h4 { color: #fff; margin-bottom: 14px; font-size: 16px; }
+.footer-grid a { display: block; color: #a7d3b4; padding: 4px 0; font-size: 14px; transition: color 0.2s; }
+.footer-grid a:hover { color: #fff; }
+.brand-footer { color: #fff; font-size: 20px; margin-bottom: 12px; }
+.brand-footer .brand-name span { color: var(--green-400); }
+.footer-desc { color: #8fbf9e; max-width: 280px; font-size: 14px; }
+.footer-bottom { border-top: 1px solid rgba(255, 255, 255, 0.1); padding: 18px 0; font-size: 13px; color: #7fae8e; }
+
+@media (max-width: 768px) {
+  .header-inner { gap: 16px; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+}
