@@ -19,6 +19,7 @@
 }
 .cart-item-issue { border-color: #fca5a5; background: #fef2f2; }
 .cart-item-warn { color: #dc2626; font-size: 12px; font-weight: 600; }
+.cart-fee-hint { color: var(--ink-500); font-size: 13px; }
 
 .cart-summary { padding: 24px; position: sticky; top: 96px; }
 .cart-summary h3 { margin-bottom: 18px; }

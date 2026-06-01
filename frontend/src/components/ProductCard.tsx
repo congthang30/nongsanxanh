@@ -38,7 +38,7 @@ export function ProductCard({ product }: { product: ProductSummary }) {
           <div className="product-img-ph">NS</div>
         )}
         {onSale && <span className="flash-badge">-{discountPct}%</span>}
-        {soldOut && <span className="soldout-badge">Het hang</span>}
+        {soldOut && <span className="soldout-badge">Tạm hết</span>}
         {product.originRegion && (
           <span className="badge badge-green origin-badge">
             {product.originRegion}
@@ -51,9 +51,9 @@ export function ProductCard({ product }: { product: ProductSummary }) {
         )}
         <h3 className="product-name">{product.name}</h3>
         <div className="product-rating">
-          {product.ratingAvg > 0 ? product.ratingAvg.toFixed(1) : 'Moi'}
+          {product.ratingAvg > 0 ? product.ratingAvg.toFixed(1) : 'Mới'}
           {product.ratingCount > 0 && (
-            <span className="muted"> ({product.ratingCount} danh gia)</span>
+            <span className="muted"> ({product.ratingCount} đánh giá)</span>
           )}
         </div>
         <div className="product-foot">
@@ -78,7 +78,7 @@ export function ProductCard({ product }: { product: ProductSummary }) {
               <span className="muted product-unit">/{product.unit}</span>
             )}
           </div>
-          <span className="add-pill">+</span>
+          <span className="add-pill" aria-hidden="true">+</span>
         </div>
       </div>
     </Link>

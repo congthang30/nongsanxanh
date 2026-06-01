@@ -37,7 +37,7 @@ export default function WarehousePick() {
   const act = useMutation({
     mutationFn: ({ id, path }: { id: string; path: string }) => api.post(`/warehouse/orders/${id}/${path}`, {}),
     onSuccess: (_data, vars) => {
-      push('Da cap nhat');
+      push('Đã cập nhật');
       qc.invalidateQueries({ queryKey: ['wh-pick'] });
       // reset checkbox cua don nay
       setPicked((prev) => {
@@ -51,7 +51,7 @@ export default function WarehousePick() {
 
   return (
     <>
-      <PageHeader title="Soan hang" subtitle="Don da xac nhan can soan va dong goi" />
+      <PageHeader title="Soạn hàng" subtitle="Đơn đã xác nhận cần soạn và đóng gói" />
       <div className="stack gap">
         {(orders ?? []).map((o) => (
           <div key={o.id} className="dash-table-card" style={{ padding: 18 }}>
@@ -85,17 +85,17 @@ export default function WarehousePick() {
             <div className="dash-row-actions" style={{ marginTop: 12 }}>
               {o.status === 'STORE_CONFIRMED' && (
                 <button className="dash-btn dash-btn-sm dash-btn-primary" disabled={act.isPending} onClick={() => act.mutate({ id: o.id, path: 'start-picking' })}>
-                  Bat dau soan
+                  Bắt đầu soạn
                 </button>
               )}
               {o.status === 'PICKING' && (
                 <button
                   className="dash-btn dash-btn-sm dash-btn-primary"
                   disabled={act.isPending || !allPicked(o)}
-                  title={!allPicked(o) ? 'Hay tick day du tat ca san pham truoc' : ''}
+                  title={!allPicked(o) ? 'Hãy tick đầy đủ tất cả sản phẩm trước' : ''}
                   onClick={() => act.mutate({ id: o.id, path: 'packed' })}
                 >
-                  Hoan tat dong goi ({(picked[o.id]?.size ?? 0)}/{o.items.length})
+                  Hoàn tất đóng gói ({(picked[o.id]?.size ?? 0)}/{o.items.length})
                 </button>
               )}
             </div>
@@ -103,7 +103,7 @@ export default function WarehousePick() {
         ))}
         {!isLoading && (orders ?? []).length === 0 && (
           <div className="dash-table-card" style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
-            Khong co don can soan.
+            Không có đơn cần soạn.
           </div>
         )}
       </div>

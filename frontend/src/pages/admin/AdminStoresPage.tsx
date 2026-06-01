@@ -31,11 +31,11 @@ export default function AdminStoresPage() {
   return (
     <>
       <PageHeader
-        title="Cua hang"
-        subtitle="Quan ly chuoi cua hang khu vuc"
+        title="Cửa hàng"
+        subtitle="Quản lý chuỗi cửa hàng khu vực"
         actions={
           <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
-            + Them cua hang
+            + Thêm cửa hàng
           </button>
         }
       />
@@ -44,17 +44,18 @@ export default function AdminStoresPage() {
         rows={stores ?? []}
         loading={isLoading}
         rowKey={(r) => r.id}
+        emptyText="Chưa có cửa hàng nào"
         columns={[
-          { key: 'code', title: 'Ma', render: (r) => <strong>{r.code}</strong> },
-          { key: 'name', title: 'Ten cua hang' },
-          { key: 'area', title: 'Khu vuc', render: (r) => `${r.district ? r.district + ', ' : ''}${r.province}` },
-          { key: 'manager', title: 'Quan ly', render: (r) => r.manager?.name ?? <span className="muted">Chua gan</span> },
-          { key: 'shipper', title: 'Shipper chinh', render: (r) => r.primaryShipper?.name ?? <span className="muted">Chua gan</span> },
+          { key: 'code', title: 'Mã', render: (r) => <strong>{r.code}</strong> },
+          { key: 'name', title: 'Tên cửa hàng' },
+          { key: 'area', title: 'Khu vực', render: (r) => `${r.district ? r.district + ', ' : ''}${r.province}` },
+          { key: 'manager', title: 'Quản lý', render: (r) => r.manager?.name ?? <span className="muted">Chưa gán</span> },
+          { key: 'shipper', title: 'Shipper chính', render: (r) => r.primaryShipper?.name ?? <span className="muted">Chưa gán</span> },
           { key: 'staff', title: 'NV', align: 'center', render: (r) => r.staffCount },
-          { key: 'status', title: 'Trang thai', render: (r) => <StatusBadge status={r.status} /> },
+          { key: 'status', title: 'Trạng thái', render: (r) => <StatusBadge status={r.status} /> },
           {
             key: 'act', title: '', render: (r) => (
-              <button className="btn btn-ghost btn-sm" onClick={() => setSelected(r.id)}>Quan ly</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setSelected(r.id)}>Quản lý</button>
             ),
           },
         ]}
@@ -104,7 +105,7 @@ function CreateStoreModal({ onClose, onCreated }: { onClose: () => void; onCreat
         lat: addr?.lat,
         lng: addr?.lng,
       }),
-    onSuccess: () => { push('Da tao cua hang'); onCreated(); },
+    onSuccess: () => { push('Đã tạo cửa hàng'); onCreated(); },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
@@ -113,42 +114,42 @@ function CreateStoreModal({ onClose, onCreated }: { onClose: () => void; onCreat
   return (
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
-        <h2>Them cua hang</h2>
+        <h2>Thêm cửa hàng</h2>
         <div className="dash-form-grid">
           <label>
-            Ma cua hang
+            Mã cửa hàng
             <input className="input" value={form.code} onChange={(e) => set('code', e.target.value)} placeholder="BHX-Q2" />
           </label>
           <label>
-            Ten
-            <input className="input" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="NongSan Xanh - Quan 2" />
+            Tên
+            <input className="input" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Nông Sản Xanh - Quận 2" />
           </label>
           <label>
             Slug
             <input className="input" value={form.slug} onChange={(e) => set('slug', e.target.value)} placeholder="nsx-quan-2" />
           </label>
           <label>
-            SDT
+            SĐT
             <input className="input" value={form.phone} onChange={(e) => set('phone', e.target.value)} />
           </label>
         </div>
         <div style={{ marginTop: 14 }}>
           <label style={{ fontSize: 13, color: '#475569', display: 'block', marginBottom: 6 }}>
-            Dia chi cua hang
+            Địa chỉ cửa hàng
           </label>
           <AddressSearchInput
             value={addr}
             onChange={setAddr}
-            placeholder="Tim dia chi (vd: 123 Le Loi, Quan 1, TP.HCM)"
+            placeholder="Tìm địa chỉ (vd: 123 Lê Lợi, Quận 1, TP.HCM)"
           />
           <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-            He thong tu dong tach Tinh/TP, Quan/Huyen, Phuong/Xa va lay toa do tu OpenStreetMap.
+            Hệ thống tự động tách Tỉnh/TP, Quận/Huyện, Phường/Xã và lấy tọa độ từ OpenStreetMap.
           </p>
         </div>
         <div className="flex gap-sm" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onClose}>Huy</button>
+          <button className="btn btn-ghost" onClick={onClose}>Hủy</button>
           <button className="btn btn-primary" disabled={!canSubmit} onClick={() => createMut.mutate()}>
-            Tao cua hang
+            Tạo cửa hàng
           </button>
         </div>
       </div>
@@ -186,12 +187,12 @@ function StoreDetailModal({ storeId, onClose, onChanged }: { storeId: string; on
 
   const assignManager = useMutation({
     mutationFn: () => api.post(`/admin/stores/${storeId}/assign-manager`, { userId: managerId }),
-    onSuccess: () => { push('Da gan quan ly'); refresh(); },
+    onSuccess: () => { push('Đã gán quản lý'); refresh(); },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
   const assignShipper = useMutation({
     mutationFn: () => api.post(`/admin/stores/${storeId}/assign-shipper`, { userId: shipperId }),
-    onSuccess: () => { push('Da gan shipper chinh'); refresh(); },
+    onSuccess: () => { push('Đã gán shipper chính'); refresh(); },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
@@ -199,37 +200,37 @@ function StoreDetailModal({ storeId, onClose, onChanged }: { storeId: string; on
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal dash-modal-lg" onClick={(e) => e.stopPropagation()}>
         <div className="between">
-          <h2>{store?.name ?? 'Cua hang'}</h2>
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>Dong</button>
+          <h2>{store?.name ?? 'Cửa hàng'}</h2>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>Đóng</button>
         </div>
 
         <div className="stack gap-lg" style={{ marginTop: 16 }}>
           <section>
-            <h4>Quan ly cua hang</h4>
-            <p className="muted">Hien tai: {store?.manager?.profile?.fullName ?? store?.manager?.email ?? 'Chua gan'}</p>
+            <h4>Quản lý cửa hàng</h4>
+            <p className="muted">Hiện tại: {store?.manager?.profile?.fullName ?? store?.manager?.email ?? 'Chưa gán'}</p>
             <div className="flex gap-sm">
-              <select className="input" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
-                <option value="">-- Chon quan ly --</option>
+              <select className="input" value={managerId} onChange={(e) => setManagerId(e.target.value)} aria-label="Chọn quản lý">
+                <option value="">-- Chọn quản lý --</option>
                 {managers?.map((m) => <option key={m.id} value={m.id}>{m.profile?.fullName ?? m.email}</option>)}
               </select>
-              <button className="btn btn-dark btn-sm" disabled={!managerId} onClick={() => assignManager.mutate()}>Gan</button>
+              <button className="btn btn-dark btn-sm" disabled={!managerId} onClick={() => assignManager.mutate()}>Gán</button>
             </div>
           </section>
 
           <section>
-            <h4>Shipper chinh</h4>
-            <p className="muted">Hien tai: {store?.primaryShipper?.profile?.fullName ?? store?.primaryShipper?.email ?? 'Chua gan'}</p>
+            <h4>Shipper chính</h4>
+            <p className="muted">Hiện tại: {store?.primaryShipper?.profile?.fullName ?? store?.primaryShipper?.email ?? 'Chưa gán'}</p>
             <div className="flex gap-sm">
-              <select className="input" value={shipperId} onChange={(e) => setShipperId(e.target.value)}>
-                <option value="">-- Chon shipper --</option>
+              <select className="input" value={shipperId} onChange={(e) => setShipperId(e.target.value)} aria-label="Chọn shipper">
+                <option value="">-- Chọn shipper --</option>
                 {shippers?.map((m) => <option key={m.id} value={m.id}>{m.profile?.fullName ?? m.email}</option>)}
               </select>
-              <button className="btn btn-dark btn-sm" disabled={!shipperId} onClick={() => assignShipper.mutate()}>Gan</button>
+              <button className="btn btn-dark btn-sm" disabled={!shipperId} onClick={() => assignShipper.mutate()}>Gán</button>
             </div>
           </section>
 
           <section>
-            <h4>Nhan vien ({store?.staff.length ?? 0})</h4>
+            <h4>Nhân viên ({store?.staff.length ?? 0})</h4>
             <div className="stack gap-sm">
               {store?.staff.map((s) => (
                 <div key={s.id} className="between" style={{ padding: '4px 0' }}>

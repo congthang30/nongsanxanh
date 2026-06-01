@@ -50,7 +50,7 @@ export function DashboardTopbar({ roleConfig, onToggleSidebar }: Props) {
         <div className="dash-search">
           <input
             type="search"
-            placeholder="Tim kiem nhanh..."
+            placeholder="Tìm kiếm nhanh..."
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const v = (e.target as HTMLInputElement).value.trim();
@@ -87,10 +87,10 @@ export function DashboardTopbar({ roleConfig, onToggleSidebar }: Props) {
               onMouseLeave={() => setMenuOpen(false)}
             >
               <Link to="/" className="dash-dropdown-item">
-                Ve trang khach
+                Về trang khách
               </Link>
               <Link to="/orders" className="dash-dropdown-item">
-                Don cua toi
+                Đơn của tôi
               </Link>
               <button
                 className="dash-dropdown-item"
@@ -99,7 +99,7 @@ export function DashboardTopbar({ roleConfig, onToggleSidebar }: Props) {
                   navigate('/login');
                 }}
               >
-                Dang xuat
+                Đăng xuất
               </button>
             </div>
           )}
@@ -112,27 +112,33 @@ export function DashboardTopbar({ roleConfig, onToggleSidebar }: Props) {
 function humanize(seg: string): string {
   const map: Record<string, string> = {
     admin: 'Admin',
-    staff: 'Staff',
+    staff: 'Hỗ trợ',
     shipper: 'Shipper',
-    warehouse: 'Warehouse',
-    'store-manager': 'Quan ly cua hang',
+    warehouse: 'Kho',
+    'store-manager': 'Quản lý cửa hàng',
+    store: 'Cửa hàng',
     pos: 'POS',
-    dashboard: 'Dashboard',
-    orders: 'Don hang',
-    products: 'San pham',
-    users: 'Nguoi dung',
-    settings: 'Cau hinh',
-    profile: 'Ho so',
-    inventory: 'Ton kho',
-    transactions: 'Lich su nhap/xuat',
-    reviews: 'Danh gia',
-    tickets: 'Tickets',
-    returns: 'Tra hang',
-    active: 'Dang giao',
-    history: 'Lich su',
-    stock: 'Ton kho',
-    packing: 'Dong goi',
-    alerts: 'Canh bao',
+    dashboard: 'Tổng quan',
+    orders: 'Đơn hàng',
+    products: 'Sản phẩm',
+    stores: 'Cửa hàng',
+    users: 'Người dùng',
+    settings: 'Cấu hình',
+    profile: 'Hồ sơ',
+    inventory: 'Tồn kho',
+    transactions: 'Lịch sử nhập/xuất',
+    reviews: 'Đánh giá',
+    reports: 'Báo cáo',
+    audit: 'Nhật ký',
+    tickets: 'Yêu cầu hỗ trợ',
+    returns: 'Trả hàng',
+    'pos-reports': 'Báo cáo POS',
+    pick: 'Soạn hàng',
+    active: 'Đang giao',
+    history: 'Lịch sử',
+    stock: 'Tồn kho',
+    packing: 'Đóng gói',
+    alerts: 'Cảnh báo',
   };
   return map[seg] ?? seg;
 }

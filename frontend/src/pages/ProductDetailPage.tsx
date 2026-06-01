@@ -67,11 +67,11 @@ export default function ProductDetailPage() {
 
   const handleAdd = async () => {
     if (!variant) return;
-    if (!inStock) { push('San pham nay hien het hang', 'error'); return; }
+    if (!inStock) { push('Sản phẩm này hiện tạm hết hàng', 'error'); return; }
     setAdding(true);
     try {
       await add(variant.id, qty);
-      push(`Da them ${qty} ${variant.unit} ${product.name} vao gio`);
+      push(`Đã thêm ${qty} ${variant.unit} ${product.name} vào giỏ`);
     } catch (e) {
       push(getErrorMessage(e), 'error');
     } finally {
@@ -82,7 +82,7 @@ export default function ProductDetailPage() {
   return (
     <div className="container section">
       <div className="breadcrumb muted">
-        <Link to="/">Trang chu</Link> / <Link to="/products">San pham</Link> / {product.name}
+        <Link to="/">Trang chủ</Link> / <Link to="/products">Sản phẩm</Link> / {product.name}
       </div>
 
       <div className="detail-grid">
@@ -113,8 +113,8 @@ export default function ProductDetailPage() {
           <span className="badge badge-green">{product.category.name}</span>
           <h1>{product.name}</h1>
           <div className="flex gap center detail-meta">
-            <span>{product.ratingAvg > 0 ? product.ratingAvg.toFixed(1) : 'Moi'} ({product.ratingCount} danh gia)</span>
-            {product.originRegion && <span className="muted">Xuat xu: {product.originRegion}</span>}
+            <span>{product.ratingAvg > 0 ? product.ratingAvg.toFixed(1) : 'Mới'} ({product.ratingCount} đánh giá)</span>
+            {product.originRegion && <span className="muted">Xuất xứ: {product.originRegion}</span>}
           </div>
 
           <div className="detail-price">
@@ -140,11 +140,11 @@ export default function ProductDetailPage() {
 
           <p className={`detail-stock ${inStock ? 'in' : 'out'}`}>
             {inStock
-              ? 'Con hang - giao tu cua hang gan ban'
-              : 'Tam het hang o tat ca cua hang'}
+              ? 'Có thể đặt - giao từ cửa hàng phù hợp gần bạn'
+              : 'Tạm hết hàng ở các cửa hàng gần bạn'}
             {inStock && variant?.storeCoverage != null && variant.storeCoverage > 0 && (
               <span className="muted" style={{ marginLeft: 8, fontSize: 13, fontWeight: 400 }}>
-                · Co san tai {variant.storeCoverage} cua hang
+                · Có sẵn tại {variant.storeCoverage} cửa hàng
               </span>
             )}
           </p>
@@ -160,7 +160,7 @@ export default function ProductDetailPage() {
               disabled={!variant || !inStock || adding}
               onClick={handleAdd}
             >
-              Them vao gio
+              Thêm vào giỏ
             </button>
           </div>
 
@@ -180,13 +180,13 @@ export default function ProductDetailPage() {
       </div>
 
       <section className="reviews-section">
-        <h2>Danh gia ({reviews?.length ?? 0})</h2>
+        <h2>Đánh giá ({reviews?.length ?? 0})</h2>
         {reviews && reviews.length > 0 ? (
           <div className="stack gap">
             {reviews.map((r) => (
               <div key={r.id} className="card review-card">
                 <div className="between">
-                  <strong>{r.user.profile?.fullName ?? 'Khach hang'}</strong>
+                  <strong>{r.user.profile?.fullName ?? 'Khách hàng'}</strong>
                   <span>{r.rating}/5</span>
                 </div>
                 {r.comment && <p className="muted">{r.comment}</p>}
@@ -194,13 +194,13 @@ export default function ProductDetailPage() {
             ))}
           </div>
         ) : (
-          <p className="muted">Chua co danh gia nao cho san pham nay.</p>
+          <p className="muted">Chưa có đánh giá nào cho sản phẩm này.</p>
         )}
       </section>
 
       {related && related.length > 0 && (
         <section className="reviews-section">
-          <h2>San pham lien quan</h2>
+          <h2>Sản phẩm liên quan</h2>
           <div className="grid product-grid">
             {related.map((p) => (
               <Link key={p.id} to={`/products/${p.slug}`} className="card related-card">
@@ -211,7 +211,7 @@ export default function ProductDetailPage() {
                   <strong className="related-name">{p.name}</strong>
                   <div className="flex between center">
                     <span className="price">{p.fromPrice ? formatVnd(p.fromPrice) : '—'}</span>
-                    <span className="muted" style={{ fontSize: 13 }}>{p.ratingAvg > 0 ? p.ratingAvg.toFixed(1) : 'Moi'}</span>
+                    <span className="muted" style={{ fontSize: 13 }}>{p.ratingAvg > 0 ? p.ratingAvg.toFixed(1) : 'Mới'}</span>
                   </div>
                 </div>
               </Link>

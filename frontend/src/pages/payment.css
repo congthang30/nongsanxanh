@@ -1,0 +1,43 @@
+.payment-return-card {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 48px 40px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.payment-return-card h2 { margin: 6px 0 0; }
+.payment-return-card .muted { max-width: 380px; }
+
+.payment-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  margin-bottom: 6px;
+}
+.payment-icon-success { background: var(--green-100); color: var(--green-600); }
+.payment-icon-failed { background: #fee2e2; color: var(--danger); }
+.payment-icon-pending { background: #e0f2fe; color: #0284c7; }
+
+.payment-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--green-100);
+  border-top-color: var(--green-600);
+  border-radius: 50%;
+  animation: payspin 0.8s linear infinite;
+  margin-bottom: 6px;
+}
+@keyframes payspin { to { transform: rotate(360deg); } }
+
+.payment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 18px;
+}

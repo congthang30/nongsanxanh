@@ -26,22 +26,23 @@ export default function AdminAuditPage() {
 
   return (
     <>
-      <PageHeader title="Nhat ky he thong" subtitle="Audit log cac hanh dong nhay cam" />
+      <PageHeader title="Nhật ký hệ thống" subtitle="Nhật ký các thao tác nhạy cảm" />
       <div className="dash-table-card" style={{ padding: 12, marginBottom: 16 }}>
-        <select className="input" style={{ maxWidth: 320 }} value={action} onChange={(e) => setAction(e.target.value)}>
-          {ACTIONS.map((a) => <option key={a} value={a}>{a || 'Tat ca hanh dong'}</option>)}
+        <select className="input" style={{ maxWidth: 320 }} value={action} onChange={(e) => setAction(e.target.value)} aria-label="Lọc theo hành động">
+          {ACTIONS.map((a) => <option key={a} value={a}>{a || 'Tất cả hành động'}</option>)}
         </select>
       </div>
       <DataTable<AuditRow>
         rows={data ?? []}
         loading={isLoading}
         rowKey={(r) => r.id}
+        emptyText="Chưa có nhật ký"
         columns={[
-          { key: 'time', title: 'Thoi gian', render: (r) => <span className="muted">{new Date(r.createdAt).toLocaleString('vi-VN')}</span> },
-          { key: 'action', title: 'Hanh dong', render: (r) => <strong>{r.action}</strong> },
-          { key: 'actor', title: 'Nguoi thuc hien', render: (r) => r.actor?.profile?.fullName ?? r.actor?.email ?? 'He thong' },
-          { key: 'target', title: 'Doi tuong', render: (r) => r.targetType ? `${r.targetType}` : '—' },
-          { key: 'meta', title: 'Chi tiet', render: (r) => <code style={{ fontSize: 11 }}>{r.metadata ? JSON.stringify(r.metadata) : '—'}</code> },
+          { key: 'time', title: 'Thời gian', render: (r) => <span className="muted">{new Date(r.createdAt).toLocaleString('vi-VN')}</span> },
+          { key: 'action', title: 'Hành động', render: (r) => <strong>{r.action}</strong> },
+          { key: 'actor', title: 'Người thực hiện', render: (r) => r.actor?.profile?.fullName ?? r.actor?.email ?? 'Hệ thống' },
+          { key: 'target', title: 'Đối tượng', render: (r) => r.targetType ? `${r.targetType}` : '—' },
+          { key: 'meta', title: 'Chi tiết', render: (r) => <code style={{ fontSize: 11 }}>{r.metadata ? JSON.stringify(r.metadata) : '—'}</code> },
         ]}
       />
     </>

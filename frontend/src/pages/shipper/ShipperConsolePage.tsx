@@ -19,13 +19,13 @@ interface Job {
 }
 
 const NEXT_ACTION: Record<string, { label: string; path: string }[]> = {
-  ASSIGNED: [{ label: 'Da lay hang', path: 'picked-from-store' }],
-  PICKED_FROM_STORE: [{ label: 'Bat dau giao', path: 'out-for-delivery' }],
+  ASSIGNED: [{ label: 'Đã lấy hàng', path: 'picked-from-store' }],
+  PICKED_FROM_STORE: [{ label: 'Bắt đầu giao', path: 'out-for-delivery' }],
   OUT_FOR_DELIVERY: [
-    { label: 'Da den noi', path: 'arrived' },
-    { label: 'Giao thanh cong', path: 'delivered' },
+    { label: 'Đã đến nơi', path: 'arrived' },
+    { label: 'Giao thành công', path: 'delivered' },
   ],
-  ARRIVED_AT_CUSTOMER: [{ label: 'Giao thanh cong', path: 'delivered' }],
+  ARRIVED_AT_CUSTOMER: [{ label: 'Giao thành công', path: 'delivered' }],
 };
 
 export default function ShipperConsolePage({ scope }: { scope: 'active' | 'history' }) {
@@ -42,7 +42,7 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
   const act = useMutation({
     mutationFn: ({ id, path, body }: { id: string; path: string; body?: object }) =>
       api.post(`/shipper/jobs/${id}/${path}`, body ?? {}),
-    onSuccess: () => { push('Da cap nhat'); qc.invalidateQueries({ queryKey: ['shipper-jobs'] }); },
+    onSuccess: () => { push('Đã cập nhật'); qc.invalidateQueries({ queryKey: ['shipper-jobs'] }); },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
@@ -71,8 +71,8 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
   return (
     <>
       <PageHeader
-        title={scope === 'active' ? 'Don dang giao' : 'Lich su giao hang'}
-        subtitle={scope === 'active' ? 'Cap nhat trang thai tung don' : 'Don da hoan tat / that bai'}
+        title={scope === 'active' ? 'Đơn đang giao' : 'Lịch sử giao hàng'}
+        subtitle={scope === 'active' ? 'Cập nhật trạng thái từng đơn' : 'Đơn đã hoàn tất / thất bại'}
       />
       <div className="stack gap">
         {(jobs ?? []).map((j) => (
@@ -83,14 +83,14 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
             </div>
             <div className="ship-job-grid">
               <div>
-                <div className="muted" style={{ fontSize: 12 }}>Lay hang tai</div>
+                <div className="muted" style={{ fontSize: 12 }}>Lấy hàng tại</div>
                 <strong>{j.store.name}</strong>
                 <div className="muted" style={{ fontSize: 13 }}>{j.store.formattedAddress}</div>
               </div>
               <div>
                 <div className="between" style={{ alignItems: 'flex-start' }}>
                   <div>
-                    <div className="muted" style={{ fontSize: 12 }}>Giao den</div>
+                    <div className="muted" style={{ fontSize: 12 }}>Giao đến</div>
                     <strong>{j.dropoffName}</strong>
                     <div className="muted" style={{ fontSize: 13 }}>{j.dropoffPhone}</div>
                     <div className="muted" style={{ fontSize: 13 }}>{j.dropoffAddress}</div>
@@ -99,10 +99,10 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
                     type="button"
                     className="dash-btn dash-btn-sm"
                     onClick={() => openMaps(j)}
-                    aria-label="Mo chi duong tren Google Maps"
-                    title="Mo chi duong"
+                    aria-label="Mở chỉ đường trên Google Maps"
+                    title="Mở chỉ đường"
                   >
-                    Chi duong
+                    Chỉ đường
                   </button>
                 </div>
               </div>
@@ -126,7 +126,7 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
                     ),
                   )}
                   {['OUT_FOR_DELIVERY', 'ARRIVED_AT_CUSTOMER'].includes(j.status) && (
-                    <button className="dash-btn dash-btn-sm" disabled={act.isPending} onClick={() => setFailModal(j)}>Giao that bai</button>
+                    <button className="dash-btn dash-btn-sm" disabled={act.isPending} onClick={() => setFailModal(j)}>Giao thất bại</button>
                   )}
                 </div>
               )}
@@ -138,7 +138,7 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
         ))}
         {!isLoading && (jobs ?? []).length === 0 && (
           <div className="dash-table-card" style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
-            {scope === 'active' ? 'Khong co don can giao.' : 'Chua co lich su giao hang.'}
+            {scope === 'active' ? 'Không có đơn cần giao.' : 'Chưa có lịch sử giao hàng.'}
           </div>
         )}
       </div>
@@ -186,28 +186,28 @@ function FailReasonModal({
   return (
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Don giao that bai</h2>
+        <h2>Đơn giao thất bại</h2>
         <p className="muted" style={{ marginBottom: 12 }}>#{job.order.orderNumber} · {job.dropoffName}</p>
         <label style={{ display: 'block' }}>
-          Ly do (bat buoc) <span style={{ color: '#dc2626' }}>*</span>
+          Lý do (bắt buộc) <span style={{ color: '#dc2626' }}>*</span>
           <textarea
             className="input"
             rows={3}
             autoFocus
-            placeholder="VD: Khach khong nghe may, sai dia chi, khong ai nhan..."
+            placeholder="VD: Khách không nghe máy, sai địa chỉ, không ai nhận..."
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             style={{ marginTop: 6 }}
           />
         </label>
         <div className="flex gap-sm" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onClose}>Huy</button>
+          <button className="btn btn-ghost" onClick={onClose}>Hủy</button>
           <button
             className="btn btn-primary"
             disabled={busy || reason.trim().length < 3}
             onClick={() => onConfirm(reason.trim())}
           >
-            Xac nhan that bai
+            Xác nhận thất bại
           </button>
         </div>
       </div>
@@ -229,24 +229,24 @@ function CodConfirmModal({
   return (
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Xac nhan giao thanh cong</h2>
+        <h2>Xác nhận giao thành công</h2>
         <p className="muted" style={{ marginBottom: 12 }}>
-          Don COD #{job.order.orderNumber} · Khach: <strong>{job.dropoffName}</strong>
+          Đơn COD #{job.order.orderNumber} · Khách: <strong>{job.dropoffName}</strong>
         </p>
         <div
           className="card"
           style={{ padding: 14, background: '#fef3c7', borderColor: '#fcd34d', marginBottom: 14 }}
         >
           <p style={{ margin: 0, fontSize: 14 }}>
-            Tong thu COD: <strong style={{ fontSize: 18 }}>{formatVnd(job.codAmount ?? 0)}</strong>
+            Tổng thu COD: <strong style={{ fontSize: 18 }}>{formatVnd(job.codAmount ?? 0)}</strong>
           </p>
         </div>
         <div className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
           <button className="btn btn-ghost" disabled={busy} onClick={() => onConfirm(false)}>
-            Chua thu duoc
+            Chưa thu được
           </button>
           <button className="btn btn-primary" disabled={busy} onClick={() => onConfirm(true)}>
-            Da nhan du tien
+            Đã nhận đủ tiền
           </button>
         </div>
       </div>

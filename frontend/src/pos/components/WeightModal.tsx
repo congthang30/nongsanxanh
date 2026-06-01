@@ -34,9 +34,9 @@ export function WeightModal({
       <div className="pos-modal" onClick={(e) => e.stopPropagation()}>
         <h3>{product.productName}</h3>
         <p className="sub">
-          Can ky &middot; {formatVnd(product.unitPrice)}/{product.unit} &middot; Ton: {product.available} {product.unit}
+          Cân ký &middot; {formatVnd(product.unitPrice)}/{product.unit} &middot; Tồn: {product.available} {product.unit}
         </p>
-        <label className="pos-field-label">Nhap khoi luong ({product.unit})</label>
+        <label className="pos-field-label">Nhập khối lượng ({product.unit})</label>
         <input
           ref={inputRef}
           className="pos-big-input pos-tabular"
@@ -53,15 +53,15 @@ export function WeightModal({
           }}
         />
         <div className="pos-change-box" style={{ marginTop: 14 }}>
-          <span>Thanh tien</span>
+          <span>Thành tiền</span>
           <b className="pos-tabular">{formatVnd(lineTotal)}</b>
         </div>
         <div className="pos-modal-actions">
           <button className="pos-btn" onClick={onClose}>
-            Huy
+            Hủy
           </button>
           <button className="pos-btn pos-btn-primary" disabled={!valid} onClick={submit}>
-            Them vao hoa don
+            Thêm vào hóa đơn
           </button>
         </div>
       </div>

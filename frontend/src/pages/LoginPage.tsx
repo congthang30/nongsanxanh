@@ -118,7 +118,7 @@ export default function LoginPage() {
   const handleGoogleCredential = useCallback(
     async (response: GoogleCredentialResponse) => {
       if (!response.credential) {
-        setError('Google khong tra ve thong tin dang nhap');
+        setError('Google không trả về thông tin đăng nhập');
         return;
       }
 
@@ -196,12 +196,12 @@ export default function LoginPage() {
     <div className="auth-wrap">
       <div className="auth-art">
         <div className="auth-art-emoji">NSX</div>
-        <h2>Chao mung tro lai!</h2>
-        <p>Dang nhap de tiep tuc mua sam nong san tuoi sach, theo doi don hang va nhan uu dai.</p>
+        <h2>Chào mừng trở lại!</h2>
+        <p>Đăng nhập để tiếp tục mua sắm nông sản tươi sạch, theo dõi đơn hàng và nhận ưu đãi.</p>
         <div className="auth-art-points">
-          <div>Cua hang khu vuc gan ban</div>
-          <div>Giao nhanh trong ngay</div>
-          <div>Thanh toan COD &amp; VNPay</div>
+          <div>Cửa hàng khu vực gần bạn</div>
+          <div>Giao nhanh trong ngày</div>
+          <div>Thanh toán COD &amp; VNPay</div>
         </div>
       </div>
 
@@ -237,14 +237,14 @@ export default function LoginPage() {
             Chưa có tài khoản? <Link to="/register">Đăng ký ngay</Link>
           </p>
           <div className="auth-demo">
-            <strong>Tai khoan demo:</strong><br />
-            Khach: <code>customer@nsx.local</code><br />
+            <strong>Tài khoản demo:</strong><br />
+            Khách: <code>customer@nsx.local</code><br />
             Admin: <code>admin@nsx.local</code><br />
-            Quan ly CH: <code>manager.q1@nsx.local</code><br />
-            NV ban hang: <code>staff.q1.a@nsx.local</code><br />
+            Quản lý CH: <code>manager.q1@nsx.local</code><br />
+            NV bán hàng: <code>staff.q1.a@nsx.local</code><br />
             NV kho: <code>kho.q1.a@nsx.local</code><br />
             Shipper: <code>shipper.q1@nsx.local</code><br />
-            Mat khau: <code>Password123!</code>
+            Mật khẩu: <code>Password123!</code>
           </div>
         </div>
       </div>

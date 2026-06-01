@@ -17,22 +17,23 @@ export default function StoreManagerStaff() {
 
   return (
     <>
-      <PageHeader title="Nhan vien cua hang" subtitle="Danh sach nhan su lam viec tai cua hang" />
+      <PageHeader title="Nhân viên cửa hàng" subtitle="Danh sách nhân sự làm việc tại cửa hàng" />
       <DataTable<StaffRow>
         rows={data ?? []}
         loading={isLoading}
         rowKey={(r) => r.id}
+        emptyText="Chưa có nhân viên"
         columns={[
-          { key: 'name', title: 'Ho ten', render: (r) => <strong>{r.fullName ?? r.email}</strong> },
+          { key: 'name', title: 'Họ tên', render: (r) => <strong>{r.fullName ?? r.email}</strong> },
           { key: 'email', title: 'Email', render: (r) => r.email ?? '—' },
-          { key: 'phone', title: 'SDT', render: (r) => r.phone ?? '—' },
-          { key: 'role', title: 'Vai tro', render: (r) => <StatusBadge status={r.role} /> },
-          { key: 'status', title: 'Trang thai', render: (r) => <StatusBadge status={r.status} /> },
-          { key: 'joined', title: 'Ngay vao', render: (r) => <span className="muted">{new Date(r.joinedAt).toLocaleDateString('vi-VN')}</span> },
+          { key: 'phone', title: 'SĐT', render: (r) => r.phone ?? '—' },
+          { key: 'role', title: 'Vai trò', render: (r) => <StatusBadge status={r.role} /> },
+          { key: 'status', title: 'Trạng thái', render: (r) => <StatusBadge status={r.status} /> },
+          { key: 'joined', title: 'Ngày vào', render: (r) => <span className="muted">{new Date(r.joinedAt).toLocaleDateString('vi-VN')}</span> },
         ]}
       />
       <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>
-        De them/go nhan vien, lien he Admin (trang Cua hang).
+        Để thêm/gỡ nhân viên, liên hệ Admin (trang Cửa hàng).
       </p>
     </>
   );

@@ -16,51 +16,39 @@ interface Category {
   slug: string;
 }
 
-const CATEGORY_META: Record<string, { icon: string; desc: string }> = {
-  'rau-cu': { icon: '🥬', desc: 'Rau xanh, sạch, thu hoạch trong ngày' },
-  'trai-cay': { icon: '🍊', desc: 'Trái cây theo mùa, ngọt tự nhiên' },
-  'gao-hat': { icon: '🌾', desc: 'Gạo ST25, hạt lạc, đậu các loại' },
-  'cu-qua': { icon: '🥔', desc: 'Khoai, sắn, củ quả vùng miền' },
-};
-
-const BENEFITS = [
-  {
-    icon: '🚚',
-    title: 'Giao nhanh trong ngày',
-    desc: 'Tuyến giao ưu tiên nội thành, hàng tươi đến tay bạn',
-    tone: 'green',
-  },
-  {
-    icon: '🌿',
-    title: 'Truy xuất nguồn gốc',
-    desc: 'Rõ vùng trồng, nhà vườn và quy trình thu hoạch',
-    tone: 'leaf',
-  },
-  {
-    icon: '❄️',
-    title: 'Bảo quản đúng cách',
-    desc: 'Vận chuyển lạnh cho rau quả dễ hư khi cần thiết',
-    tone: 'sky',
-  },
-  {
-    icon: '🔒',
-    title: 'Thanh toán an toàn',
-    desc: 'COD tận nhà hoặc VNPay — minh bạch, bảo mật',
-    tone: 'amber',
-  },
-] as const;
-
-const STEPS = [
-  { num: '01', title: 'Chọn nông sản', desc: 'Duyệt hàng trăm sản phẩm từ nhà vườn uy tín' },
-  { num: '02', title: 'Đặt hàng dễ dàng', desc: 'Thêm giỏ, chọn địa chỉ và phương thức thanh toán' },
-  { num: '03', title: 'Nhận hàng tươi', desc: 'Giao nhanh, kiểm tra chất lượng trước khi nhận' },
+const TRUST_CHIPS = [
+  'Tự kiểm tồn trước khi đặt',
+  'Giao từ cửa hàng phù hợp',
+  'COD hoặc VNPay',
 ];
 
-const REGIONS = [
-  { name: 'Đà Lạt', emoji: '🏔️', tag: 'Rau & dâu' },
-  { name: 'Vĩnh Long', emoji: '🌊', tag: 'Khoai & trái cây' },
-  { name: 'Tiền Giang', emoji: '🥭', tag: 'Xoài & trái nhiệt' },
-  { name: 'Sóc Trăng', emoji: '🌾', tag: 'Gạo ST25' },
+const STEPS = [
+  { num: '01', title: 'Chọn nông sản', desc: 'Duyệt rau củ, trái cây và đồ thiết yếu tươi mỗi ngày.' },
+  { num: '02', title: 'Nhập địa chỉ giao', desc: 'Hệ thống tự chọn cửa hàng phù hợp gần bạn còn đủ hàng.' },
+  { num: '03', title: 'Nhận hàng tươi', desc: 'Cửa hàng soạn hàng và shipper giao tận nơi.' },
+];
+
+const FEATURES = [
+  {
+    title: 'Giao nhanh trong ngày',
+    desc: 'Tuyến giao ưu tiên nội thành, hàng tươi đến tay bạn.',
+    path: 'M3 13l2-7h11l3 4h2v3M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0Zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z',
+  },
+  {
+    title: 'Truy xuất nguồn gốc',
+    desc: 'Rõ vùng trồng, nhà vườn và quy trình thu hoạch.',
+    path: 'M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4Zm-1 12-3-3 1.4-1.4L11 11.2l4.6-4.6L17 8l-6 6Z',
+  },
+  {
+    title: 'Tồn kho minh bạch',
+    desc: 'Kiểm tồn theo địa chỉ giao trước khi đặt, tránh thiếu hàng.',
+    path: 'M4 4h16v4H4V4Zm0 6h16v10H4V10Zm4 3v4h8v-4H8Z',
+  },
+  {
+    title: 'Thanh toán an toàn',
+    desc: 'COD tận nhà hoặc VNPay, minh bạch và bảo mật.',
+    path: 'M2 6h20v12H2V6Zm0 4h20M6 15h4',
+  },
 ];
 
 export default function HomePage() {
@@ -88,31 +76,25 @@ export default function HomePage() {
     <>
       {/* Hero */}
       <section className="hero">
-        <div className="hero-bg" aria-hidden="true">
-          <div className="hero-orb hero-orb-1" />
-          <div className="hero-orb hero-orb-2" />
-          <div className="hero-grid-pattern" />
-        </div>
-
         <div className="container hero-inner">
           <div className="hero-copy fade-up">
-            <div className="hero-badge-row">
-              <span className="hero-badge">🌱 Tươi từ vườn</span>
-              <span className="hero-badge hero-badge-outline">Chuẩn VietGAP</span>
-            </div>
-
+            <span className="hero-eyebrow">Chuỗi cửa hàng nông sản tươi</span>
             <h1>
-              Nông sản sạch,
-              <span className="hero-accent"> giao tận nhà</span>
+              Nông sản tươi
+              <span className="hero-accent"> mỗi ngày</span>
             </h1>
-
             <p className="hero-sub">
-              Trái cây, rau củ, gạo và đặc sản vùng miền — truy xuất nguồn gốc rõ ràng,
-              thu hoạch và giao trong ngày.
+              Đặt rau củ, trái cây và đồ thiết yếu. Hệ thống tự chọn cửa hàng
+              phù hợp gần bạn có đủ hàng.
             </p>
 
             <form className="hero-search" onSubmit={handleSearch}>
-              <span className="hero-search-icon" aria-hidden="true">🔍</span>
+              <span className="hero-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
+              </span>
               <input
                 type="search"
                 className="hero-search-input"
@@ -122,88 +104,41 @@ export default function HomePage() {
                 aria-label="Tìm kiếm sản phẩm"
               />
               <button type="submit" className="btn btn-primary hero-search-btn">
-                Tìm kiếm
+                Tìm
               </button>
             </form>
 
-            <div className="hero-tags">
-              {['Rau cu', 'Trai cay', 'Gao ST25', 'Dac san'].map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  className="hero-tag"
-                  onClick={() => navigate(`/products?q=${encodeURIComponent(tag)}`)}
-                >
-                  {tag}
-                </button>
-              ))}
+            <div className="hero-cta-row">
+              <Link to="/products" className="btn btn-primary">Mua ngay</Link>
+              <Link to="/orders" className="btn btn-ghost">Xem đơn hàng</Link>
             </div>
 
-            <div className="hero-stats">
-              {[
-                ['500+', 'San pham'],
-                ['3', 'Cua hang khu vuc'],
-                ['24h', 'Giao nhanh'],
-              ].map(([val, label]) => (
-                <div key={label} className="hero-stat">
-                  <strong>{val}</strong>
-                  <span>{label}</span>
-                </div>
+            <ul className="hero-trust">
+              {TRUST_CHIPS.map((chip) => (
+                <li key={chip} className="hero-trust-chip">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                  {chip}
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
 
-          <div className="hero-visual fade-up" aria-hidden="true">
-            <div className="hero-showcase">
-              <div className="showcase-main">
-                <span className="showcase-emoji">🥭</span>
-                <div className="showcase-label">
-                  <strong>Xoài Cát Hòa Lộc</strong>
-                  <span>Tiền Giang · Mùa vàng</span>
-                </div>
-              </div>
-              <div className="showcase-card showcase-card-a">
-                <span>🍅</span>
-                <div>
-                  <strong>Cà chua hữu cơ</strong>
-                  <small>Đà Lạt</small>
-                </div>
-              </div>
-              <div className="showcase-card showcase-card-b">
-                <span>🌾</span>
-                <div>
-                  <strong>Gạo ST25</strong>
-                  <small>Sóc Trăng</small>
-                </div>
-              </div>
-              <div className="showcase-card showcase-card-c">
-                <span>🥑</span>
-                <div>
-                  <strong>Bơ sáp</strong>
-                  <small>Đắk Lắk</small>
-                </div>
-              </div>
-              <div className="showcase-badge">
-                <span>⚡</span> Giao trong ngày
-              </div>
+          <div className="hero-visual fade-up">
+            <img
+              className="hero-img"
+              src="/hero-produce.png"
+              alt="Rau củ, trái cây và đồ thiết yếu tươi"
+              loading="eager"
+            />
+            <div className="hero-img-badge">
+              <span className="hero-img-badge-dot" />
+              Giao trong ngày
             </div>
           </div>
         </div>
       </section>
-
-      {/* Trust strip */}
-      <div className="trust-strip">
-        <div className="container trust-strip-inner">
-          {[
-            '✓ Thu hoạch trong ngày',
-            '✓ Truy xuất nguồn gốc',
-            '✓ Đổi trả trong 24h',
-            '✓ COD & VNPay',
-          ].map((item) => (
-            <span key={item} className="trust-item">{item}</span>
-          ))}
-        </div>
-      </div>
 
       {/* Categories */}
       <section className="section home-categories">
@@ -212,36 +147,31 @@ export default function HomePage() {
             <div>
               <span className="section-label">Danh mục</span>
               <h2>Mua theo loại nông sản</h2>
-              <p className="muted">Chon danh muc phu hop, giao nhanh tu cua hang gan ban</p>
+              <p className="muted">Chọn danh mục phù hợp, hệ thống giao từ cửa hàng gần bạn.</p>
             </div>
             <Link to="/products" className="btn btn-ghost btn-sm hide-mobile">
-              Xem tất cả →
+              Xem tất cả
             </Link>
           </div>
 
           <div className="cat-grid">
-            {(categories ?? []).map((cat) => {
-              const meta = CATEGORY_META[cat.slug] ?? { icon: '🌿', desc: 'Nông sản tươi sạch' };
-              return (
-                <Link
-                  key={cat.id}
-                  to={`/products?categoryId=${cat.id}`}
-                  className="cat-card fade-up"
-                >
-                  <span className="cat-icon">{meta.icon}</span>
-                  <div className="cat-body">
-                    <strong>{cat.name}</strong>
-                    <p className="muted">{meta.desc}</p>
-                  </div>
-                  <span className="cat-arrow" aria-hidden="true">→</span>
-                </Link>
-              );
-            })}
-            {!categories && (
+            {(categories ?? []).map((cat) => (
+              <Link
+                key={cat.id}
+                to={`/products?categoryId=${cat.id}`}
+                className="cat-card fade-up"
+              >
+                <span className="cat-badge" aria-hidden="true">{cat.name.charAt(0)}</span>
+                <div className="cat-body">
+                  <strong>{cat.name}</strong>
+                </div>
+                <span className="cat-arrow" aria-hidden="true">→</span>
+              </Link>
+            ))}
+            {!categories &&
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="cat-card skeleton" style={{ height: 100 }} />
-              ))
-            )}
+                <div key={i} className="cat-card skeleton" style={{ height: 76 }} />
+              ))}
           </div>
         </div>
       </section>
@@ -253,7 +183,7 @@ export default function HomePage() {
             <div>
               <span className="section-label">Nổi bật</span>
               <h2>Sản phẩm được yêu thích</h2>
-              <p className="muted">Tuoi ngon, chon loc moi ngay tu cac cua hang trong khu vuc</p>
+              <p className="muted">Tươi ngon, chọn lọc mỗi ngày từ các cửa hàng trong hệ thống.</p>
             </div>
             <Link to="/products" className="btn btn-primary btn-sm">
               Xem tất cả
@@ -280,7 +210,7 @@ export default function HomePage() {
           <div className="section-intro center-block">
             <span className="section-label">Quy trình</span>
             <h2>Mua nông sản chỉ 3 bước</h2>
-            <p className="muted">Đơn giản, nhanh chóng — từ vườn đến bàn ăn của bạn</p>
+            <p className="muted">Bạn chỉ cần chọn hàng và nhập địa chỉ, phần còn lại để hệ thống lo.</p>
           </div>
 
           <div className="steps-grid">
@@ -295,45 +225,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Benefits */}
-      <section className="section home-benefits">
+      {/* Features */}
+      <section className="section home-features">
         <div className="container">
-          <div className="benefits-grid">
-            {BENEFITS.map((b) => (
-              <div key={b.title} className={`benefit-card benefit-${b.tone}`}>
-                <span className="benefit-icon">{b.icon}</span>
+          <div className="features-grid">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="feature-card">
+                <span className="feature-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={f.path} />
+                  </svg>
+                </span>
                 <div>
-                  <strong>{b.title}</strong>
-                  <p className="muted">{b.desc}</p>
+                  <strong>{f.title}</strong>
+                  <p className="muted">{f.desc}</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Regions */}
-      <section className="section home-regions">
-        <div className="container">
-          <div className="section-intro">
-            <div>
-              <span className="section-label">Vùng miền</span>
-              <h2>Đặc sản từ khắp cả nước</h2>
-              <p className="muted">Cua hang khu vuc phuc vu nhanh tan noi</p>
-            </div>
-          </div>
-
-          <div className="region-grid">
-            {REGIONS.map((r) => (
-              <Link
-                key={r.name}
-                to={`/products?q=${encodeURIComponent(r.name)}`}
-                className="region-card fade-up"
-              >
-                <span className="region-emoji">{r.emoji}</span>
-                <strong>{r.name}</strong>
-                <span className="region-tag">{r.tag}</span>
-              </Link>
             ))}
           </div>
         </div>
@@ -346,16 +253,11 @@ export default function HomePage() {
             <div className="cta-copy">
               <span className="section-label section-label-light">Bắt đầu ngay</span>
               <h2>Sẵn sàng ăn sạch, sống khỏe?</h2>
-              <p>Khám phá hàng trăm nông sản tươi — giao nhanh, truy xuất rõ ràng, giá minh bạch.</p>
+              <p>Khám phá hàng trăm nông sản tươi, giao nhanh từ cửa hàng phù hợp với bạn.</p>
               <div className="flex gap">
                 <Link to="/products" className="btn btn-primary">Mua sắm ngay</Link>
-                <Link to="/login" className="btn btn-ghost cta-ghost">Tạo tài khoản</Link>
+                <Link to="/register" className="btn btn-ghost cta-ghost">Tạo tài khoản</Link>
               </div>
-            </div>
-            <div className="cta-art" aria-hidden="true">
-              <span>🥬</span>
-              <span>🍊</span>
-              <span>🌾</span>
             </div>
           </div>
         </div>

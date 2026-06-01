@@ -5,6 +5,7 @@ import { useToastStore } from '../../lib/toast.store';
 import { PageHeader } from '../../dashboard/components/PageHeader';
 import { DataTable } from '../../dashboard/components/DataTable';
 import { StatusBadge } from '../../dashboard/components/StatusBadge';
+import { ConfirmModal } from '../../components/ConfirmModal';
 
 interface UserRow {
   id: string; email: string | null; phone: string | null; status: string;
@@ -14,10 +15,10 @@ interface UserRow {
 }
 
 const ROLE_FILTERS = [
-  { code: '', label: 'Tat ca' },
-  { code: 'CUSTOMER', label: 'Khach hang' },
-  { code: 'STORE_MANAGER', label: 'Quan ly CH' },
-  { code: 'STORE_STAFF', label: 'NV ban hang' },
+  { code: '', label: 'Tất cả' },
+  { code: 'CUSTOMER', label: 'Khách hàng' },
+  { code: 'STORE_MANAGER', label: 'Quản lý CH' },
+  { code: 'STORE_STAFF', label: 'NV bán hàng' },
   { code: 'WAREHOUSE_STAFF', label: 'NV kho' },
   { code: 'SHIPPER', label: 'Shipper' },
   { code: 'ADMIN', label: 'Admin' },
@@ -31,6 +32,7 @@ export default function AdminUsersPage() {
   const [role, setRole] = useState('');
   const [storeId, setStoreId] = useState('');
   const [editing, setEditing] = useState<UserRow | null>(null);
+  const [lockTarget, setLockTarget] = useState<UserRow | null>(null);
 
   const { data: stores } = useQuery({
     queryKey: ['admin-stores-lite'],
@@ -53,13 +55,13 @@ export default function AdminUsersPage() {
 
   const statusMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => api.patch(`/admin/users/${id}/status`, { status }),
-    onSuccess: () => { push('Da cap nhat trang thai'); qc.invalidateQueries({ queryKey: ['admin-users'] }); },
-    onError: (e) => push(getErrorMessage(e), 'error'),
+    onSuccess: () => { push('Đã cập nhật trạng thái'); setLockTarget(null); qc.invalidateQueries({ queryKey: ['admin-users'] }); },
+    onError: (e) => { push(getErrorMessage(e), 'error'); setLockTarget(null); },
   });
 
   return (
     <>
-      <PageHeader title="Nguoi dung & vai tro" subtitle="Quan ly tai khoan va phan quyen" />
+      <PageHeader title="Người dùng & vai trò" subtitle="Quản lý tài khoản và phân quyền" />
       <div className="dash-table-card" style={{ padding: 12, marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {ROLE_FILTERS.map((r) => (
           <button key={r.code} className={`dash-btn dash-btn-sm ${role === r.code ? 'dash-btn-primary' : ''}`} onClick={() => setRole(r.code)}>
@@ -71,8 +73,9 @@ export default function AdminUsersPage() {
           style={{ marginLeft: 'auto', maxWidth: 240, height: 34, fontSize: 13 }}
           value={storeId}
           onChange={(e) => setStoreId(e.target.value)}
+          aria-label="Lọc theo cửa hàng"
         >
-          <option value="">Tat ca cua hang</option>
+          <option value="">Tất cả cửa hàng</option>
           {stores?.map((s) => (
             <option key={s.id} value={s.id}>{s.code} - {s.name}</option>
           ))}
@@ -82,18 +85,19 @@ export default function AdminUsersPage() {
         rows={data ?? []}
         loading={isLoading}
         rowKey={(r) => r.id}
+        emptyText="Không có người dùng"
         columns={[
-          { key: 'name', title: 'Ho ten', render: (r) => <strong>{r.profile?.fullName ?? '—'}</strong> },
+          { key: 'name', title: 'Họ tên', render: (r) => <strong>{r.profile?.fullName ?? '—'}</strong> },
           { key: 'email', title: 'Email', render: (r) => r.email ?? r.phone ?? '—' },
-          { key: 'roles', title: 'Vai tro', render: (r) => r.userRoles.map((ur) => ur.role.code).join(', ') || '—' },
-          { key: 'store', title: 'Cua hang', render: (r) => r.storeMemberships.map((m) => m.store.name).join(', ') || '—' },
-          { key: 'status', title: 'Trang thai', render: (r) => <StatusBadge status={r.status} /> },
+          { key: 'roles', title: 'Vai trò', render: (r) => r.userRoles.map((ur) => ur.role.code).join(', ') || '—' },
+          { key: 'store', title: 'Cửa hàng', render: (r) => r.storeMemberships.map((m) => m.store.name).join(', ') || '—' },
+          { key: 'status', title: 'Trạng thái', render: (r) => <StatusBadge status={r.status} /> },
           {
-            key: 'act', title: 'Thao tac', render: (r) => (
+            key: 'act', title: 'Thao tác', render: (r) => (
               <div className="dash-row-actions">
-                <button className="dash-btn dash-btn-sm" onClick={() => setEditing(r)}>Vai tro</button>
-                <button className="dash-btn dash-btn-sm" onClick={() => statusMut.mutate({ id: r.id, status: r.status === 'LOCKED' ? 'ACTIVE' : 'LOCKED' })}>
-                  {r.status === 'LOCKED' ? 'Mo khoa' : 'Khoa'}
+                <button className="dash-btn dash-btn-sm" onClick={() => setEditing(r)}>Vai trò</button>
+                <button className="dash-btn dash-btn-sm" onClick={() => setLockTarget(r)}>
+                  {r.status === 'LOCKED' ? 'Mở khóa' : 'Khóa'}
                 </button>
               </div>
             ),
@@ -103,6 +107,16 @@ export default function AdminUsersPage() {
       {editing && (
         <RolesModal user={editing} onClose={() => setEditing(null)} onDone={() => { setEditing(null); qc.invalidateQueries({ queryKey: ['admin-users'] }); }} />
       )}
+      <ConfirmModal
+        open={!!lockTarget}
+        title={lockTarget?.status === 'LOCKED' ? 'Mở khóa tài khoản' : 'Khóa tài khoản'}
+        message={lockTarget ? `${lockTarget.status === 'LOCKED' ? 'Mở khóa' : 'Khóa'} tài khoản ${lockTarget.profile?.fullName ?? lockTarget.email}?` : ''}
+        confirmLabel={lockTarget?.status === 'LOCKED' ? 'Mở khóa' : 'Khóa'}
+        danger={lockTarget?.status !== 'LOCKED'}
+        loading={statusMut.isPending}
+        onCancel={() => setLockTarget(null)}
+        onConfirm={() => lockTarget && statusMut.mutate({ id: lockTarget.id, status: lockTarget.status === 'LOCKED' ? 'ACTIVE' : 'LOCKED' })}
+      />
     </>
   );
 }
@@ -114,14 +128,14 @@ function RolesModal({ user, onClose, onDone }: { user: UserRow; onClose: () => v
 
   const mut = useMutation({
     mutationFn: () => api.patch(`/admin/users/${user.id}/roles`, { roles }),
-    onSuccess: () => { push('Da cap nhat vai tro'); onDone(); },
+    onSuccess: () => { push('Đã cập nhật vai trò'); onDone(); },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
   return (
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Vai tro: {user.profile?.fullName ?? user.email}</h2>
+        <h2>Vai trò: {user.profile?.fullName ?? user.email}</h2>
         <div className="stack gap-sm" style={{ marginTop: 12 }}>
           {ASSIGNABLE_ROLES.map((code) => (
             <label key={code} className="flex gap-sm center">
@@ -131,11 +145,11 @@ function RolesModal({ user, onClose, onDone }: { user: UserRow; onClose: () => v
           ))}
         </div>
         <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
-          Luu y: gan vai tro cua hang (manager/staff/warehouse/shipper) van can gan vao cua hang cu the o trang Cua hang.
+          Lưu ý: gán vai trò cửa hàng (quản lý/bán hàng/kho/shipper) vẫn cần gán vào cửa hàng cụ thể ở trang Cửa hàng.
         </p>
         <div className="flex gap-sm" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onClose}>Huy</button>
-          <button className="btn btn-primary" disabled={mut.isPending} onClick={() => mut.mutate()}>Luu</button>
+          <button className="btn btn-ghost" onClick={onClose}>Hủy</button>
+          <button className="btn btn-primary" disabled={mut.isPending} onClick={() => mut.mutate()}>Lưu</button>
         </div>
       </div>
     </div>

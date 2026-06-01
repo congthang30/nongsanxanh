@@ -23,33 +23,33 @@ export default function AdminDashboard() {
 
   return (
     <>
-      <PageHeader title="Tong quan chuoi cua hang" subtitle="Theo doi van hanh toan he thong" />
+      <PageHeader title="Tổng quan chuỗi cửa hàng" subtitle="Theo dõi vận hành toàn hệ thống" />
       <div className="dash-stat-grid">
-        <StatCard icon="" label="Cua hang hoat dong" value={data?.totalStores ?? 0} color="#16a34a" />
-        <StatCard icon="" label="Tong don hang" value={data?.totalOrders ?? 0} color="#0891b2" />
-        <StatCard icon="" label="Don dang xu ly" value={data?.pendingOrders ?? 0} color="#ca8a04" />
-        <StatCard icon="" label="Doanh thu" value={data?.revenue ?? 0} format={formatVnd} color="#7c3aed" />
-        <StatCard icon="" label="Giao that bai" value={data?.deliveryFailed ?? 0} color="#dc2626" />
-        <StatCard icon="" label="Cua hang sap het hang" value={data?.lowStockStoreCount ?? 0} color="#ea580c" />
-        <StatCard icon="" label="Nguoi dung" value={data?.totalUsers ?? 0} color="#0d9488" />
+        <StatCard icon="" label="Doanh thu hôm nay" value={data?.revenue ?? 0} format={formatVnd} color="#16a34a" />
+        <StatCard icon="" label="Đơn mới" value={data?.totalOrders ?? 0} color="#0891b2" />
+        <StatCard icon="" label="Đơn đang xử lý" value={data?.pendingOrders ?? 0} color="#ca8a04" />
+        <StatCard icon="" label="Đơn giao thất bại" value={data?.deliveryFailed ?? 0} color="#dc2626" />
+        <StatCard icon="" label="Cửa hàng sắp hết hàng" value={data?.lowStockStoreCount ?? 0} color="#ea580c" />
+        <StatCard icon="" label="Cửa hàng hoạt động" value={data?.totalStores ?? 0} color="#0d9488" />
+        <StatCard icon="" label="Người dùng" value={data?.totalUsers ?? 0} color="#7c3aed" />
       </div>
 
       <div className="dash-quick-grid" style={{ marginTop: 24 }}>
         <Link to="/admin/stores" className="dash-quick-card">
-          <strong>Quan ly cua hang</strong>
-          <span className="muted">Them cua hang, gan quan ly / shipper, khu vuc phuc vu</span>
+          <strong>Quản lý cửa hàng</strong>
+          <span className="muted">Thêm cửa hàng, gán quản lý / shipper, khu vực phục vụ</span>
         </Link>
         <Link to="/admin/orders" className="dash-quick-card">
-          <strong>Don hang toan he thong</strong>
-          <span className="muted">Theo doi, dieu chuyen cua hang, hoan tien</span>
+          <strong>Đơn hàng toàn hệ thống</strong>
+          <span className="muted">Theo dõi, điều chuyển cửa hàng, hoàn tiền</span>
         </Link>
         <Link to="/admin/products" className="dash-quick-card">
-          <strong>San pham</strong>
-          <span className="muted">Quan ly danh muc san pham chung</span>
+          <strong>Sản phẩm</strong>
+          <span className="muted">Quản lý danh mục sản phẩm chung</span>
         </Link>
         <Link to="/admin/reports" className="dash-quick-card">
-          <strong>Bao cao</strong>
-          <span className="muted">Doanh thu va hieu suat tung cua hang</span>
+          <strong>Báo cáo</strong>
+          <span className="muted">Doanh thu và hiệu suất từng cửa hàng</span>
         </Link>
       </div>
     </>

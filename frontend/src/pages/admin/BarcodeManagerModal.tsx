@@ -67,7 +67,7 @@ export function BarcodeManagerModal({
   const createMut = useMutation({
     mutationFn: () => api.post(`/admin/products/${variantId}/barcodes`, form),
     onSuccess: () => {
-      push('Da gan ma vach');
+      push('Đã gán mã vạch');
       setForm({ barcode: '', type: 'EAN13', isPrimary: false });
       refetch();
       qc.invalidateQueries({ queryKey: ['admin-products'] });
@@ -78,13 +78,13 @@ export function BarcodeManagerModal({
   const updateMut = useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Partial<Barcode> }) =>
       api.patch(`/admin/barcodes/${id}`, patch),
-    onSuccess: () => { refetch(); push('Da cap nhat'); },
+    onSuccess: () => { refetch(); push('Đã cập nhật'); },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/barcodes/${id}`),
-    onSuccess: () => { refetch(); push('Da xoa ma vach'); },
+    onSuccess: () => { refetch(); push('Đã xóa mã vạch'); },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
@@ -93,7 +93,7 @@ export function BarcodeManagerModal({
   return (
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 720 }}>
-        <h2>Quan ly ma vach</h2>
+        <h2>Quản lý mã vạch</h2>
         <p className="muted" style={{ marginTop: -4, marginBottom: 14 }}>{product?.name ?? '...'}</p>
 
         {variants.length > 1 && (
@@ -112,10 +112,10 @@ export function BarcodeManagerModal({
 
         {/* Existing barcodes */}
         <div style={{ marginBottom: 18 }}>
-          <h4 style={{ margin: '0 0 8px' }}>Ma vach hien co</h4>
+          <h4 style={{ margin: '0 0 8px' }}>Mã vạch hiện có</h4>
           {barcodes.length === 0 ? (
             <p className="muted" style={{ fontSize: 13, padding: '12px 0' }}>
-              Variant nay chua co ma vach. POS se khong scan duoc cho toi khi gan ma.
+              Variant này chưa có mã vạch. POS sẽ không quét được cho tới khi gán mã.
             </p>
           ) : (
             <div className="stack gap-sm">
@@ -135,7 +135,7 @@ export function BarcodeManagerModal({
                       {b.barcode}
                     </strong>
                     <span className="muted" style={{ marginLeft: 10, fontSize: 12 }}>
-                      {b.type}{b.isPrimary && ' · CHINH'}{b.status === 'INACTIVE' && ' · NGUNG'}
+                      {b.type}{b.isPrimary && ' · CHÍNH'}{b.status === 'INACTIVE' && ' · NGỪNG'}
                     </span>
                   </div>
                   <div className="flex gap-sm">
@@ -145,7 +145,7 @@ export function BarcodeManagerModal({
                         onClick={() => updateMut.mutate({ id: b.id, patch: { isPrimary: true } })}
                         disabled={updateMut.isPending}
                       >
-                        Dat chinh
+                        Đặt chính
                       </button>
                     )}
                     <button
@@ -156,17 +156,17 @@ export function BarcodeManagerModal({
                       })}
                       disabled={updateMut.isPending}
                     >
-                      {b.status === 'ACTIVE' ? 'Ngung' : 'Kich hoat'}
+                      {b.status === 'ACTIVE' ? 'Ngừng' : 'Kích hoạt'}
                     </button>
                     <button
                       className="btn btn-ghost btn-sm"
                       style={{ color: '#dc2626' }}
                       onClick={() => {
-                        if (confirm(`Xoa ma vach ${b.barcode}?`)) deleteMut.mutate(b.id);
+                        if (confirm(`Xóa mã vạch ${b.barcode}?`)) deleteMut.mutate(b.id);
                       }}
                       disabled={deleteMut.isPending}
                     >
-                      Xoa
+                      Xóa
                     </button>
                   </div>
                 </div>
@@ -177,10 +177,10 @@ export function BarcodeManagerModal({
 
         {/* Add new */}
         <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 14 }}>
-          <h4 style={{ margin: '0 0 8px' }}>Them ma vach moi</h4>
+          <h4 style={{ margin: '0 0 8px' }}>Thêm mã vạch mới</h4>
           <div className="dash-form-grid">
             <label>
-              Ma vach
+              Mã vạch
               <input
                 className="input"
                 placeholder="VD: 8930000099999"
@@ -190,7 +190,7 @@ export function BarcodeManagerModal({
               />
             </label>
             <label>
-              Loai
+              Loại
               <select
                 className="input"
                 value={form.type}
@@ -205,17 +205,17 @@ export function BarcodeManagerModal({
                 checked={form.isPrimary}
                 onChange={(e) => setForm((f) => ({ ...f, isPrimary: e.target.checked }))}
               />
-              <span>Dat lam ma chinh (in tren bao bi, tu dong scan).</span>
+              <span>Đặt làm mã chính (in trên bao bì, tự động quét).</span>
             </label>
           </div>
           <div className="flex gap-sm" style={{ marginTop: 14, justifyContent: 'flex-end' }}>
-            <button className="btn btn-ghost" onClick={onClose}>Dong</button>
+            <button className="btn btn-ghost" onClick={onClose}>Đóng</button>
             <button
               className="btn btn-primary"
               disabled={submitDisabled}
               onClick={() => createMut.mutate()}
             >
-              {createMut.isPending ? 'Dang luu...' : 'Them'}
+              {createMut.isPending ? 'Đang lưu...' : 'Thêm'}
             </button>
           </div>
         </div>

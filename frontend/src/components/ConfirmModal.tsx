@@ -38,8 +38,8 @@ export function ConfirmModal(props: Props) {
     open,
     title,
     message,
-    confirmLabel = 'Xac nhan',
-    cancelLabel = 'Huy bo',
+    confirmLabel = 'Xác nhận',
+    cancelLabel = 'Hủy bỏ',
     danger,
     loading,
     onCancel,
@@ -91,20 +91,20 @@ export function ConfirmModal(props: Props) {
         {requireReason && (
           <div className="cm-field">
             <label htmlFor="cm-reason">
-              {props.reasonLabel ?? 'Ly do'}
+              {props.reasonLabel ?? 'Lý do'}
             </label>
             <textarea
               id="cm-reason"
               className="cm-textarea"
               rows={3}
-              placeholder={props.reasonPlaceholder ?? 'Nhap ly do...'}
+              placeholder={props.reasonPlaceholder ?? 'Nhập lý do...'}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               autoFocus
             />
             {!reasonValid && reason.length > 0 && (
               <span className="cm-error">
-                Vui long nhap it nhat {minLen} ky tu
+                Vui lòng nhập ít nhất {minLen} ký tự
               </span>
             )}
           </div>
@@ -125,7 +125,7 @@ export function ConfirmModal(props: Props) {
             onClick={handleConfirm}
             disabled={loading || (requireReason && !reasonValid)}
           >
-            {loading ? 'Dang xu ly...' : confirmLabel}
+            {loading ? 'Đang xử lý...' : confirmLabel}
           </button>
         </div>
       </div>

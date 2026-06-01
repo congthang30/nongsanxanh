@@ -463,6 +463,31 @@
 .dash-table tbody tr:hover {
   background: #f8fafc;
 }
+.dash-table-state {
+  text-align: center;
+  padding: 36px 16px;
+  color: var(--dash-muted);
+  font-size: 14px;
+}
+.dash-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.dash-state-error { color: #991b1b; }
+.dash-state-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  border: 2px solid #cbd5e1;
+  border-top-color: var(--dash-sidebar-active);
+  border-radius: 50%;
+  vertical-align: -3px;
+  animation: dash-spin 0.7s linear infinite;
+}
+@keyframes dash-spin { to { transform: rotate(360deg); } }
 
 /* STATUS BADGE */
 .dash-badge {

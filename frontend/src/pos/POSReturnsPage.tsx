@@ -23,9 +23,9 @@ export default function POSReturnsPage() {
     <div className="pos-returns-root">
       <header className="pos-returns-topbar">
         <button className="pos-link-btn" onClick={() => navigate('/pos')}>
-          ← Ve POS
+          ← Về POS
         </button>
-        <h1>Tra hang / Hoan tien</h1>
+        <h1>Trả hàng / Hoàn tiền</h1>
         <div />
       </header>
 
@@ -51,10 +51,10 @@ export default function POSReturnsPage() {
 
 function tabLabel(t: Tab): string {
   switch (t) {
-    case 'create': return 'Tao yeu cau';
-    case 'requested': return 'Cho duyet';
-    case 'approved': return 'Da duyet';
-    case 'completed': return 'Hoan tat';
+    case 'create': return 'Tạo yêu cầu';
+    case 'requested': return 'Chờ duyệt';
+    case 'approved': return 'Đã duyệt';
+    case 'completed': return 'Hoàn tất';
   }
 }
 
@@ -87,7 +87,7 @@ function CreateReturnPanel() {
         .map(([saleItemId, v]) => ({ saleItemId, quantity: v.qty, restockable: v.restockable })),
     }),
     onSuccess: () => {
-      push('Da tao yeu cau tra hang');
+      push('Đã tạo yêu cầu trả hàng');
       setSelectedSaleId(null); setReason(''); setPicks({});
       qc.invalidateQueries({ queryKey: ['pos-returns', 'REQUESTED'] });
       qc.invalidateQueries({ queryKey: ['pos-paid-sales'] });
@@ -113,11 +113,11 @@ function CreateReturnPanel() {
   return (
     <div className="pos-returns-create">
       <section className="pos-returns-section">
-        <h3>1. Chon hoa don da thanh toan</h3>
+        <h3>1. Chọn hóa đơn đã thanh toán</h3>
         {isLoading ? (
-          <p className="muted">Dang tai...</p>
+          <p className="muted">Đang tải...</p>
         ) : paidSales.length === 0 ? (
-          <p className="muted">Chua co hoa don PAID nao trong 7 ngay gan day.</p>
+          <p className="muted">Chưa có hóa đơn đã thanh toán nào trong 7 ngày gần đây.</p>
         ) : (
           <div className="pos-returns-sale-list">
             {paidSales.map((s) => (
@@ -139,16 +139,16 @@ function CreateReturnPanel() {
       {sale && (
         <>
           <section className="pos-returns-section">
-            <h3>2. Chon san pham can tra ({sale.saleNumber})</h3>
+            <h3>2. Chọn sản phẩm cần trả ({sale.saleNumber})</h3>
             <ItemPicker sale={sale} picks={picks} onChange={setPicks} />
           </section>
 
           <section className="pos-returns-section">
-            <h3>3. Ly do tra</h3>
+            <h3>3. Lý do trả</h3>
             <textarea
               className="pos-returns-textarea"
               rows={3}
-              placeholder="VD: Khach doi y, hang khong dung mau..."
+              placeholder="VD: Khách đổi ý, hàng không đúng mẫu..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
@@ -156,7 +156,7 @@ function CreateReturnPanel() {
 
           <div className="pos-returns-summary">
             <div>
-              <span>Tong hoan tra</span>
+              <span>Tổng hoàn trả</span>
               <strong>{formatVnd(refundTotal)}</strong>
             </div>
             <button
@@ -164,7 +164,7 @@ function CreateReturnPanel() {
               disabled={!canSubmit}
               onClick={() => createMut.mutate()}
             >
-              {createMut.isPending ? 'Dang luu...' : 'Tao yeu cau'}
+              {createMut.isPending ? 'Đang lưu...' : 'Tạo yêu cầu'}
             </button>
           </div>
         </>
@@ -178,7 +178,7 @@ function SaleCard({ sale, active, onClick }: { sale: SaleListItem; active: boole
     <button className={`pos-returns-sale-card ${active ? 'active' : ''}`} onClick={onClick}>
       <div className="pos-returns-sale-num">{sale.saleNumber}</div>
       <div className="pos-returns-sale-meta">
-        {sale.itemCount} mat hang · {sale.cashierName}
+        {sale.itemCount} mặt hàng · {sale.cashierName}
       </div>
       <div className="pos-returns-sale-amount">{formatVnd(sale.grandTotal)}</div>
       <div className="pos-returns-sale-time">
@@ -236,13 +236,13 @@ function ItemPicker({
                 </span>
               </label>
               <span className="pos-returns-item-qty">
-                Da ban: {Number(it.quantity)} {it.unit}
+                Đã bán: {Number(it.quantity)} {it.unit}
               </span>
             </div>
             {checked && (
               <div className="pos-returns-item-controls">
                 <label>
-                  So luong tra
+                  Số lượng trả
                   <input
                     type="number"
                     min={0.001}
@@ -259,10 +259,10 @@ function ItemPicker({
                     checked={p.restockable}
                     onChange={(e) => setRestockable(it.id, e.target.checked)}
                   />
-                  <span>Hang con tot, hoan kho</span>
+                  <span>Hàng còn tốt, hoàn kho</span>
                 </label>
                 <span className="pos-returns-item-total">
-                  Hoan: <b>{formatVnd(Math.round(it.unitPrice * p.qty))}</b>
+                  Hoàn: <b>{formatVnd(Math.round(it.unitPrice * p.qty))}</b>
                 </span>
               </div>
             )}
@@ -289,19 +289,19 @@ function ReturnList({ status }: { status: 'requested' | 'approved' | 'completed'
 
   const approveMut = useMutation({
     mutationFn: (id: string) => posApi.approveReturn(id),
-    onSuccess: () => { push('Da duyet yeu cau'); qc.invalidateQueries({ queryKey: ['pos-returns'] }); },
+    onSuccess: () => { push('Đã duyệt yêu cầu'); qc.invalidateQueries({ queryKey: ['pos-returns'] }); },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
   const completeMut = useMutation({
     mutationFn: (id: string) => posApi.completeReturn(id),
-    onSuccess: () => { push('Da hoan tat tra hang. Ton kho da cap nhat.'); qc.invalidateQueries({ queryKey: ['pos-returns'] }); },
+    onSuccess: () => { push('Đã hoàn tất trả hàng. Tồn kho đã cập nhật.'); qc.invalidateQueries({ queryKey: ['pos-returns'] }); },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
-  if (isLoading) return <p className="muted">Dang tai...</p>;
+  if (isLoading) return <p className="muted">Đang tải...</p>;
   if (items.length === 0) {
-    return <p className="muted" style={{ padding: 24 }}>Khong co yeu cau {tabName(upper)}.</p>;
+    return <p className="muted" style={{ padding: 24 }}>Không có yêu cầu {tabName(upper)}.</p>;
   }
 
   return (
@@ -321,9 +321,9 @@ function ReturnList({ status }: { status: 'requested' | 'approved' | 'completed'
 
 function tabName(s: string): string {
   switch (s) {
-    case 'REQUESTED': return 'cho duyet';
-    case 'APPROVED': return 'da duyet';
-    case 'COMPLETED': return 'da hoan tat';
+    case 'REQUESTED': return 'chờ duyệt';
+    case 'APPROVED': return 'đã duyệt';
+    case 'COMPLETED': return 'đã hoàn tất';
     default: return s.toLowerCase();
   }
 }
@@ -343,7 +343,7 @@ function ReturnCard({
     <div className="pos-returns-return-card">
       <div className="between">
         <div>
-          <strong>HD goc: {ret.originalSale?.saleNumber ?? ret.originalSaleId.slice(0, 8)}</strong>
+          <strong>HD gốc: {ret.originalSale?.saleNumber ?? ret.originalSaleId.slice(0, 8)}</strong>
           <p className="muted" style={{ margin: '4px 0' }}>{ret.reason}</p>
           <p className="muted" style={{ fontSize: 12, margin: 0 }}>
             {new Date(ret.createdAt).toLocaleString('vi-VN')} · {ret.cashier?.profile?.fullName ?? ret.cashier?.email ?? '-'}
@@ -352,19 +352,19 @@ function ReturnCard({
         <div style={{ textAlign: 'right' }}>
           <strong className="pos-returns-refund">{formatVnd(ret.refundAmount)}</strong>
           <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-            {ret.items.length} item · {ret.items.filter((i) => i.restockable).length} hoan kho
+            {ret.items.length} mặt hàng · {ret.items.filter((i) => i.restockable).length} hoàn kho
           </p>
         </div>
       </div>
       <div className="flex gap-sm" style={{ marginTop: 12, justifyContent: 'flex-end' }}>
         {onApprove && (
           <button className="pos-btn pos-btn-primary" disabled={busy} onClick={onApprove}>
-            Duyet
+            Duyệt yêu cầu
           </button>
         )}
         {onComplete && (
           <button className="pos-btn pos-btn-primary" disabled={busy} onClick={onComplete}>
-            Hoan tat (hoan kho)
+            Hoàn tất (hoàn kho)
           </button>
         )}
       </div>

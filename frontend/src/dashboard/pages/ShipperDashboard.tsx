@@ -27,21 +27,21 @@ export default function ShipperDashboard() {
 
   return (
     <>
-      <PageHeader title="Shipper" subtitle="Don giao duoc gan truc tiep tu cua hang cua ban" />
+      <PageHeader title="Shipper" subtitle="Đơn giao được gán trực tiếp từ cửa hàng của bạn" />
       <div className="dash-stat-grid">
-        <StatCard icon="" label="Don cho lay" value={assigned} color="#ca8a04" />
-        <StatCard icon="" label="Dang giao" value={delivering} color="#0891b2" />
-        <StatCard icon="" label="Da giao (lich su)" value={deliveredToday} color="#16a34a" />
-        <StatCard icon="" label="COD can thu" value={codTotal} format={formatVnd} color="#7c3aed" />
+        <StatCard icon="" label="Đơn chờ lấy" value={assigned} color="#ca8a04" />
+        <StatCard icon="" label="Đang giao" value={delivering} color="#0891b2" />
+        <StatCard icon="" label="Đã giao (lịch sử)" value={deliveredToday} color="#16a34a" />
+        <StatCard icon="" label="COD cần thu" value={codTotal} format={formatVnd} color="#7c3aed" />
       </div>
       <div className="dash-quick-grid" style={{ marginTop: 24 }}>
         <Link to="/shipper/active" className="dash-quick-card">
-          <strong>Don dang giao</strong>
-          <span className="muted">Cap nhat trang thai lay hang / giao hang</span>
+          <strong>Đơn đang giao</strong>
+          <span className="muted">Cập nhật trạng thái lấy hàng / giao hàng</span>
         </Link>
         <Link to="/shipper/history" className="dash-quick-card">
-          <strong>Lich su giao</strong>
-          <span className="muted">Cac don da hoan tat hoac that bai</span>
+          <strong>Lịch sử giao</strong>
+          <span className="muted">Các đơn đã hoàn tất hoặc thất bại</span>
         </Link>
       </div>
     </>

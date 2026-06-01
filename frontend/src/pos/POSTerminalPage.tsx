@@ -114,7 +114,7 @@ export default function POSTerminalPage() {
       }
       const { sale: updated, scanned } = await posApi.scan(sale.id, code.trim(), quantity);
       setSale(updated);
-      setScanOk(`Da them: ${scanned.productName}${scanned.inStock ? '' : ' (canh bao: het ton tai cua hang)'}`);
+      setScanOk(`Đã thêm: ${scanned.productName}${scanned.inStock ? '' : ' (cảnh báo: hết tồn tại cửa hàng)'}`);
       setBarcode('');
       setSearchResults([]);
       focusScan();
@@ -150,7 +150,7 @@ export default function POSTerminalPage() {
 
   const pickSearchResult = (item: BarcodeLookup) => {
     if (!item.barcode) {
-      push('San pham nay chua co ma vach', 'error');
+      push('Sản phẩm này chưa có mã vạch', 'error');
       return;
     }
     if (item.saleMode === 'WEIGHT') {
@@ -187,7 +187,7 @@ export default function POSTerminalPage() {
     if (!sale || sale.items.length === 0) return;
     setPayError('');
     if (method === 'CASH' && cashNum < grandTotal) {
-      setPayError('Tien khach dua khong du');
+      setPayError('Tiền khách đưa không đủ');
       return;
     }
     try {
@@ -198,7 +198,7 @@ export default function POSTerminalPage() {
           : [{ method, amount: grandTotal, reference: reference || undefined }];
       const paid = await posApi.pay(sale.id, payments);
       setSale(paid);
-      push(`Thanh toan thanh cong${paid.changeAmount > 0 ? ` - Tien thoi ${formatVnd(paid.changeAmount)}` : ''}`);
+      push(`Thanh toán thành công${paid.changeAmount > 0 ? ` - Tiền thối ${formatVnd(paid.changeAmount)}` : ''}`);
       // Auto open receipt
       const r = await posApi.receipt(paid.id);
       setReceipt(r);
@@ -214,7 +214,7 @@ export default function POSTerminalPage() {
     if (!sale) return;
     try {
       await posApi.voidSale(sale.id, reason);
-      push('Da huy hoa don');
+      push('Đã hủy hóa đơn');
       setVoidModal(false);
       startNewSale();
     } catch (e) {
@@ -228,7 +228,7 @@ export default function POSTerminalPage() {
     if (!sale) return;
     try {
       await posApi.hold(sale.id);
-      push('Da treo hoa don');
+      push('Đã treo hóa đơn');
       startNewSale();
     } catch (e) {
       push(getErrorMessage(e), 'error');
@@ -251,11 +251,11 @@ export default function POSTerminalPage() {
       if (shiftModal === 'open') {
         const s = await posApi.openShift(amount, note);
         setShift(s);
-        push('Da mo ca ban hang');
+        push('Đã mở ca bán hàng');
       } else {
         await posApi.closeShift(amount, note);
         setShift(null);
-        push('Da dong ca ban hang');
+        push('Đã đóng ca bán hàng');
       }
       setShiftModal(null);
     } catch (e) {
@@ -315,33 +315,33 @@ export default function POSTerminalPage() {
       <div className="pos-topbar">
         <div className="pos-brand">
           <span className="pos-brand-dot" />
-          NongSan Xanh <span style={{ color: 'var(--pos-muted)', fontWeight: 500 }}>POS</span>
+          Nông Sản Xanh <span style={{ color: 'var(--pos-muted)', fontWeight: 500 }}>POS</span>
         </div>
         <div className="pos-topbar-info">
           <span>
-            Cua hang: <b>{sale?.storeName ?? '...'}</b>
+            Cửa hàng: <b>{sale?.storeName ?? '...'}</b>
           </span>
           <span>
-            Thu ngan: <b>{user?.fullName ?? user?.email}</b>
+            Thu ngân: <b>{user?.fullName ?? user?.email}</b>
           </span>
           {shift ? (
             <button className="pos-shift-pill open" onClick={() => setShiftModal('close')}>
-              ● Ca dang mo &middot; {formatVnd(shift.expectedCash)}
+              ● Ca đang mở &middot; {formatVnd(shift.expectedCash)}
             </button>
           ) : (
             <button className="pos-shift-pill" onClick={() => setShiftModal('open')}>
-              ○ Mo ca ban hang
+              ○ Mở ca bán hàng
             </button>
           )}
           {(user?.roles.includes('STORE_MANAGER') ||
             user?.roles.includes('ADMIN') ||
             user?.roles.includes('SUPER_ADMIN')) && (
             <Link to="/pos/returns" className="pos-link-btn">
-              Tra hang
+              Trả hàng
             </Link>
           )}
           <Link to="/store" className="pos-link-btn">
-            Thoat
+            Thoát
           </Link>
         </div>
       </div>
@@ -351,7 +351,7 @@ export default function POSTerminalPage() {
         {/* LEFT: scan + search */}
         <div className="pos-col pos-col-scan">
           <div className="pos-card pos-scan-wrap">
-            <div className="pos-card-title">Quet ma vach / Tim san pham</div>
+            <div className="pos-card-title">Quét mã vạch / Tìm sản phẩm</div>
             <div className="pos-scan-field">
               <span className="pos-scan-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -363,7 +363,7 @@ export default function POSTerminalPage() {
                 ref={scanRef}
                 className="pos-scan-input pos-tabular"
                 value={barcode}
-                placeholder="Quet hoac nhap ma vach..."
+                placeholder="Quét hoặc nhập mã vạch..."
                 disabled={!editable}
                 onChange={(e) => runSearch(e.target.value)}
                 onKeyDown={onScanKey}
@@ -385,8 +385,8 @@ export default function POSTerminalPage() {
                     <div>
                       <div className="pos-search-name">{r.productName}</div>
                       <div className="pos-search-meta">
-                        {r.sku} &middot; {r.barcode ?? 'chua co ma vach'} &middot; Ton: {r.available} {r.unit}
-                        {r.saleMode === 'WEIGHT' ? ' (can ky)' : ''}
+                        {r.sku} &middot; {r.barcode ?? 'chưa có mã vạch'} &middot; Tồn: {r.available} {r.unit}
+                        {r.saleMode === 'WEIGHT' ? ' (cân ký)' : ''}
                       </div>
                     </div>
                     <b className="pos-tabular">{formatVnd(r.unitPrice)}</b>
@@ -397,11 +397,11 @@ export default function POSTerminalPage() {
           </div>
 
           <div className="pos-card" style={{ fontSize: 12, color: 'var(--pos-muted)' }}>
-            <div className="pos-card-title">Phim tat</div>
+            <div className="pos-card-title">Phím tắt</div>
             <div>
-              <span className="pos-kbd">Enter</span> Quet &nbsp;
-              <span className="pos-kbd">F4</span> Tra tien mat &nbsp;
-              <span className="pos-kbd">F6</span> Treo hoa don
+              <span className="pos-kbd">Enter</span> Quét &nbsp;
+              <span className="pos-kbd">F4</span> Trả tiền mặt &nbsp;
+              <span className="pos-kbd">F6</span> Treo hóa đơn
             </div>
           </div>
         </div>
@@ -410,7 +410,7 @@ export default function POSTerminalPage() {
         <div className="pos-col pos-col-bill">
           <div className="pos-card pos-bill-card">
             <div className="pos-card-title">
-              Hoa don {sale?.saleNumber ? `#${sale.saleNumber}` : ''} &middot; {sale?.items.length ?? 0} mat hang
+              Hóa đơn {sale?.saleNumber ? `#${sale.saleNumber}` : ''} &middot; {sale?.items.length ?? 0} mặt hàng
             </div>
             <div className="pos-bill-scroll">
               {!sale || sale.items.length === 0 ? (
@@ -419,7 +419,7 @@ export default function POSTerminalPage() {
                     <rect x="3" y="5" width="18" height="14" rx="2" />
                     <path d="M6 9v6M9 9v6M12 9v6M15 9v6M18 9v6" />
                   </svg>
-                  <div>Quet ma vach de them san pham</div>
+                  <div>Quét mã vạch để thêm sản phẩm</div>
                 </div>
               ) : (
                 sale.items.map((it) => (
@@ -450,12 +450,12 @@ export default function POSTerminalPage() {
                           if (
                             it.lineTotal > 100000 || it.quantity > 5
                           ) {
-                            if (!confirm(`Xoa "${it.name}" (${it.quantity} ${it.unit} · ${formatVnd(it.lineTotal)})?`)) return;
+                            if (!confirm(`Xóa "${it.name}" (${it.quantity} ${it.unit} · ${formatVnd(it.lineTotal)})?`)) return;
                           }
                           removeItem(it.id);
                         }}
-                        aria-label={`Xoa ${it.name}`}
-                        title="Xoa"
+                        aria-label={`Xóa ${it.name}`}
+                        title="Xóa"
                       >
                         ✕
                       </button>
@@ -470,30 +470,30 @@ export default function POSTerminalPage() {
         {/* RIGHT: summary + payment */}
         <div className="pos-col pos-col-pay">
           <div className="pos-card">
-            <div className="pos-card-title">Thanh toan</div>
+            <div className="pos-card-title">Thanh toán</div>
             <div className="pos-sum-row">
-              <span>Tam tinh</span>
+              <span>Tạm tính</span>
               <b className="pos-tabular">{formatVnd(sale?.subtotal ?? 0)}</b>
             </div>
             {(sale?.discountTotal ?? 0) > 0 && (
               <div className="pos-sum-row">
-                <span>Giam gia</span>
+                <span>Giảm giá</span>
                 <b className="pos-tabular">-{formatVnd(sale!.discountTotal)}</b>
               </div>
             )}
             <div className="pos-sum-total">
-              <span>TONG CONG</span>
+              <span>TỔNG CỘNG</span>
               <b className="pos-tabular">{formatVnd(grandTotal)}</b>
             </div>
 
             {isPaid ? (
               <div className="pos-scan-ok" style={{ marginTop: 16, textAlign: 'center' }}>
-                Da thanh toan
-                {sale!.changeAmount > 0 && ` · Tien thoi ${formatVnd(sale!.changeAmount)}`}
+                Đã thanh toán
+                {sale!.changeAmount > 0 && ` · Tiền thối ${formatVnd(sale!.changeAmount)}`}
               </div>
             ) : isVoided ? (
               <div className="pos-pay-error" style={{ marginTop: 16 }}>
-                Hoa don da huy
+                Hóa đơn đã hủy
               </div>
             ) : (
               <>
@@ -511,7 +511,7 @@ export default function POSTerminalPage() {
 
                 {method === 'CASH' ? (
                   <>
-                    <label className="pos-field-label">Tien khach dua</label>
+                    <label className="pos-field-label">Tiền khách đưa</label>
                     <input
                       className="pos-input pos-tabular"
                       type="number"
@@ -521,7 +521,7 @@ export default function POSTerminalPage() {
                       onKeyDown={(e) => e.key === 'Enter' && doPay()}
                     />
                     <div className="pos-quick-cash">
-                      <button onClick={() => setCashGiven(String(grandTotal))}>Dung tien</button>
+                      <button onClick={() => setCashGiven(String(grandTotal))}>Đúng tiền</button>
                       {QUICK_CASH.map((c) => (
                         <button key={c} onClick={() => setCashGiven(String(c))}>
                           {c / 1000}k
@@ -529,7 +529,7 @@ export default function POSTerminalPage() {
                       ))}
                     </div>
                     <div className="pos-change-box">
-                      <span>Tien thoi</span>
+                      <span>Tiền thối</span>
                       <b className="pos-tabular">{formatVnd(change)}</b>
                     </div>
                   </>
@@ -551,38 +551,38 @@ export default function POSTerminalPage() {
                             href={vnpQr.payUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title="Mo trang thanh toan tren may cashier (test)"
+                            title="Mở trang thanh toán trên máy cashier (test)"
                           >
                             <img
                               className="pos-qr-img"
                               src={vnpQr.imageUrl}
-                              alt="QR thanh toan VNPay"
+                              alt="QR thanh toán VNPay"
                             />
                           </a>
                         )}
                         <div className="pos-qr-info">
                           <span className="pos-qr-line">
-                            So tien: <b className="pos-tabular">{formatVnd(grandTotal)}</b>
+                            Số tiền: <b className="pos-tabular">{formatVnd(grandTotal)}</b>
                           </span>
                           <span className="pos-qr-line">
-                            Ma don: {vnpQr?.saleNumber ?? sale?.saleNumber}
+                            Mã đơn: {vnpQr?.saleNumber ?? sale?.saleNumber}
                           </span>
                           <span className="pos-qr-line pos-qr-hint">
-                            Khach mo app VNPay / ngan hang &gt; quet QR &gt; xac nhan.
+                            Khách mở app VNPay / ngân hàng &gt; quét QR &gt; xác nhận.
                           </span>
                         </div>
                       </div>
                     )}
-                    <label className="pos-field-label">Ma tham chieu (tuy chon)</label>
+                    <label className="pos-field-label">Mã tham chiếu (tùy chọn)</label>
                     <input
                       className="pos-input"
                       style={{ fontSize: 14 }}
                       value={reference}
-                      placeholder="Ma giao dich / noi dung CK"
+                      placeholder="Mã giao dịch / nội dung CK"
                       onChange={(e) => setReference(e.target.value)}
                     />
                     <p style={{ fontSize: 12, color: 'var(--pos-muted)', marginTop: 8 }}>
-                      Cashier xac nhan da nhan tien truoc khi bam thanh toan.
+                      Cashier xác nhận đã nhận tiền trước khi bấm thanh toán.
                     </p>
                   </>
                 )}
@@ -594,7 +594,7 @@ export default function POSTerminalPage() {
                   disabled={paying || !sale || sale.items.length === 0}
                   onClick={doPay}
                 >
-                  {paying ? <span className="pos-spinner" /> : `Thanh toan ${formatVnd(grandTotal)}`}
+                  {paying ? <span className="pos-spinner" /> : `Thanh toán ${formatVnd(grandTotal)}`}
                 </button>
               </>
             )}
@@ -605,10 +605,10 @@ export default function POSTerminalPage() {
             {isPaid || isVoided ? (
               <div className="pos-btn-row">
                 <button className="pos-btn" onClick={showReceipt} disabled={!isPaid}>
-                  In hoa don
+                  In hóa đơn
                 </button>
                 <button className="pos-btn pos-btn-primary" onClick={startNewSale} disabled={busy}>
-                  Hoa don moi
+                  Hóa đơn mới
                 </button>
               </div>
             ) : (
@@ -621,10 +621,10 @@ export default function POSTerminalPage() {
                   onClick={() => setVoidModal(true)}
                   disabled={!sale}
                 >
-                  Huy don
+                  Hủy đơn
                 </button>
                 <button className="pos-btn" onClick={startNewSale} disabled={busy}>
-                  Don moi
+                  Đơn mới
                 </button>
               </div>
             )}
@@ -649,9 +649,9 @@ export default function POSTerminalPage() {
       )}
       {voidModal && (
         <ReasonModal
-          title="Huy hoa don"
-          subtitle={`Hoa don ${sale?.saleNumber}. Nhap ly do huy.`}
-          confirmLabel="Huy hoa don"
+          title="Hủy hóa đơn"
+          subtitle={`Hóa đơn ${sale?.saleNumber}. Nhập lý do hủy.`}
+          confirmLabel="Hủy hóa đơn"
           onConfirm={doVoid}
           onClose={() => setVoidModal(false)}
         />

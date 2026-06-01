@@ -24,6 +24,7 @@ import AdminProductsPage from './pages/admin/AdminProductsPage';
 import AdminInventoryPage from './pages/admin/AdminInventoryPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminReportsPage from './pages/admin/AdminReportsPage';
+import AdminReturnsPage from './pages/admin/AdminReturnsPage';
 import AdminAuditPage from './pages/admin/AdminAuditPage';
 
 // Store manager
@@ -89,6 +90,7 @@ export default function App() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/stores" element={<AdminStoresPage />} />
           <Route path="/admin/orders" element={<AdminOrdersPage />} />
+          <Route path="/admin/returns" element={<AdminReturnsPage />} />
           <Route path="/admin/products" element={<AdminProductsPage />} />
           <Route path="/admin/inventory" element={<AdminInventoryPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />

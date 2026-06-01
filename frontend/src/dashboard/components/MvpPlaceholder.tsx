@@ -60,17 +60,17 @@ export function MvpPlaceholder({
           background: '#fffbeb',
         }}
       >
-        <strong style={{ color: '#92400e' }}>Trang thai MVP:</strong>{' '}
+        <strong style={{ color: '#92400e' }}>Trạng thái MVP:</strong>{' '}
         <span style={{ color: '#92400e' }}>{statusNote}</span>
       </div>
 
       <div className="dash-table-card" style={{ padding: 20 }}>
         <h3 style={{ marginTop: 0, marginBottom: 4 }}>
-          Chuc nang trong ke hoach
+          Chức năng trong kế hoạch
         </h3>
         <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
-          Cac muc duoi day la pham vi nghiep vu cua module, se duoc bat khi API
-          san sang.
+          Các mục dưới đây là phạm vi nghiệp vụ của module, sẽ được bật khi API
+          sẵn sàng.
         </p>
         <div
           style={{

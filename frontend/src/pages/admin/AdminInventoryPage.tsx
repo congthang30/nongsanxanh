@@ -29,10 +29,10 @@ export default function AdminInventoryPage() {
 
   return (
     <>
-      <PageHeader title="Ton kho theo cua hang" subtitle="Xem ton kho cua tung cua hang trong chuoi" />
+      <PageHeader title="Tồn kho theo cửa hàng" subtitle="Xem tồn kho của từng cửa hàng trong chuỗi" />
       <div className="dash-table-card" style={{ padding: 12, marginBottom: 16 }}>
-        <select className="input" style={{ maxWidth: 320 }} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-          <option value="">-- Chon cua hang --</option>
+        <select className="input" style={{ maxWidth: 320 }} value={storeId} onChange={(e) => setStoreId(e.target.value)} aria-label="Chọn cửa hàng">
+          <option value="">-- Chọn cửa hàng --</option>
           {stores?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
       </div>
@@ -41,18 +41,19 @@ export default function AdminInventoryPage() {
           rows={inventory ?? []}
           loading={isLoading}
           rowKey={(r) => r.id}
+          emptyText="Cửa hàng này chưa có tồn kho"
           columns={[
-            { key: 'product', title: 'San pham', render: (r) => <strong>{r.productName}</strong> },
+            { key: 'product', title: 'Sản phẩm', render: (r) => <strong>{r.productName}</strong> },
             { key: 'sku', title: 'SKU', render: (r) => <span className="muted">{r.sku}</span> },
-            { key: 'onHand', title: 'Ton kho', align: 'right', render: (r) => `${r.quantityOnHand} ${r.unit}` },
-            { key: 'reserved', title: 'Dang giu', align: 'right', render: (r) => r.reservedQuantity },
-            { key: 'available', title: 'Kha dung', align: 'right', render: (r) => <strong style={{ color: r.available <= r.lowStockThreshold ? '#dc2626' : '#16a34a' }}>{r.available}</strong> },
-            { key: 'status', title: 'Trang thai', render: (r) => <StatusBadge status={r.status} /> },
+            { key: 'onHand', title: 'Tồn kho', align: 'right', render: (r) => `${r.quantityOnHand} ${r.unit}` },
+            { key: 'reserved', title: 'Đang giữ', align: 'right', render: (r) => r.reservedQuantity },
+            { key: 'available', title: 'Khả dụng', align: 'right', render: (r) => <strong style={{ color: r.available <= r.lowStockThreshold ? '#dc2626' : '#16a34a' }}>{r.available}</strong> },
+            { key: 'status', title: 'Trạng thái', render: (r) => <StatusBadge status={r.status} /> },
           ]}
         />
       ) : (
         <div className="dash-table-card" style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
-          Chon cua hang de xem ton kho.
+          Chọn cửa hàng để xem tồn kho.
         </div>
       )}
     </>

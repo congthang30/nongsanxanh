@@ -65,5 +65,5 @@ export function unwrap<T>(promise: Promise<{ data: { data: T } }>): Promise<T> {
 
 export function getErrorMessage(error: unknown): string {
   const e = error as { response?: { data?: { error?: { message?: string } } } };
-  return e?.response?.data?.error?.message ?? 'Da co loi xay ra';
+  return e?.response?.data?.error?.message ?? 'Đã có lỗi xảy ra';
 }

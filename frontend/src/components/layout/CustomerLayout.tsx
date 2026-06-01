@@ -21,35 +21,40 @@ export function CustomerLayout() {
       <header className="site-header">
         <div className="container header-inner">
           <Link to="/" className="brand">
-            <span className="brand-logo">🌿</span>
-            <span className="brand-name">NongSan<span>Xanh</span></span>
+            <span className="brand-logo" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 20A7 7 0 0 1 4 13c0-4 3-7 9-9 0 6-2 9-6 11" />
+                <path d="M11 20c0-5 2-8 9-10" />
+              </svg>
+            </span>
+            <span className="brand-name">Nông Sản<span>Xanh</span></span>
           </Link>
 
           <nav className="main-nav hide-mobile">
             <NavLink to="/" end>Trang chủ</NavLink>
             <NavLink to="/products">Sản phẩm</NavLink>
             {hasRole('ADMIN', 'SUPER_ADMIN') && (
-              <NavLink to="/admin/dashboard">Quan tri</NavLink>
+              <NavLink to="/admin/dashboard">Quản trị</NavLink>
             )}
             {hasRole('STORE_MANAGER') && !hasRole('ADMIN', 'SUPER_ADMIN') && (
-              <NavLink to="/store-manager/dashboard">Cua hang</NavLink>
+              <NavLink to="/store-manager/dashboard">Cửa hàng</NavLink>
             )}
             {hasRole('STORE_STAFF') && !hasRole('STORE_MANAGER', 'ADMIN', 'SUPER_ADMIN') && (
-              <NavLink to="/store/orders">Don hang</NavLink>
+              <NavLink to="/store/orders">Đơn hàng</NavLink>
             )}
             {hasRole('WAREHOUSE_STAFF') && !hasRole('STORE_MANAGER', 'ADMIN', 'SUPER_ADMIN') && (
               <NavLink to="/warehouse/dashboard">Kho</NavLink>
             )}
             {hasRole('SHIPPER') && !hasRole('ADMIN', 'SUPER_ADMIN') && (
-              <NavLink to="/shipper/dashboard">Giao hang</NavLink>
+              <NavLink to="/shipper/dashboard">Giao hàng</NavLink>
             )}
             {hasRole('SUPPORT') && !hasRole('ADMIN', 'SUPER_ADMIN') && (
-              <NavLink to="/staff/dashboard">Ho tro</NavLink>
+              <NavLink to="/staff/dashboard">Hỗ trợ</NavLink>
             )}
           </nav>
 
           <div className="header-actions">
-            <Link to="/cart" className="cart-btn" aria-label="Gio hang">
+            <Link to="/cart" className="cart-btn" aria-label="Giỏ hàng">
               <CartIcon />
               {count > 0 && <span className="cart-count">{count}</span>}
             </Link>
@@ -80,8 +85,13 @@ export function CustomerLayout() {
         <div className="container footer-grid">
           <div>
             <div className="brand brand-footer">
-              <span className="brand-logo">🌿</span>
-              <span className="brand-name">NongSan<span>Xanh</span></span>
+              <span className="brand-logo" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 20A7 7 0 0 1 4 13c0-4 3-7 9-9 0 6-2 9-6 11" />
+                  <path d="M11 20c0-5 2-8 9-10" />
+                </svg>
+              </span>
+              <span className="brand-name">Nông Sản<span>Xanh</span></span>
             </div>
             <p className="muted footer-desc">
               Nông sản tươi sạch, truy xuất nguồn gốc, giao nhanh tận nhà.
@@ -105,7 +115,7 @@ export function CustomerLayout() {
           </div>
         </div>
         <div className="footer-bottom">
-          <div className="container">© 2026 NongSan Xanh. Demo TMĐT nông sản.</div>
+          <div className="container">© 2026 Nông Sản Xanh. Demo TMĐT nông sản.</div>
         </div>
       </footer>
 

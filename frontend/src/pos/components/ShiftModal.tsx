@@ -33,32 +33,32 @@ export function ShiftModal({
   return (
     <div className="pos-modal-overlay" onClick={onClose}>
       <div className="pos-modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{mode === 'open' ? 'Mo ca ban hang' : 'Dong ca ban hang'}</h3>
+        <h3>{mode === 'open' ? 'Mở ca bán hàng' : 'Đóng ca bán hàng'}</h3>
         <p className="sub">
           {mode === 'open'
-            ? 'Nhap so tien mat dau ca trong ngan keo'
-            : 'Dem tien mat thuc te trong ngan keo de doi soat'}
+            ? 'Nhập số tiền mặt đầu ca trong ngăn kéo'
+            : 'Đếm tiền mặt thực tế trong ngăn kéo để đối soát'}
         </p>
 
         {mode === 'close' && shift && (
           <>
             <div className="pos-sum-row">
-              <span>Tien dau ca</span>
+              <span>Tiền đầu ca</span>
               <b className="pos-tabular">{formatVnd(shift.openingCash)}</b>
             </div>
             <div className="pos-sum-row">
-              <span>Doanh thu tien mat</span>
+              <span>Doanh thu tiền mặt</span>
               <b className="pos-tabular">{formatVnd(expected - shift.openingCash)}</b>
             </div>
             <div className="pos-sum-row">
-              <span>Tien mat du kien</span>
+              <span>Tiền mặt dự kiến</span>
               <b className="pos-tabular">{formatVnd(expected)}</b>
             </div>
           </>
         )}
 
         <label className="pos-field-label" style={{ marginTop: 12 }}>
-          {mode === 'open' ? 'Tien dau ca' : 'Tien dem duoc'}
+          {mode === 'open' ? 'Tiền đầu ca' : 'Tiền đếm được'}
         </label>
         <input
           ref={ref}
@@ -83,7 +83,7 @@ export function ShiftModal({
               borderColor: diff === 0 ? 'rgba(34,197,94,0.3)' : 'rgba(251,191,36,0.3)',
             }}
           >
-            <span>Chenh lech</span>
+            <span>Chênh lệch</span>
             <b className="pos-tabular" style={{ color: diff === 0 ? 'var(--pos-accent)' : 'var(--pos-amber)' }}>
               {diff > 0 ? '+' : ''}
               {formatVnd(diff)}
@@ -93,14 +93,14 @@ export function ShiftModal({
 
         <div className="pos-modal-actions">
           <button className="pos-btn" onClick={onClose}>
-            Huy
+            Hủy
           </button>
           <button
             className="pos-btn pos-btn-primary"
             disabled={loading || value === ''}
             onClick={() => onConfirm(amount, note || undefined)}
           >
-            {loading ? <span className="pos-spinner" /> : mode === 'open' ? 'Mo ca' : 'Dong ca'}
+            {loading ? <span className="pos-spinner" /> : mode === 'open' ? 'Mở ca' : 'Đóng ca'}
           </button>
         </div>
       </div>

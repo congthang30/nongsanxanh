@@ -117,6 +117,36 @@ img { display: block; max-width: 100%; }
 .badge-amber { background: #fef3c7; color: var(--clay); }
 .badge-gray { background: #eef2f0; color: var(--ink-500); }
 .badge-red { background: #fee2e2; color: var(--danger); }
+.badge-blue { background: #dbeafe; color: #1e40af; }
+.badge-violet { background: #ede9fe; color: #5b21b6; }
+
+/* ---------- Shared async states ---------- */
+.ui-state {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 8px; padding: 48px 24px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.ui-state-icon { font-size: 40px; line-height: 1; color: var(--ink-400); }
+.ui-state-title { font-size: 18px; margin: 0; }
+.ui-state-desc { color: var(--ink-500); font-size: 14px; max-width: 420px; margin: 0; }
+.ui-state-action { margin-top: 8px; }
+.ui-state-error-block { border-color: #fca5a5; background: #fef2f2; }
+.ui-state-loading { display: flex; flex-direction: column; gap: 12px; }
+.ui-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- Info banners ---------- */
+.note-banner {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 12px 14px; border-radius: var(--radius-sm); font-size: 14px; line-height: 1.5;
+  border: 1px solid; 
+}
+.note-banner-info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+.note-banner-warn { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+.note-banner-error { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+.note-banner-success { background: var(--green-50); border-color: var(--green-200); color: var(--green-800); }
 
 /* ---------- Forms ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }

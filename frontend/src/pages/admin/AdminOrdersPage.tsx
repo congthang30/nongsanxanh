@@ -2,10 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, getErrorMessage } from '../../lib/api';
 import { useToastStore } from '../../lib/toast.store';
-import { formatVnd } from '../../lib/format';
+import { formatVnd, paymentMethodLabel } from '../../lib/format';
 import { PageHeader } from '../../dashboard/components/PageHeader';
 import { DataTable } from '../../dashboard/components/DataTable';
 import { StatusBadge } from '../../dashboard/components/StatusBadge';
+import { ConfirmModal } from '../../components/ConfirmModal';
 
 interface AdminOrder {
   id: string;
@@ -22,13 +23,13 @@ interface AdminOrder {
 interface StoreOpt { id: string; name: string; code: string; status: string; }
 
 const TABS: { code: string; label: string }[] = [
-  { code: 'ALL', label: 'Tat ca' },
-  { code: 'PLACED', label: 'Moi' },
-  { code: 'STORE_CONFIRMED', label: 'Da xac nhan' },
-  { code: 'OUT_FOR_DELIVERY', label: 'Dang giao' },
-  { code: 'COMPLETED', label: 'Hoan tat' },
-  { code: 'DELIVERY_FAILED', label: 'Giao that bai' },
-  { code: 'CANCELLED', label: 'Da huy' },
+  { code: 'ALL', label: 'Tất cả' },
+  { code: 'PLACED', label: 'Mới' },
+  { code: 'STORE_CONFIRMED', label: 'Đã xác nhận' },
+  { code: 'OUT_FOR_DELIVERY', label: 'Đang giao' },
+  { code: 'COMPLETED', label: 'Hoàn tất' },
+  { code: 'DELIVERY_FAILED', label: 'Giao thất bại' },
+  { code: 'CANCELLED', label: 'Đã hủy' },
 ];
 
 export default function AdminOrdersPage() {
@@ -37,6 +38,7 @@ export default function AdminOrdersPage() {
   const [tab, setTab] = useState('ALL');
   const [storeFilter, setStoreFilter] = useState('');
   const [reassign, setReassign] = useState<AdminOrder | null>(null);
+  const [refundTarget, setRefundTarget] = useState<AdminOrder | null>(null);
 
   const { data: stores } = useQuery({
     queryKey: ['admin-stores-opt'],
@@ -57,14 +59,14 @@ export default function AdminOrdersPage() {
   });
 
   const refundMut = useMutation({
-    mutationFn: (id: string) => api.post(`/admin/orders/${id}/refund`, { reason: 'Admin hoan tien' }),
-    onSuccess: () => { push('Da hoan tien'); qc.invalidateQueries({ queryKey: ['admin-orders'] }); },
-    onError: (e) => push(getErrorMessage(e), 'error'),
+    mutationFn: (id: string) => api.post(`/admin/orders/${id}/refund`, { reason: 'Admin hoàn tiền' }),
+    onSuccess: () => { push('Đã hoàn tiền'); setRefundTarget(null); qc.invalidateQueries({ queryKey: ['admin-orders'] }); },
+    onError: (e) => { push(getErrorMessage(e), 'error'); setRefundTarget(null); },
   });
 
   return (
     <>
-      <PageHeader title="Don hang toan he thong" subtitle="Theo doi va can thiep don hang tat ca cua hang" />
+      <PageHeader title="Đơn hàng toàn hệ thống" subtitle="Theo dõi và can thiệp đơn hàng tất cả cửa hàng" />
 
       <div className="dash-table-card" style={{ padding: 12, marginBottom: 16, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         {TABS.map((t) => (
@@ -72,8 +74,8 @@ export default function AdminOrdersPage() {
             {t.label}
           </button>
         ))}
-        <select className="input" style={{ width: 'auto', marginLeft: 'auto' }} value={storeFilter} onChange={(e) => setStoreFilter(e.target.value)}>
-          <option value="">Tat ca cua hang</option>
+        <select className="input" style={{ width: 'auto', marginLeft: 'auto' }} value={storeFilter} onChange={(e) => setStoreFilter(e.target.value)} aria-label="Lọc theo cửa hàng">
+          <option value="">Tất cả cửa hàng</option>
           {stores?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
       </div>
@@ -82,31 +84,32 @@ export default function AdminOrdersPage() {
         rows={orders ?? []}
         loading={isLoading}
         rowKey={(o) => o.id}
-        emptyText="Khong co don hang"
+        emptyText="Không có đơn hàng"
         columns={[
           {
-            key: 'orderNumber', title: 'Ma don',
+            key: 'orderNumber', title: 'Mã đơn',
             render: (o) => (
               <div>
                 <strong>#{o.orderNumber}</strong>
-                <div className="muted" style={{ fontSize: 12 }}>{o.paymentMethod} · {o.paymentStatus}</div>
+                <div className="muted" style={{ fontSize: 12 }}>{paymentMethodLabel(o.paymentMethod)}</div>
               </div>
             ),
           },
-          { key: 'store', title: 'Cua hang', render: (o) => o.store?.name ?? <span className="muted">—</span> },
-          { key: 'customer', title: 'Khach hang', render: (o) => o.user.profile?.fullName ?? o.user.email },
-          { key: 'date', title: 'Ngay', render: (o) => <span className="muted">{new Date(o.createdAt).toLocaleDateString('vi-VN')}</span> },
-          { key: 'total', title: 'Tong', align: 'right', render: (o) => <strong>{formatVnd(o.grandTotal)}</strong> },
-          { key: 'status', title: 'Trang thai', render: (o) => <StatusBadge status={o.status} /> },
+          { key: 'store', title: 'Cửa hàng', render: (o) => o.store?.name ?? <span className="muted">—</span> },
+          { key: 'customer', title: 'Khách hàng', render: (o) => o.user.profile?.fullName ?? o.user.email },
+          { key: 'date', title: 'Ngày', render: (o) => <span className="muted">{new Date(o.createdAt).toLocaleDateString('vi-VN')}</span> },
+          { key: 'total', title: 'Tổng', align: 'right', render: (o) => <strong>{formatVnd(o.grandTotal)}</strong> },
+          { key: 'payment', title: 'Thanh toán', render: (o) => <StatusBadge status={o.paymentStatus} kind="payment" /> },
+          { key: 'status', title: 'Trạng thái', render: (o) => <StatusBadge status={o.status} /> },
           {
-            key: 'actions', title: 'Thao tac',
+            key: 'actions', title: 'Thao tác',
             render: (o) => (
               <div className="dash-row-actions">
                 {['PLACED', 'STORE_CONFIRMED'].includes(o.status) && (
-                  <button className="dash-btn dash-btn-sm" onClick={() => setReassign(o)}>Chuyen CH</button>
+                  <button className="dash-btn dash-btn-sm" onClick={() => setReassign(o)}>Chuyển CH</button>
                 )}
                 {o.paymentStatus !== 'REFUNDED' && ['CANCELLED', 'DELIVERY_FAILED', 'RETURNED'].includes(o.status) && (
-                  <button className="dash-btn dash-btn-sm" onClick={() => refundMut.mutate(o.id)} disabled={refundMut.isPending}>Hoan tien</button>
+                  <button className="dash-btn dash-btn-sm" onClick={() => setRefundTarget(o)} disabled={refundMut.isPending}>Hoàn tiền</button>
                 )}
               </div>
             ),
@@ -122,6 +125,17 @@ export default function AdminOrdersPage() {
           onDone={() => { setReassign(null); qc.invalidateQueries({ queryKey: ['admin-orders'] }); }}
         />
       )}
+
+      <ConfirmModal
+        open={!!refundTarget}
+        title="Hoàn tiền đơn hàng"
+        message={refundTarget ? `Xác nhận hoàn tiền cho đơn #${refundTarget.orderNumber} (${formatVnd(refundTarget.grandTotal)})? Thao tác này không thể hoàn tác.` : ''}
+        confirmLabel="Hoàn tiền"
+        danger
+        loading={refundMut.isPending}
+        onCancel={() => setRefundTarget(null)}
+        onConfirm={() => refundTarget && refundMut.mutate(refundTarget.id)}
+      />
     </>
   );
 }
@@ -132,22 +146,22 @@ function ReassignModal({ order, stores, onClose, onDone }: {
   const { push } = useToastStore();
   const [storeId, setStoreId] = useState('');
   const mut = useMutation({
-    mutationFn: () => api.post(`/admin/orders/${order.id}/reassign-store`, { storeId, reason: 'Admin dieu chuyen' }),
-    onSuccess: () => { push('Da chuyen don sang cua hang khac'); onDone(); },
+    mutationFn: () => api.post(`/admin/orders/${order.id}/reassign-store`, { storeId, reason: 'Admin điều chuyển' }),
+    onSuccess: () => { push('Đã chuyển đơn sang cửa hàng khác'); onDone(); },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
   return (
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Chuyen don #{order.orderNumber}</h2>
-        <p className="muted">Tu cua hang: {order.store?.name ?? '—'}</p>
-        <select className="input" value={storeId} onChange={(e) => setStoreId(e.target.value)} style={{ marginTop: 12 }}>
-          <option value="">-- Chon cua hang moi --</option>
+        <h2>Chuyển đơn #{order.orderNumber}</h2>
+        <p className="muted">Từ cửa hàng: {order.store?.name ?? '—'}</p>
+        <select className="input" value={storeId} onChange={(e) => setStoreId(e.target.value)} style={{ marginTop: 12 }} aria-label="Chọn cửa hàng mới">
+          <option value="">-- Chọn cửa hàng mới --</option>
           {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         <div className="flex gap-sm" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onClose}>Huy</button>
-          <button className="btn btn-primary" disabled={!storeId || mut.isPending} onClick={() => mut.mutate()}>Xac nhan chuyen</button>
+          <button className="btn btn-ghost" onClick={onClose}>Hủy</button>
+          <button className="btn btn-primary" disabled={!storeId || mut.isPending} onClick={() => mut.mutate()}>Xác nhận chuyển</button>
         </div>
       </div>
     </div>

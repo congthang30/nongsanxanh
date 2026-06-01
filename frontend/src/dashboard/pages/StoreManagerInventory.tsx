@@ -24,25 +24,26 @@ export default function StoreManagerInventory() {
 
   return (
     <>
-      <PageHeader title="Ton kho cua hang" subtitle="Theo doi ton kho san pham tai cua hang" />
+      <PageHeader title="Tồn kho cửa hàng" subtitle="Theo dõi tồn kho sản phẩm tại cửa hàng" />
       <div className="dash-table-card" style={{ padding: 12, marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input className="input" placeholder="Tim san pham / SKU" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} />
+        <input className="input" placeholder="Tìm sản phẩm / SKU" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} aria-label="Tìm sản phẩm" />
         <label className="flex gap-sm center">
-          <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} /> Chi hien sap het hang
+          <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} /> Chỉ hiện sắp hết hàng
         </label>
       </div>
       <DataTable<InvRow>
         rows={data ?? []}
         loading={isLoading}
         rowKey={(r) => r.id}
+        emptyText="Không có sản phẩm tồn kho"
         columns={[
-          { key: 'product', title: 'San pham', render: (r) => <strong>{r.productName}</strong> },
+          { key: 'product', title: 'Sản phẩm', render: (r) => <strong>{r.productName}</strong> },
           { key: 'sku', title: 'SKU', render: (r) => <span className="muted">{r.sku}</span> },
-          { key: 'price', title: 'Gia', align: 'right', render: (r) => formatVnd(r.salePrice ?? r.basePrice) },
-          { key: 'onHand', title: 'Ton kho', align: 'right', render: (r) => `${r.quantityOnHand} ${r.unit}` },
-          { key: 'reserved', title: 'Dang giu', align: 'right', render: (r) => r.reservedQuantity },
-          { key: 'available', title: 'Kha dung', align: 'right', render: (r) => <strong style={{ color: r.isLowStock ? '#dc2626' : '#16a34a' }}>{r.available}</strong> },
-          { key: 'status', title: 'Trang thai', render: (r) => <StatusBadge status={r.status} /> },
+          { key: 'price', title: 'Giá', align: 'right', render: (r) => formatVnd(r.salePrice ?? r.basePrice) },
+          { key: 'onHand', title: 'Tồn kho', align: 'right', render: (r) => `${r.quantityOnHand} ${r.unit}` },
+          { key: 'reserved', title: 'Đang giữ', align: 'right', render: (r) => r.reservedQuantity },
+          { key: 'available', title: 'Khả dụng', align: 'right', render: (r) => <strong style={{ color: r.isLowStock ? '#dc2626' : '#16a34a' }}>{r.available}</strong> },
+          { key: 'status', title: 'Trạng thái', render: (r) => <StatusBadge status={r.status} /> },
         ]}
       />
     </>

@@ -29,28 +29,29 @@ export default function AdminProductsPage() {
   return (
     <>
       <PageHeader
-        title="San pham"
-        subtitle="Danh muc san pham chung cua chuoi"
-        actions={<button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>+ Them san pham</button>}
+        title="Sản phẩm"
+        subtitle="Danh mục sản phẩm chung của chuỗi"
+        actions={<button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>+ Thêm sản phẩm</button>}
       />
       <DataTable<ProductRow>
         rows={data ?? []}
         loading={isLoading}
         rowKey={(r) => r.id}
+        emptyText="Chưa có sản phẩm nào"
         columns={[
-          { key: 'name', title: 'Ten', render: (r) => <strong>{r.name}</strong> },
-          { key: 'cat', title: 'Danh muc', render: (r) => r.category?.name ?? '—' },
-          { key: 'origin', title: 'Xuat xu', render: (r) => r.originRegion ?? '—' },
-          { key: 'price', title: 'Gia tu', align: 'right', render: (r) => r.fromPrice ? `${formatVnd(r.fromPrice)}/${r.unit}` : '—' },
-          { key: 'status', title: 'Trang thai', render: (r) => <StatusBadge status={r.status} /> },
+          { key: 'name', title: 'Tên', render: (r) => <strong>{r.name}</strong> },
+          { key: 'cat', title: 'Danh mục', render: (r) => r.category?.name ?? '—' },
+          { key: 'origin', title: 'Xuất xứ', render: (r) => r.originRegion ?? '—' },
+          { key: 'price', title: 'Giá từ', align: 'right', render: (r) => r.fromPrice ? `${formatVnd(r.fromPrice)}/${r.unit}` : '—' },
+          { key: 'status', title: 'Trạng thái', render: (r) => <StatusBadge status={r.status} /> },
           {
             key: 'act', title: '', align: 'right', render: (r) => (
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => setBarcodeProductId(r.id)}
-                title="Quan ly ma vach POS"
+                title="Quản lý mã vạch POS"
               >
-                Ma vach
+                Mã vạch
               </button>
             ),
           },
@@ -89,32 +90,32 @@ function CreateProductModal({ onClose, onDone }: { onClose: () => void; onDone: 
       imageUrl: form.imageUrl || undefined,
       variant: { sku: form.sku || `${form.slug || form.name}`.toUpperCase(), unit: form.unit, price: Number(form.price) },
     }),
-    onSuccess: () => { push('Da tao san pham'); onDone(); },
+    onSuccess: () => { push('Đã tạo sản phẩm'); onDone(); },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
   return (
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Them san pham</h2>
+        <h2>Thêm sản phẩm</h2>
         <div className="dash-form-grid">
-          <label>Ten<input className="input" value={form.name} onChange={(e) => set('name', e.target.value)} /></label>
+          <label>Tên<input className="input" value={form.name} onChange={(e) => set('name', e.target.value)} /></label>
           <label>Slug<input className="input" value={form.slug} onChange={(e) => set('slug', e.target.value)} /></label>
-          <label>Danh muc
+          <label>Danh mục
             <select className="input" value={form.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
-              <option value="">-- Chon --</option>
+              <option value="">-- Chọn --</option>
               {categories?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
-          <label>Xuat xu<input className="input" value={form.originRegion} onChange={(e) => set('originRegion', e.target.value)} /></label>
-          <label>Anh URL<input className="input" value={form.imageUrl} onChange={(e) => set('imageUrl', e.target.value)} /></label>
+          <label>Xuất xứ<input className="input" value={form.originRegion} onChange={(e) => set('originRegion', e.target.value)} /></label>
+          <label>Ảnh URL<input className="input" value={form.imageUrl} onChange={(e) => set('imageUrl', e.target.value)} /></label>
           <label>SKU<input className="input" value={form.sku} onChange={(e) => set('sku', e.target.value)} /></label>
-          <label>Don vi<input className="input" value={form.unit} onChange={(e) => set('unit', e.target.value)} /></label>
-          <label>Gia (VND)<input className="input" type="number" value={form.price} onChange={(e) => set('price', e.target.value)} /></label>
+          <label>Đơn vị<input className="input" value={form.unit} onChange={(e) => set('unit', e.target.value)} /></label>
+          <label>Giá (VNĐ)<input className="input" type="number" value={form.price} onChange={(e) => set('price', e.target.value)} /></label>
         </div>
         <div className="flex gap-sm" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onClose}>Huy</button>
-          <button className="btn btn-primary" disabled={!form.name || !form.categoryId || !form.price || mut.isPending} onClick={() => mut.mutate()}>Tao</button>
+          <button className="btn btn-ghost" onClick={onClose}>Hủy</button>
+          <button className="btn btn-primary" disabled={!form.name || !form.categoryId || !form.price || mut.isPending} onClick={() => mut.mutate()}>Tạo</button>
         </div>
       </div>
     </div>

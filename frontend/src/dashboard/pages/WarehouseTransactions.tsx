@@ -20,16 +20,16 @@ interface Tx {
 }
 
 const TYPE_OPTIONS: { code: string; label: string; color: string }[] = [
-  { code: '', label: 'Tat ca', color: '#64748b' },
-  { code: 'IMPORT', label: 'Nhap', color: '#16a34a' },
-  { code: 'EXPORT', label: 'Xuat', color: '#7c3aed' },
-  { code: 'ADJUST', label: 'Dieu chinh', color: '#0891b2' },
-  { code: 'POS_SALE', label: 'POS ban', color: '#0f766e' },
-  { code: 'POS_RETURN', label: 'POS tra', color: '#0284c7' },
-  { code: 'POS_LOSS', label: 'Hu hong', color: '#dc2626' },
-  { code: 'RESERVE', label: 'Reserve', color: '#94a3b8' },
-  { code: 'RELEASE', label: 'Release', color: '#94a3b8' },
-  { code: 'COMMIT', label: 'Commit', color: '#94a3b8' },
+  { code: '', label: 'Tất cả', color: '#64748b' },
+  { code: 'IMPORT', label: 'Nhập', color: '#16a34a' },
+  { code: 'EXPORT', label: 'Xuất', color: '#7c3aed' },
+  { code: 'ADJUST', label: 'Điều chỉnh', color: '#0891b2' },
+  { code: 'POS_SALE', label: 'POS bán', color: '#0f766e' },
+  { code: 'POS_RETURN', label: 'POS trả', color: '#0284c7' },
+  { code: 'POS_LOSS', label: 'Hư hỏng', color: '#dc2626' },
+  { code: 'RESERVE', label: 'Giữ chỗ', color: '#94a3b8' },
+  { code: 'RELEASE', label: 'Nhả giữ', color: '#94a3b8' },
+  { code: 'COMMIT', label: 'Trừ kho', color: '#94a3b8' },
 ];
 
 export default function WarehouseTransactions() {
@@ -54,8 +54,8 @@ export default function WarehouseTransactions() {
   return (
     <>
       <PageHeader
-        title="Lich su nhap/xuat ton kho"
-        subtitle="Truy vet moi thay doi ton kho theo cua hang"
+        title="Lịch sử nhập/xuất tồn kho"
+        subtitle="Truy vết mọi thay đổi tồn kho theo cửa hàng"
       />
       <div
         className="dash-table-card"
@@ -103,12 +103,12 @@ export default function WarehouseTransactions() {
         columns={[
           {
             key: 'time',
-            title: 'Thoi gian',
+            title: 'Thời gian',
             render: (r) => new Date(r.createdAt).toLocaleString('vi-VN'),
           },
           {
             key: 'type',
-            title: 'Loai',
+            title: 'Loại',
             render: (r) => {
               const opt = TYPE_OPTIONS.find((o) => o.code === r.type);
               return (
@@ -129,7 +129,7 @@ export default function WarehouseTransactions() {
           },
           {
             key: 'qty',
-            title: 'So luong',
+            title: 'Số lượng',
             align: 'right',
             render: (r) => (
               <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -139,7 +139,7 @@ export default function WarehouseTransactions() {
           },
           {
             key: 'before',
-            title: 'Truoc',
+            title: 'Trước',
             align: 'right',
             render: (r) => Number(r.beforeQty).toLocaleString('vi-VN'),
           },
@@ -153,16 +153,16 @@ export default function WarehouseTransactions() {
           },
           {
             key: 'reason',
-            title: 'Ly do',
+            title: 'Lý do',
             render: (r) => r.reason ?? <span className="muted">—</span>,
           },
           {
             key: 'ref',
-            title: 'Lien quan',
+            title: 'Liên quan',
             render: (r) =>
               r.orderId ? (
                 <span className="muted" style={{ fontSize: 12 }}>
-                  Order #{r.orderId.slice(0, 8)}
+                  Đơn #{r.orderId.slice(0, 8)}
                 </span>
               ) : (
                 <span className="muted">—</span>

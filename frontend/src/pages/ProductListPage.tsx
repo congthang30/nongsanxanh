@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import { api } from '../lib/api';
 import { ProductCard, ProductSummary } from '../components/ProductCard';
+import { EmptyState, ErrorState, LoadingState } from '../components/States';
 
 interface Category { id: string; name: string; slug: string; }
 interface ProductListResponse { data: ProductSummary[]; meta: { total: number; page: number; totalPages: number }; }
@@ -17,7 +18,7 @@ export default function ProductListPage() {
     queryFn: () => api.get('/categories').then((r) => r.data.data as Category[]),
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['products', { q: searchParams.get('q'), categoryId, sort }],
     queryFn: () => {
       return api
@@ -42,9 +43,9 @@ export default function ProductListPage() {
 
   return (
     <div className="container section">
-      <div className="stack gap" style={{ marginBottom: 28 }}>
+      <div className="stack gap" style={{ marginBottom: 20 }}>
         <div className="between" style={{ flexWrap: 'wrap', gap: 12 }}>
-          <h1>San pham nong san</h1>
+          <h1>Sản phẩm nông sản</h1>
         </div>
         <form
           onSubmit={(e) => { e.preventDefault(); setParam('q', q); }}
@@ -53,20 +54,24 @@ export default function ProductListPage() {
         >
           <input
             className="input"
-            placeholder="Tim rau cu, trai cay, gao..."
+            placeholder="Tìm rau củ, trái cây, gạo..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            aria-label="Tìm sản phẩm"
           />
-          <button className="btn btn-dark" type="submit">Tim</button>
+          <button className="btn btn-dark" type="submit">Tìm</button>
         </form>
+        <p className="muted" style={{ fontSize: 13 }}>
+          Tồn kho được kiểm tra theo địa chỉ giao hàng ở bước thanh toán.
+        </p>
       </div>
 
-      <div className="flex gap-sm" style={{ flexWrap: 'wrap', marginBottom: 24 }}>
+      <div className="flex gap-sm" style={{ flexWrap: 'wrap', marginBottom: 24, alignItems: 'center' }}>
         <button
           className={`btn btn-sm ${!categoryId ? 'btn-primary' : 'btn-ghost'}`}
           onClick={() => setParam('categoryId', '')}
         >
-          Tat ca
+          Tất cả
         </button>
         {categories?.map((c) => (
           <button
@@ -82,26 +87,28 @@ export default function ProductListPage() {
           style={{ width: 'auto', marginLeft: 'auto' }}
           value={sort}
           onChange={(e) => setParam('sort', e.target.value)}
+          aria-label="Sắp xếp"
         >
-          <option value="newest">Moi nhat</option>
-          <option value="rating">Danh gia cao</option>
+          <option value="newest">Mới nhất</option>
+          <option value="rating">Đánh giá cao</option>
         </select>
       </div>
 
       {isLoading ? (
         <div className="grid product-grid">
-          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 300 }} />)}
+          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 300, borderRadius: 16 }} />)}
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={() => refetch()} />
       ) : data && data.data.length > 0 ? (
         <div className="grid product-grid">
           {data.data.map((p) => <ProductCard key={p.id} product={p} />)}
         </div>
       ) : (
-        <div className="card" style={{ padding: 48, textAlign: 'center' }}>
-          <p className="muted">
-            Khong tim thay san pham phu hop.
-          </p>
-        </div>
+        <EmptyState
+          title="Không tìm thấy sản phẩm phù hợp"
+          description="Thử đổi từ khóa hoặc danh mục khác."
+        />
       )}
     </div>
   );

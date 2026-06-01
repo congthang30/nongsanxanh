@@ -18,15 +18,15 @@ export default function StoreManagerReports() {
 
   return (
     <>
-      <PageHeader title="Bao cao cua hang" subtitle="Hieu suat 7 ngay gan nhat" />
+      <PageHeader title="Báo cáo cửa hàng" subtitle="Hiệu suất 7 ngày gần nhất" />
       <div className="dash-stat-grid">
-        <StatCard icon="" label="Tong don" value={data?.totalOrders ?? 0} color="#0891b2" />
-        <StatCard icon="" label="Don hoan tat" value={data?.completedOrders ?? 0} color="#16a34a" />
+        <StatCard icon="" label="Tổng đơn" value={data?.totalOrders ?? 0} color="#0891b2" />
+        <StatCard icon="" label="Đơn hoàn tất" value={data?.completedOrders ?? 0} color="#16a34a" />
         <StatCard icon="" label="Doanh thu" value={data?.revenue ?? 0} format={formatVnd} color="#15803d" />
-        <StatCard icon="" label="Gia tri TB/don" value={data?.avgOrderValue ?? 0} format={formatVnd} color="#7c3aed" />
+        <StatCard icon="" label="Giá trị TB/đơn" value={data?.avgOrderValue ?? 0} format={formatVnd} color="#7c3aed" />
       </div>
       <div className="dash-table-card" style={{ marginTop: 24, padding: 20 }}>
-        <h3 style={{ marginBottom: 16 }}>Doanh thu theo ngay</h3>
+        <h3 style={{ marginBottom: 16 }}>Doanh thu theo ngày</h3>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 160 }}>
           {(data?.daily ?? []).map((d) => (
             <div key={d.date} style={{ flex: 1, textAlign: 'center' }}>
@@ -35,7 +35,7 @@ export default function StoreManagerReports() {
               <span className="muted" style={{ fontSize: 10 }}>{d.date.slice(5)}</span>
             </div>
           ))}
-          {(data?.daily ?? []).length === 0 && <span className="muted">Chua co du lieu.</span>}
+          {(data?.daily ?? []).length === 0 && <span className="muted">Chưa có dữ liệu.</span>}
         </div>
       </div>
     </>

@@ -144,7 +144,7 @@ export function AddressSearchInput({
           </div>
         </div>
         {!disabled && (
-          <button type="button" className="addr-picked-clear" onClick={reset} aria-label="Xoa">
+          <button type="button" className="addr-picked-clear" onClick={reset} aria-label="Xóa địa chỉ">
             ×
           </button>
         )}
@@ -158,13 +158,13 @@ export function AddressSearchInput({
         className="input"
         autoFocus={autoFocus}
         disabled={disabled || resolving}
-        placeholder={placeholder ?? 'Nhap dia chi (vd: 123 Le Loi, Quan 1, TP.HCM)'}
+        placeholder={placeholder ?? 'Nhập địa chỉ (vd: 123 Lê Lợi, Quận 1, TP.HCM)'}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => predictions.length > 0 && setOpen(true)}
       />
       {(searching || resolving) && (
-        <span className="addr-search-spinner">{resolving ? 'Dang phan giai...' : 'Dang tim...'}</span>
+        <span className="addr-search-spinner">{resolving ? 'Đang phân giải...' : 'Đang tìm...'}</span>
       )}
       {open && predictions.length > 0 && (
         <ul className="addr-search-list">

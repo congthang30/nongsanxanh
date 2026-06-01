@@ -16,6 +16,9 @@ interface DataTableProps<T> {
   actions?: ReactNode;
   emptyText?: string;
   loading?: boolean;
+  /** Thông báo lỗi (kèm nút thử lại nếu có onRetry). */
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 export function DataTable<T>({
@@ -24,8 +27,10 @@ export function DataTable<T>({
   columns,
   rowKey,
   actions,
-  emptyText = 'Khong co du lieu',
+  emptyText = 'Không có dữ liệu',
   loading,
+  error,
+  onRetry,
 }: DataTableProps<T>) {
   return (
     <div className="dash-table-card">
@@ -53,21 +58,29 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {error ? (
               <tr>
-                <td
-                  colSpan={columns.length}
-                  style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}
-                >
-                  Dang tai...
+                <td colSpan={columns.length} className="dash-table-state">
+                  <div className="dash-state dash-state-error">
+                    <span>{error}</span>
+                    {onRetry && (
+                      <button className="dash-btn dash-btn-sm" onClick={onRetry}>
+                        Thử lại
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ) : loading ? (
+              <tr>
+                <td colSpan={columns.length} className="dash-table-state">
+                  <span className="dash-state-spinner" aria-hidden="true" />
+                  Đang tải...
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={columns.length}
-                  style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}
-                >
+                <td colSpan={columns.length} className="dash-table-state">
                   {emptyText}
                 </td>
               </tr>
@@ -75,13 +88,10 @@ export function DataTable<T>({
               rows.map((row, i) => (
                 <tr key={rowKey ? rowKey(row) : i}>
                   {columns.map((c) => (
-                    <td
-                      key={c.key}
-                      style={{ textAlign: c.align ?? 'left' }}
-                    >
+                    <td key={c.key} style={{ textAlign: c.align ?? 'left' }}>
                       {c.render
                         ? c.render(row)
-                        : String((row as any)[c.key] ?? '—')}
+                        : String((row as Record<string, unknown>)[c.key] ?? '—')}
                     </td>
                   ))}
                 </tr>

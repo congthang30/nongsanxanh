@@ -16,23 +16,23 @@ export function ReceiptModal({
         <div className="pos-receipt" id="pos-receipt">
           <h2>{receipt.store.name}</h2>
           {receipt.store.address && <p className="r-center">{receipt.store.address}</p>}
-          {receipt.store.phone && <p className="r-center">DT: {receipt.store.phone}</p>}
+          {receipt.store.phone && <p className="r-center">ĐT: {receipt.store.phone}</p>}
           <hr />
           <div className="r-row">
-            <span>Hoa don</span>
+            <span>Hóa đơn</span>
             <b>{receipt.saleNumber}</b>
           </div>
           <div className="r-row">
-            <span>Ngay</span>
+            <span>Ngày</span>
             <span>{new Date(dt).toLocaleString('vi-VN')}</span>
           </div>
           <div className="r-row">
-            <span>Thu ngan</span>
+            <span>Thu ngân</span>
             <span>{receipt.cashier.name}</span>
           </div>
           {receipt.customerPhone && (
             <div className="r-row">
-              <span>Khach</span>
+              <span>Khách</span>
               <span>{receipt.customerPhone}</span>
             </div>
           )}
@@ -50,17 +50,17 @@ export function ReceiptModal({
           ))}
           <hr />
           <div className="r-row">
-            <span>Tam tinh</span>
+            <span>Tạm tính</span>
             <span className="pos-tabular">{formatVnd(receipt.subtotal)}</span>
           </div>
           {receipt.discountTotal > 0 && (
             <div className="r-row">
-              <span>Giam gia</span>
+              <span>Giảm giá</span>
               <span className="pos-tabular">-{formatVnd(receipt.discountTotal)}</span>
             </div>
           )}
           <div className="r-row r-grand">
-            <span>TONG CONG</span>
+            <span>TỔNG CỘNG</span>
             <span className="pos-tabular">{formatVnd(receipt.grandTotal)}</span>
           </div>
           <hr />
@@ -72,20 +72,20 @@ export function ReceiptModal({
           ))}
           {receipt.changeAmount > 0 && (
             <div className="r-row">
-              <span>Tien thoi</span>
+              <span>Tiền thối</span>
               <span className="pos-tabular">{formatVnd(receipt.changeAmount)}</span>
             </div>
           )}
           <hr />
-          <p className="r-center">Cam on quy khach!</p>
+          <p className="r-center">Cảm ơn quý khách!</p>
           <p className="r-center">Hotline: {receipt.hotline}</p>
         </div>
         <div className="pos-btn-row pos-no-print" style={{ marginTop: 12 }}>
           <button className="pos-btn" onClick={onClose}>
-            Dong
+            Đóng
           </button>
           <button className="pos-btn pos-btn-primary" onClick={() => window.print()}>
-            In hoa don
+            In hóa đơn
           </button>
         </div>
       </div>

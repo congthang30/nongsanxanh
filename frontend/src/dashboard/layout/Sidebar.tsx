@@ -65,7 +65,7 @@ export function DashboardSidebar({
           <Link to="/" className="dash-nav-item">
             <span className="dash-nav-icon">←</span>
             {!collapsed && (
-              <span className="dash-nav-label">Ve trang khach</span>
+              <span className="dash-nav-label">Về trang khách</span>
             )}
           </Link>
         </div>

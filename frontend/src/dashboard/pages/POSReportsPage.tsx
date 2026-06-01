@@ -42,26 +42,26 @@ export default function POSReportsPage() {
   return (
     <>
       <PageHeader
-        title="Bao cao POS tai quay"
-        subtitle="Doanh thu ban hang tai cua hang 7 ngay gan nhat"
+        title="Báo cáo POS tại quầy"
+        subtitle="Doanh thu bán hàng tại cửa hàng 7 ngày gần nhất"
         actions={
           <Link to="/pos" className="dash-btn dash-btn-primary">
-            Mo man hinh thu ngan
+            Mở màn hình thu ngân
           </Link>
         }
       />
 
       <div className="dash-stat-grid">
         <StatCard icon="" label="Doanh thu POS" value={data?.revenue ?? 0} format={formatVnd} color="#16a34a" />
-        <StatCard icon="" label="So hoa don" value={data?.billCount ?? 0} color="#0891b2" />
-        <StatCard icon="" label="Gia tri TB/hoa don" value={data?.avgBillValue ?? 0} format={formatVnd} color="#7c3aed" />
-        <StatCard icon="" label="Ton kho da ban (POS)" value={data?.inventoryReducedUnits ?? 0} color="#ca8a04" />
-        <StatCard icon="" label="Hoa don huy" value={data?.voidCount ?? 0} color="#dc2626" />
-        <StatCard icon="" label="Hoa don hoan tra" value={data?.refundCount ?? 0} color="#dc2626" />
+        <StatCard icon="" label="Số hóa đơn" value={data?.billCount ?? 0} color="#0891b2" />
+        <StatCard icon="" label="Giá trị TB/hóa đơn" value={data?.avgBillValue ?? 0} format={formatVnd} color="#7c3aed" />
+        <StatCard icon="" label="Tồn kho đã bán (POS)" value={data?.inventoryReducedUnits ?? 0} color="#ca8a04" />
+        <StatCard icon="" label="Hóa đơn hủy" value={data?.voidCount ?? 0} color="#dc2626" />
+        <StatCard icon="" label="Hóa đơn hoàn trả" value={data?.refundCount ?? 0} color="#dc2626" />
       </div>
 
       <div className="dash-table-card" style={{ marginTop: 8, padding: 20, marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 16 }}>Doanh thu POS theo ngay</h3>
+        <h3 style={{ marginBottom: 16 }}>Doanh thu POS theo ngày</h3>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 160 }}>
           {(data?.daily ?? []).map((d) => (
             <div key={d.date} style={{ flex: 1, textAlign: 'center' }}>
@@ -77,30 +77,30 @@ export default function POSReportsPage() {
               <span className="muted" style={{ fontSize: 10 }}>{d.date.slice(5)}</span>
             </div>
           ))}
-          {(data?.daily ?? []).length === 0 && <span className="muted">Chua co du lieu.</span>}
+          {(data?.daily ?? []).length === 0 && <span className="muted">Chưa có dữ liệu.</span>}
         </div>
       </div>
 
       <div className="dash-grid-2">
         <DataTable
-          title="Top san pham ban tai quay"
+          title="Top sản phẩm bán tại quầy"
           rows={data?.topProducts ?? []}
           loading={isLoading}
           rowKey={(r) => r.sku}
           columns={[
-            { key: 'name', title: 'San pham', render: (r) => <strong>{r.name}</strong> },
-            { key: 'qty', title: 'SL ban', align: 'right', render: (r) => r.quantity },
+            { key: 'name', title: 'Sản phẩm', render: (r) => <strong>{r.name}</strong> },
+            { key: 'qty', title: 'SL bán', align: 'right', render: (r) => r.quantity },
             { key: 'rev', title: 'Doanh thu', align: 'right', render: (r) => formatVnd(r.revenue) },
           ]}
         />
         <DataTable
-          title="Doanh thu theo thu ngan"
+          title="Doanh thu theo thu ngân"
           rows={data?.byCashier ?? []}
           loading={isLoading}
           rowKey={(r) => r.cashierId}
           columns={[
-            { key: 'name', title: 'Thu ngan', render: (r) => r.cashierName },
-            { key: 'bills', title: 'Hoa don', align: 'right', render: (r) => r.bills },
+            { key: 'name', title: 'Thu ngân', render: (r) => r.cashierName },
+            { key: 'bills', title: 'Hóa đơn', align: 'right', render: (r) => r.bills },
             { key: 'rev', title: 'Doanh thu', align: 'right', render: (r) => formatVnd(r.revenue) },
           ]}
         />
@@ -108,17 +108,17 @@ export default function POSReportsPage() {
 
       <div style={{ marginTop: 20 }}>
         <DataTable<ShiftRow>
-          title="Doi soat tien mat theo ca"
+          title="Đối soát tiền mặt theo ca"
           rows={shifts ?? []}
           rowKey={(r) => r.id}
           columns={[
-            { key: 'cashier', title: 'Thu ngan', render: (r) => <strong>{r.cashierName}</strong> },
-            { key: 'status', title: 'Trang thai', render: (r) => (r.status === 'OPEN' ? 'Dang mo' : 'Da dong') },
-            { key: 'opening', title: 'Dau ca', align: 'right', render: (r) => formatVnd(r.openingCash) },
-            { key: 'expected', title: 'Du kien', align: 'right', render: (r) => formatVnd(r.expectedCash) },
-            { key: 'counted', title: 'Dem duoc', align: 'right', render: (r) => (r.countedCash == null ? '—' : formatVnd(r.countedCash)) },
+            { key: 'cashier', title: 'Thu ngân', render: (r) => <strong>{r.cashierName}</strong> },
+            { key: 'status', title: 'Trạng thái', render: (r) => (r.status === 'OPEN' ? 'Đang mở' : 'Đã đóng') },
+            { key: 'opening', title: 'Đầu ca', align: 'right', render: (r) => formatVnd(r.openingCash) },
+            { key: 'expected', title: 'Dự kiến', align: 'right', render: (r) => formatVnd(r.expectedCash) },
+            { key: 'counted', title: 'Đếm được', align: 'right', render: (r) => (r.countedCash == null ? '—' : formatVnd(r.countedCash)) },
             {
-              key: 'diff', title: 'Chenh lech', align: 'right',
+              key: 'diff', title: 'Chênh lệch', align: 'right',
               render: (r) =>
                 r.cashDifference == null ? '—' : (
                   <strong style={{ color: r.cashDifference === 0 ? '#16a34a' : '#dc2626' }}>
@@ -126,7 +126,7 @@ export default function POSReportsPage() {
                   </strong>
                 ),
             },
-            { key: 'sales', title: 'So HD', align: 'right', render: (r) => r.saleCount },
+            { key: 'sales', title: 'Số HD', align: 'right', render: (r) => r.saleCount },
           ]}
         />
       </div>

@@ -42,7 +42,7 @@ export function ChartCard({
                   }`}
                   onClick={() => onPeriodChange(p)}
                 >
-                  {p === 'day' ? 'Ngay' : p === 'month' ? 'Thang' : 'Nam'}
+                  {p === 'day' ? 'Ngày' : p === 'month' ? 'Tháng' : 'Năm'}
                 </button>
               ))}
             </div>
@@ -81,7 +81,7 @@ export function LineChart({
           fontSize: 13,
         }}
       >
-        Chua co du lieu
+        Chưa có dữ liệu
       </div>
     );
   }
@@ -124,7 +124,7 @@ export function LineChart({
       width="100%"
       height={h}
       role="img"
-      aria-label="Bieu do"
+      aria-label="Biểu đồ"
     >
       <defs>
         <linearGradient id="lc-grad" x1="0" y1="0" x2="0" y2="1">
@@ -217,7 +217,7 @@ export function BarChart({
           fontSize: 13,
         }}
       >
-        Chua co du lieu
+        Chưa có dữ liệu
       </div>
     );
   }

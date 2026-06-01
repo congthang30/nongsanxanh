@@ -28,30 +28,31 @@ export default function WarehouseInventory() {
 
   return (
     <>
-      <PageHeader title="Ton kho" subtitle="Nhap hang va dieu chinh ton kho cua hang" />
+      <PageHeader title="Tồn kho" subtitle="Nhập hàng và điều chỉnh tồn kho cửa hàng" />
       <div className="dash-table-card" style={{ padding: 12, marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input className="input" placeholder="Tim san pham / SKU" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} />
+        <input className="input" placeholder="Tìm sản phẩm / SKU" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} aria-label="Tìm sản phẩm" />
         <label className="flex gap-sm center">
-          <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} /> Chi hien sap het hang
+          <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} /> Chỉ hiện sắp hết hàng
         </label>
       </div>
       <DataTable<InvRow>
         rows={data ?? []}
         loading={isLoading}
         rowKey={(r) => r.id}
+        emptyText="Không có sản phẩm tồn kho"
         columns={[
-          { key: 'product', title: 'San pham', render: (r) => <strong>{r.productName}</strong> },
+          { key: 'product', title: 'Sản phẩm', render: (r) => <strong>{r.productName}</strong> },
           { key: 'sku', title: 'SKU', render: (r) => <span className="muted">{r.sku}</span> },
-          { key: 'onHand', title: 'Ton kho', align: 'right', render: (r) => `${r.quantityOnHand} ${r.unit}` },
-          { key: 'reserved', title: 'Dang giu', align: 'right', render: (r) => r.reservedQuantity },
-          { key: 'available', title: 'Kha dung', align: 'right', render: (r) => <strong style={{ color: r.isLowStock ? '#dc2626' : '#16a34a' }}>{r.available}</strong> },
-          { key: 'status', title: 'Trang thai', render: (r) => <StatusBadge status={r.status} /> },
+          { key: 'onHand', title: 'Tồn kho', align: 'right', render: (r) => `${r.quantityOnHand} ${r.unit}` },
+          { key: 'reserved', title: 'Đang giữ', align: 'right', render: (r) => r.reservedQuantity },
+          { key: 'available', title: 'Khả dụng', align: 'right', render: (r) => <strong style={{ color: r.isLowStock ? '#dc2626' : '#16a34a' }}>{r.available}</strong> },
+          { key: 'status', title: 'Trạng thái', render: (r) => <StatusBadge status={r.status} /> },
           {
-            key: 'act', title: 'Thao tac', render: (r) => (
+            key: 'act', title: 'Thao tác', render: (r) => (
               <div className="dash-row-actions">
-                <button className="dash-btn dash-btn-sm dash-btn-primary" onClick={() => setModal({ row: r, mode: 'import' })}>Nhap</button>
-                <button className="dash-btn dash-btn-sm" onClick={() => setModal({ row: r, mode: 'export' })} disabled={r.available <= 0}>Xuat / hu</button>
-                <button className="dash-btn dash-btn-sm" onClick={() => setModal({ row: r, mode: 'adjust' })}>Kiem ke</button>
+                <button className="dash-btn dash-btn-sm dash-btn-primary" onClick={() => setModal({ row: r, mode: 'import' })}>Nhập</button>
+                <button className="dash-btn dash-btn-sm" onClick={() => setModal({ row: r, mode: 'export' })} disabled={r.available <= 0}>Xuất / hủy</button>
+                <button className="dash-btn dash-btn-sm" onClick={() => setModal({ row: r, mode: 'adjust' })}>Kiểm kê</button>
               </div>
             ),
           },
@@ -103,26 +104,26 @@ function StockModal({ row, mode, onClose, onDone }: {
     },
     onSuccess: () => {
       push(mode === 'import'
-        ? 'Da nhap hang'
+        ? 'Đã nhập hàng'
         : mode === 'adjust'
-        ? 'Da dieu chinh ton'
-        : exportKind === 'LOSS' ? 'Da ghi nhan hu hang' : 'Da xuat kho');
+        ? 'Đã điều chỉnh tồn kho'
+        : exportKind === 'LOSS' ? 'Đã ghi nhận hư hỏng' : 'Đã xuất kho');
       onDone();
     },
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
-  const reasonRequired = mode === 'export';
+  const reasonRequired = mode === 'export' || mode === 'adjust';
   const valueLabel = mode === 'import'
-    ? 'So luong nhap them'
+    ? 'Số lượng nhập thêm'
     : mode === 'adjust'
-    ? 'So luong ton thuc te moi'
-    : 'So luong xuat / danh hu';
+    ? 'Số lượng tồn thực tế mới'
+    : 'Số lượng xuất / đánh hỏng';
   const title = mode === 'import'
-    ? 'Nhap hang'
+    ? 'Nhập hàng'
     : mode === 'adjust'
-    ? 'Kiem ke / dieu chinh'
-    : 'Xuat kho / Ghi nhan hu hang';
+    ? 'Kiểm kê / điều chỉnh'
+    : 'Xuất kho / Ghi nhận hư hỏng';
   const submitDisabled =
     !value ||
     (reasonRequired && reason.trim().length < 3) ||
@@ -132,7 +133,7 @@ function StockModal({ row, mode, onClose, onDone }: {
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(e) => e.stopPropagation()}>
         <h2>{title}</h2>
-        <p className="muted">{row.productName} ({row.sku}) — ton hien tai: {row.quantityOnHand} {row.unit} · kha dung: {row.available}</p>
+        <p className="muted">{row.productName} ({row.sku}) — tồn hiện tại: {row.quantityOnHand} {row.unit} · khả dụng: {row.available}</p>
         {mode === 'export' && (
           <div className="flex gap-sm" style={{ marginTop: 12 }}>
             <button
@@ -140,14 +141,14 @@ function StockModal({ row, mode, onClose, onDone }: {
               className={`dash-btn dash-btn-sm ${exportKind === 'EXPORT' ? 'dash-btn-primary' : ''}`}
               onClick={() => setExportKind('EXPORT')}
             >
-              Xuat / chuyen di
+              Xuất / chuyển đi
             </button>
             <button
               type="button"
               className={`dash-btn dash-btn-sm ${exportKind === 'LOSS' ? 'dash-btn-primary' : ''}`}
               onClick={() => setExportKind('LOSS')}
             >
-              Hu hong / mat
+              Hư hỏng / mất
             </button>
           </div>
         )}
@@ -156,17 +157,17 @@ function StockModal({ row, mode, onClose, onDone }: {
           <input className="input" type="number" value={value} onChange={(e) => setValue(e.target.value)} autoFocus />
         </label>
         <label style={{ display: 'block', marginTop: 10 }}>
-          Ly do {reasonRequired && <span style={{ color: '#dc2626' }}>*</span>}
+          Lý do {reasonRequired && <span style={{ color: '#dc2626' }}>*</span>}
           <input
             className="input"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder={reasonRequired ? 'VD: Hu vi van chuyen, het han...' : 'Tuy chon'}
+            placeholder={reasonRequired ? 'VD: Hư vì vận chuyển, hết hạn...' : 'Tùy chọn'}
           />
         </label>
         <div className="flex gap-sm" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onClose}>Huy</button>
-          <button className="btn btn-primary" disabled={submitDisabled} onClick={() => mut.mutate()}>Xac nhan</button>
+          <button className="btn btn-ghost" onClick={onClose}>Hủy</button>
+          <button className="btn btn-primary" disabled={submitDisabled} onClick={() => mut.mutate()}>Xác nhận</button>
         </div>
       </div>
     </div>

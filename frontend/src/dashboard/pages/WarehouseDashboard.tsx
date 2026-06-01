@@ -25,20 +25,20 @@ export default function WarehouseDashboard() {
 
   return (
     <>
-      <PageHeader title="Kho cua hang" subtitle="Soan hang va quan ly ton kho" />
+      <PageHeader title="Kho cửa hàng" subtitle="Soạn hàng và quản lý tồn kho" />
       <div className="dash-stat-grid">
-        <StatCard icon="" label="Cho soan" value={confirmed} color="#ca8a04" />
-        <StatCard icon="" label="Dang soan" value={picking} color="#0891b2" />
-        <StatCard icon="" label="SP sap het hang" value={lowStock?.length ?? 0} color="#dc2626" />
+        <StatCard icon="" label="Chờ soạn" value={confirmed} color="#ca8a04" />
+        <StatCard icon="" label="Đang soạn" value={picking} color="#0891b2" />
+        <StatCard icon="" label="Sản phẩm sắp hết" value={lowStock?.length ?? 0} color="#dc2626" />
       </div>
       <div className="dash-quick-grid" style={{ marginTop: 24 }}>
         <Link to="/warehouse/pick" className="dash-quick-card">
-          <strong>Soan hang</strong>
-          <span className="muted">Don da xac nhan can soan va dong goi</span>
+          <strong>Soạn hàng</strong>
+          <span className="muted">Đơn đã xác nhận cần soạn và đóng gói</span>
         </Link>
         <Link to="/warehouse/inventory" className="dash-quick-card">
-          <strong>Ton kho</strong>
-          <span className="muted">Nhap hang, dieu chinh ton kho</span>
+          <strong>Tồn kho</strong>
+          <span className="muted">Nhập hàng, điều chỉnh tồn kho</span>
         </Link>
       </div>
     </>

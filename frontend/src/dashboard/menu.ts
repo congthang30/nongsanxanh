@@ -36,24 +36,25 @@ export interface RoleConfig {
 const ADMIN_GROUPS: MenuGroup[] = [
   {
     items: [
-      { to: '/admin/dashboard', label: 'Tong quan', icon: '', exact: true },
+      { to: '/admin/dashboard', label: 'Tổng quan', icon: '', exact: true },
     ],
   },
   {
-    title: 'Chuoi cua hang',
+    title: 'Chuỗi cửa hàng',
     items: [
-      { to: '/admin/stores', label: 'Cua hang', icon: '' },
-      { to: '/admin/orders', label: 'Don hang', icon: '' },
-      { to: '/admin/products', label: 'San pham', icon: '' },
-      { to: '/admin/inventory', label: 'Ton kho', icon: '' },
+      { to: '/admin/stores', label: 'Cửa hàng', icon: '' },
+      { to: '/admin/orders', label: 'Đơn hàng', icon: '' },
+      { to: '/admin/returns', label: 'Trả hàng', icon: '' },
+      { to: '/admin/products', label: 'Sản phẩm', icon: '' },
+      { to: '/admin/inventory', label: 'Tồn kho', icon: '' },
     ],
   },
   {
-    title: 'Van hanh',
+    title: 'Vận hành',
     items: [
-      { to: '/admin/users', label: 'Nguoi dung & vai tro', icon: '' },
-      { to: '/admin/reports', label: 'Bao cao', icon: '' },
-      { to: '/admin/audit', label: 'Nhat ky he thong', icon: '' },
+      { to: '/admin/users', label: 'Người dùng & vai trò', icon: '' },
+      { to: '/admin/reports', label: 'Báo cáo', icon: '' },
+      { to: '/admin/audit', label: 'Nhật ký hệ thống', icon: '' },
     ],
   },
 ];
@@ -61,24 +62,24 @@ const ADMIN_GROUPS: MenuGroup[] = [
 const STORE_MANAGER_GROUPS: MenuGroup[] = [
   {
     items: [
-      { to: '/store-manager/dashboard', label: 'Tong quan', icon: '', exact: true },
+      { to: '/store-manager/dashboard', label: 'Tổng quan', icon: '', exact: true },
     ],
   },
   {
-    title: 'Cua hang cua toi',
+    title: 'Cửa hàng của tôi',
     items: [
-      { to: '/store-manager/orders', label: 'Don hang', icon: '' },
-      { to: '/store-manager/inventory', label: 'Ton kho', icon: '' },
-      { to: '/store-manager/staff', label: 'Nhan vien', icon: '' },
-      { to: '/store-manager/reports', label: 'Bao cao', icon: '' },
+      { to: '/store-manager/orders', label: 'Đơn hàng', icon: '' },
+      { to: '/store-manager/inventory', label: 'Tồn kho', icon: '' },
+      { to: '/store-manager/staff', label: 'Nhân viên', icon: '' },
+      { to: '/store-manager/reports', label: 'Báo cáo', icon: '' },
     ],
   },
   {
-    title: 'Ban hang tai quay (POS)',
+    title: 'Bán hàng tại quầy',
     items: [
-      { to: '/pos', label: 'Man hinh thu ngan', icon: '' },
-      { to: '/pos/returns', label: 'Tra hang / Hoan tien', icon: '' },
-      { to: '/store-manager/pos-reports', label: 'Bao cao POS', icon: '' },
+      { to: '/pos', label: 'Màn hình thu ngân', icon: '' },
+      { to: '/pos/returns', label: 'Trả hàng / Hoàn tiền', icon: '' },
+      { to: '/store-manager/pos-reports', label: 'Báo cáo POS', icon: '' },
     ],
   },
 ];
@@ -86,13 +87,13 @@ const STORE_MANAGER_GROUPS: MenuGroup[] = [
 const STORE_STAFF_GROUPS: MenuGroup[] = [
   {
     items: [
-      { to: '/store/orders', label: 'Don hang cua hang', icon: '', exact: true },
+      { to: '/store/orders', label: 'Đơn hàng cửa hàng', icon: '', exact: true },
     ],
   },
   {
-    title: 'Ban hang tai quay',
+    title: 'Bán hàng tại quầy',
     items: [
-      { to: '/pos', label: 'Man hinh thu ngan (POS)', icon: '' },
+      { to: '/pos', label: 'Màn hình thu ngân (POS)', icon: '' },
     ],
   },
 ];
@@ -100,15 +101,15 @@ const STORE_STAFF_GROUPS: MenuGroup[] = [
 const WAREHOUSE_GROUPS: MenuGroup[] = [
   {
     items: [
-      { to: '/warehouse/dashboard', label: 'Tong quan', icon: '', exact: true },
+      { to: '/warehouse/dashboard', label: 'Tổng quan', icon: '', exact: true },
     ],
   },
   {
-    title: 'Kho cua hang',
+    title: 'Kho cửa hàng',
     items: [
-      { to: '/warehouse/pick', label: 'Soan hang', icon: '' },
-      { to: '/warehouse/inventory', label: 'Ton kho', icon: '' },
-      { to: '/warehouse/transactions', label: 'Lich su nhap/xuat', icon: '' },
+      { to: '/warehouse/pick', label: 'Soạn hàng', icon: '' },
+      { to: '/warehouse/inventory', label: 'Tồn kho', icon: '' },
+      { to: '/warehouse/transactions', label: 'Lịch sử nhập/xuất', icon: '' },
     ],
   },
 ];
@@ -116,13 +117,13 @@ const WAREHOUSE_GROUPS: MenuGroup[] = [
 const SUPPORT_GROUPS: MenuGroup[] = [
   {
     items: [
-      { to: '/staff/dashboard', label: 'Tong quan', icon: '', exact: true },
+      { to: '/staff/dashboard', label: 'Tổng quan', icon: '', exact: true },
     ],
   },
   {
-    title: 'Cham soc khach hang',
+    title: 'Chăm sóc khách hàng',
     items: [
-      { to: '/staff/tickets', label: 'Tickets', icon: '' },
+      { to: '/staff/tickets', label: 'Yêu cầu hỗ trợ', icon: '' },
     ],
   },
 ];
@@ -130,14 +131,14 @@ const SUPPORT_GROUPS: MenuGroup[] = [
 const SHIPPER_GROUPS: MenuGroup[] = [
   {
     items: [
-      { to: '/shipper/dashboard', label: 'Tong quan', icon: '', exact: true },
+      { to: '/shipper/dashboard', label: 'Tổng quan', icon: '', exact: true },
     ],
   },
   {
-    title: 'Giao hang',
+    title: 'Giao hàng',
     items: [
-      { to: '/shipper/active', label: 'Dang giao', icon: '' },
-      { to: '/shipper/history', label: 'Lich su', icon: '' },
+      { to: '/shipper/active', label: 'Đang giao', icon: '' },
+      { to: '/shipper/history', label: 'Lịch sử', icon: '' },
     ],
   },
 ];
@@ -159,28 +160,28 @@ export const ROLE_CONFIGS: Record<RoleCode, RoleConfig> = {
   },
   STORE_MANAGER: {
     code: 'STORE_MANAGER',
-    label: 'Quan ly cua hang',
+    label: 'Quản lý cửa hàng',
     homePath: '/store-manager/dashboard',
     badgeColor: '#16a34a',
     groups: STORE_MANAGER_GROUPS,
   },
   STORE_STAFF: {
     code: 'STORE_STAFF',
-    label: 'Nhan vien ban hang',
+    label: 'Nhân viên bán hàng',
     homePath: '/store/orders',
     badgeColor: '#0d9488',
     groups: STORE_STAFF_GROUPS,
   },
   WAREHOUSE_STAFF: {
     code: 'WAREHOUSE_STAFF',
-    label: 'Nhan vien kho',
+    label: 'Nhân viên kho',
     homePath: '/warehouse/dashboard',
     badgeColor: '#ca8a04',
     groups: WAREHOUSE_GROUPS,
   },
   SUPPORT: {
     code: 'SUPPORT',
-    label: 'Support',
+    label: 'Hỗ trợ',
     homePath: '/staff/dashboard',
     badgeColor: '#0891b2',
     groups: SUPPORT_GROUPS,
