@@ -276,6 +276,23 @@ export interface DeliveryEvent {
   createdAt: string;
 }
 
+/**
+ * Thong tin giao hang gan vao Order (goc nhin cua customer).
+ * Chi doc; mobile khong cap nhat truc tiep (shipper dung DeliveryJob).
+ */
+export interface Delivery {
+  id: string;
+  status: DeliveryStatus;
+  shipperName?: string | null;
+  shipperPhone?: string | null;
+  codAmount?: number | null;
+  codCollected?: boolean;
+  failureReason?: string | null;
+  pickedAt?: string | null;
+  deliveredAt?: string | null;
+  events?: DeliveryEvent[];
+}
+
 /** Delivery job gan truc tiep cho shipper cua store. Khong co offer/accept/reject. */
 export interface DeliveryJob {
   id: string;

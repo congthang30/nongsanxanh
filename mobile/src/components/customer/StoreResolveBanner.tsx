@@ -1,60 +1,73 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useDeliveryStore } from '../../store/delivery.store';
-import { Badge } from '../ui/Badge';
-import { colors, fontSize, radius, spacing } from '../../theme';
+import { Icon } from '../ui/Icon';
+import { colors, fontSize, green, radius, spacing } from '../../theme';
 import { formatDistanceKm } from '../../lib/format';
 
 /**
- * Banner hien cua hang fulfillment he thong tu gan.
- * KHONG co dropdown chon khu vuc/store. Tap -> mo flow doi dia chi (onChangeAddress).
+ * Banner "Giao den" — lay dia chi/cua hang giao lam trong tam (giong web: khach chi quan tam
+ * dia chi giao, he thong tu chon cua hang phia sau). KHONG co dropdown chon khu vuc/store.
+ * Tap -> mo flow chon/doi dia chi (onChangeAddress).
  */
 export function StoreResolveBanner({ onChangeAddress }: { onChangeAddress: () => void }) {
-  const { store, source, resolving, lastResult } = useDeliveryStore();
+  const { store, activeAddress, source, resolving, lastResult } = useDeliveryStore();
 
-  let body: React.ReactNode;
+  // Dong dia chi de hien thi (uu tien dia chi da chon, fallback ten cua hang).
+  const addressLine = activeAddress
+    ? [activeAddress.ward, activeAddress.district, activeAddress.province].filter(Boolean).join(', ')
+    : null;
+
+  let title: string;
+  let subtitle: React.ReactNode;
+  const hasContext = !!store || !!activeAddress;
+
   if (resolving) {
-    body = (
-      <View style={styles.row}>
-        <ActivityIndicator size="small" color={colors.primary} />
-        <Text style={styles.muted}>Dang tim cua hang gan nhat...</Text>
-      </View>
-    );
-  } else if (store) {
-    body = (
-      <View style={styles.gap}>
-        <Text style={styles.label}>Giao tu cua hang gan nhat co du hang</Text>
-        <View style={styles.row}>
-          <Text style={styles.storeName} numberOfLines={1}>
-            {store.storeName}
-          </Text>
-          {store.distanceKm != null ? (
-            <Badge label={formatDistanceKm(store.distanceKm)} tone="success" />
-          ) : null}
-        </View>
-        {/* Neu store gan nhat thieu hang nhung resolver chon store xa hon */}
-        {lastResult?.alternatives?.some((a) => !a.inStock) ? (
-          <Text style={styles.note}>
-            Mot so san pham khong du tai cua hang gan nhat. He thong xu ly don tu cua hang gan tiep theo co du hang.
-          </Text>
+    title = 'Đang tìm cửa hàng gần bạn...';
+    subtitle = null;
+  } else if (hasContext) {
+    title = 'Giao đến';
+    subtitle = (
+      <View style={styles.subRow}>
+        <Text style={styles.address} numberOfLines={1}>
+          {addressLine ?? store?.storeName ?? 'Địa chỉ của bạn'}
+        </Text>
+        {store?.distanceKm != null ? (
+          <View style={styles.distBadge}>
+            <Text style={styles.distText}>{formatDistanceKm(store.distanceKm)}</Text>
+          </View>
         ) : null}
       </View>
     );
   } else {
-    body = (
-      <View style={styles.gap}>
-        <Text style={styles.label}>Chua xac dinh cua hang giao</Text>
-        <Text style={styles.note}>
-          {lastResult?.message ?? 'Nhap dia chi giao hang de kiem tra ton kho va giao hang.'}
-        </Text>
-      </View>
+    title = 'Nhập địa chỉ giao hàng';
+    subtitle = (
+      <Text style={styles.hint}>
+        {lastResult?.message ?? 'Hệ thống sẽ tự chọn cửa hàng phù hợp gần bạn.'}
+      </Text>
     );
   }
 
   return (
-    <Pressable style={styles.banner} onPress={onChangeAddress}>
-      <View style={styles.flex}>{body}</View>
-      <Text style={styles.change}>{source === 'none' ? 'Nhap dia chi' : 'Doi'}</Text>
+    <Pressable style={styles.banner} onPress={onChangeAddress} accessibilityRole="button">
+      <View style={styles.iconWrap}>
+        {resolving ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : (
+          <Icon name="map-pin" size={20} color={colors.primary} />
+        )}
+      </View>
+      <View style={styles.flex}>
+        <Text style={styles.label}>{title}</Text>
+        {subtitle}
+        {/* Neu cua hang gan nhat thieu hang -> noti nhe */}
+        {hasContext && lastResult?.alternatives?.some((a) => !a.inStock) ? (
+          <Text style={styles.note}>
+            Một số sản phẩm hết tại cửa hàng gần nhất, hệ thống dùng cửa hàng kế tiếp.
+          </Text>
+        ) : null}
+      </View>
+      <Text style={styles.change}>{source === 'none' ? 'Nhập' : 'Đổi'}</Text>
     </Pressable>
   );
 }
@@ -63,17 +76,28 @@ const styles = StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primaryLight,
+    backgroundColor: green[50],
+    borderWidth: 1,
+    borderColor: green[200],
     borderRadius: radius.md,
     padding: spacing.md,
     gap: spacing.sm,
   },
-  flex: { flex: 1 },
-  gap: { gap: 2 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  label: { fontSize: fontSize.xs, color: colors.primaryDark, fontWeight: '600' },
-  storeName: { fontSize: fontSize.md, fontWeight: '700', color: colors.text, flexShrink: 1 },
+  iconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flex: { flex: 1, gap: 2 },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  label: { fontSize: fontSize.xs, color: colors.primaryDark, fontWeight: '700' },
+  address: { fontSize: fontSize.md, fontWeight: '700', color: colors.text, flexShrink: 1 },
+  distBadge: { backgroundColor: colors.primaryLight, paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.pill },
+  distText: { fontSize: 11, fontWeight: '700', color: colors.primaryDark },
+  hint: { fontSize: fontSize.xs, color: colors.textMuted },
   note: { fontSize: fontSize.xs, color: colors.warning },
-  muted: { fontSize: fontSize.sm, color: colors.textMuted },
   change: { fontSize: fontSize.sm, fontWeight: '700', color: colors.primary },
 });

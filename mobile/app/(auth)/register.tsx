@@ -26,7 +26,7 @@ export default function RegisterScreen() {
     clearError();
     setLocalError(null);
     if (password.length < 6) {
-      setLocalError('Mat khau toi thieu 6 ky tu');
+      setLocalError('Mật khẩu tối thiểu 6 ký tự');
       return;
     }
     try {
@@ -49,9 +49,9 @@ export default function RegisterScreen() {
         style={styles.flex}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Tao tai khoan</Text>
+          <Text style={styles.title}>Tạo tài khoản</Text>
           <View style={styles.form}>
-            <Input label="Ho ten" value={fullName} onChangeText={setFullName} placeholder="Nguyen Van A" />
+            <Input label="Họ tên" value={fullName} onChangeText={setFullName} placeholder="Nguyễn Văn A" />
             <Input
               label="Email"
               value={email}
@@ -62,16 +62,16 @@ export default function RegisterScreen() {
               autoCorrect={false}
             />
             <Input
-              label="So dien thoai (tuy chon)"
+              label="Số điện thoại (tùy chọn)"
               value={phone}
               onChangeText={setPhone}
               placeholder="09xxxxxxxx"
               keyboardType="phone-pad"
             />
-            <Input label="Mat khau" value={password} onChangeText={setPassword} placeholder="Toi thieu 6 ky tu" secureTextEntry />
+            <Input label="Mật khẩu" value={password} onChangeText={setPassword} placeholder="Tối thiểu 6 ký tự" secureTextEntry />
             {(localError || error) ? <Text style={styles.error}>{localError ?? error}</Text> : null}
-            <Button title="Dang ky" onPress={onSubmit} loading={loading} large />
-            <Button title="Da co tai khoan? Dang nhap" onPress={() => router.back()} variant="ghost" />
+            <Button title="Đăng ký" onPress={onSubmit} loading={loading} large />
+            <Button title="Đã có tài khoản? Đăng nhập" onPress={() => router.back()} variant="ghost" />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

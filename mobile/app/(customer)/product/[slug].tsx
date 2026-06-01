@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,7 +9,8 @@ import { cartApi } from '../../../src/lib/api/cart.api';
 import { Button } from '../../../src/components/ui/Button';
 import { Badge } from '../../../src/components/ui/Badge';
 import { ErrorState, LoadingState } from '../../../src/components/ui/States';
-import { colors, fontSize, radius, spacing } from '../../../src/theme';
+import { Icon } from '../../../src/components/ui/Icon';
+import { colors, fontSize, green, radius, spacing } from '../../../src/theme';
 import { formatVnd } from '../../../src/lib/format';
 
 export default function ProductDetailScreen() {
@@ -36,7 +37,7 @@ export default function ProductDetailScreen() {
       cartApi.addItem({ variantId: selectedVariant!.id, quantity: qty }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
-      setToast('Da them vao gio');
+      setToast('Đã thêm vào giỏ');
       setTimeout(() => setToast(null), 1500);
     },
   });
@@ -45,7 +46,10 @@ export default function ProductDetailScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.topbar}>
-        <Text style={styles.back} onPress={() => router.back()}>‹ Quay lai</Text>
+        <Pressable style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button">
+          <Icon name="chevron-left" size={20} color={colors.primaryDark} strokeWidth={2.4} />
+          <Text style={styles.back}>Quay lại</Text>
+        </Pressable>
       </View>
 
       {query.isLoading ? (
@@ -59,12 +63,12 @@ export default function ProductDetailScreen() {
               <Image source={{ uri: product.images[0].url }} style={styles.image} resizeMode="cover" />
             ) : (
               <View style={[styles.image, styles.imagePlaceholder]}>
-                <Text style={{ fontSize: 64 }}>🥬</Text>
+                <Icon name="leaf" size={64} color={green[400]} />
               </View>
             )}
 
             <Text style={styles.name}>{product.name}</Text>
-            <Text style={styles.store}>Du kien xu ly boi: {product.store.name}</Text>
+            <Text style={styles.store}>Cửa hàng phụ trách: {product.store.name}</Text>
 
             {selectedVariant ? (
               <View style={styles.priceRow}>
@@ -76,7 +80,7 @@ export default function ProductDetailScreen() {
             {/* Variants */}
             {product.variants.length > 1 ? (
               <View style={styles.variants}>
-                <Text style={styles.label}>Lua chon</Text>
+                <Text style={styles.label}>Lựa chọn</Text>
                 <View style={styles.variantRow}>
                   {product.variants.map((v) => {
                     const active = v.id === (selectedVariant?.id ?? '');
@@ -91,7 +95,7 @@ export default function ProductDetailScreen() {
                           disabled && styles.variantChipDisabled,
                         ]}
                       >
-                        {v.unit} {disabled ? '(het)' : ''}
+                        {v.unit} {disabled ? '(hết)' : ''}
                       </Text>
                     );
                   })}
@@ -102,31 +106,35 @@ export default function ProductDetailScreen() {
             {/* Ton kha dung */}
             {selectedVariant ? (
               selectedVariant.available > 0 ? (
-                <Badge label={`Con ${selectedVariant.available} ${selectedVariant.unit}`} tone="success" />
+                <Badge label={`Còn ${selectedVariant.available} ${selectedVariant.unit}`} tone="success" />
               ) : (
-                <Badge label="Het hang tai cua hang nay" tone="danger" />
+                <Badge label="Hết hàng tại cửa hàng này" tone="danger" />
               )
             ) : null}
 
             {product.description ? <Text style={styles.desc}>{product.description}</Text> : null}
             {product.originRegion ? (
-              <Text style={styles.meta}>Xuat xu: {product.originRegion}</Text>
+              <Text style={styles.meta}>Xuất xứ: {product.originRegion}</Text>
             ) : null}
             {product.storageInstruction ? (
-              <Text style={styles.meta}>Bao quan: {product.storageInstruction}</Text>
+              <Text style={styles.meta}>Bảo quản: {product.storageInstruction}</Text>
             ) : null}
           </ScrollView>
 
           {/* Add to cart bar */}
           <View style={styles.footer}>
             <View style={styles.qtyRow}>
-              <Text style={styles.qtyBtn} onPress={() => setQty((q) => Math.max(1, q - 1))}>−</Text>
+              <Pressable style={styles.qtyBtn} onPress={() => setQty((q) => Math.max(1, q - 1))}>
+                <Icon name="minus" size={18} color={colors.primaryDark} strokeWidth={2.4} />
+              </Pressable>
               <Text style={styles.qtyValue}>{qty}</Text>
-              <Text style={styles.qtyBtn} onPress={() => setQty((q) => q + 1)}>＋</Text>
+              <Pressable style={styles.qtyBtn} onPress={() => setQty((q) => q + 1)}>
+                <Icon name="plus" size={18} color={colors.primaryDark} strokeWidth={2.4} />
+              </Pressable>
             </View>
             <View style={styles.flex}>
               <Button
-                title={allOutOfStock ? 'Het hang' : toast ?? 'Them vao gio'}
+                title={allOutOfStock ? 'Hết hàng' : toast ?? 'Thêm vào giỏ'}
                 onPress={() => addMutation.mutate()}
                 loading={addMutation.isPending}
                 disabled={allOutOfStock || !selectedVariant || selectedVariant.available <= 0}
@@ -145,7 +153,8 @@ export default function ProductDetailScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
   topbar: { padding: spacing.md },
-  back: { fontSize: fontSize.md, color: colors.primary, fontWeight: '600' },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start' },
+  back: { fontSize: fontSize.md, color: colors.primaryDark, fontWeight: '700' },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
   image: { width: '100%', aspectRatio: 1, borderRadius: radius.lg, backgroundColor: colors.background },
   imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
@@ -181,7 +190,7 @@ const styles = StyleSheet.create({
   },
   flex: { flex: 1 },
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  qtyBtn: { fontSize: 24, color: colors.primary, width: 32, textAlign: 'center', fontWeight: '700' },
+  qtyBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryLight },
   qtyValue: { fontSize: fontSize.lg, fontWeight: '700', minWidth: 24, textAlign: 'center' },
   error: { color: colors.danger, fontSize: fontSize.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
 });

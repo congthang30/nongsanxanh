@@ -37,8 +37,8 @@ export default function LoginScreen() {
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>
-            <Text style={styles.logo}>NongSan Xanh</Text>
-            <Text style={styles.subtitle}>Nong san sach giao tan noi</Text>
+            <Text style={styles.logo}>Nông Sản Xanh</Text>
+            <Text style={styles.subtitle}>Nông sản sạch giao tận nơi</Text>
           </View>
 
           <View style={styles.form}>
@@ -52,23 +52,23 @@ export default function LoginScreen() {
               autoCorrect={false}
             />
             <Input
-              label="Mat khau"
+              label="Mật khẩu"
               value={password}
               onChangeText={setPassword}
-              placeholder="Mat khau"
+              placeholder="Mật khẩu"
               secureTextEntry
             />
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Button title="Dang nhap" onPress={onSubmit} loading={loading} large />
+            <Button title="Đăng nhập" onPress={onSubmit} loading={loading} large />
             <Button
-              title="Tao tai khoan moi"
+              title="Tạo tài khoản mới"
               onPress={() => router.push('/(auth)/register')}
               variant="ghost"
             />
           </View>
 
           <Text style={styles.hint}>
-            Dang nhap bang tai khoan khach hang hoac shipper. He thong tu chuyen dung giao dien theo vai tro.
+            Đăng nhập bằng tài khoản khách hàng hoặc shipper. Hệ thống tự chuyển đúng giao diện theo vai trò.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

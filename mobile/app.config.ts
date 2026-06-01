@@ -21,13 +21,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.nongsanxanh.mobile',
-    config: {
-      googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
-    },
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         'NongSan Xanh dung vi tri cua ban de tim cua hang gan nhat va ho tro shipper chi duong.',
-      LSApplicationQueriesSchemes: ['comgooglemaps', 'maps'],
+      // OpenStreetMap-based map apps (Organic Maps, OsmAnd...) dung geo: scheme.
+      LSApplicationQueriesSchemes: ['geo'],
     },
   },
   android: {
@@ -41,15 +39,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'INTERNET',
       'POST_NOTIFICATIONS',
     ],
-    config: {
-      googleMaps: {
-        apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
-      },
-    },
   },
   plugins: [
     'expo-router',
     'expo-secure-store',
+    'expo-asset',
     [
       'expo-location',
       {
@@ -67,6 +61,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     apiBaseUrl:
       process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/api/v1',
-    mapProvider: process.env.EXPO_PUBLIC_MAP_PROVIDER ?? 'google',
+    mapProvider: process.env.EXPO_PUBLIC_MAP_PROVIDER ?? 'osm',
   },
 });

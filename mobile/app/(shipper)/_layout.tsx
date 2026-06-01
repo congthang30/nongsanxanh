@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs, router } from 'expo-router';
-import { useAuthStore } from '../../src/store/auth.store';
+import { useAuthStore, authSelectors } from '../../src/store/auth.store';
 import { Icon, IconName } from '../../src/components/ui/Icon';
 import { colors } from '../../src/theme';
 
@@ -11,16 +11,22 @@ function tabIcon(name: IconName) {
   );
 }
 
-export default function CustomerLayout() {
+export default function ShipperLayout() {
   const user = useAuthStore((s) => s.user);
   const initializing = useAuthStore((s) => s.initializing);
+  const isShipper = useAuthStore(authSelectors.isShipper);
 
-  // Bao ve route: chua login -> ve auth.
+  // Bao ve route: chua login -> auth; khong phai shipper -> ve customer home.
   React.useEffect(() => {
-    if (!initializing && !user) {
+    if (initializing) return;
+    if (!user) {
       router.replace('/(auth)/login');
+      return;
     }
-  }, [user, initializing]);
+    if (!isShipper) {
+      router.replace('/(customer)/home');
+    }
+  }, [user, initializing, isShipper]);
 
   return (
     <Tabs
@@ -38,17 +44,12 @@ export default function CustomerLayout() {
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
-      <Tabs.Screen name="home" options={{ title: 'Trang chủ', tabBarIcon: tabIcon('home') }} />
-      <Tabs.Screen name="products" options={{ title: 'Sản phẩm', tabBarIcon: tabIcon('cart') }} />
-      <Tabs.Screen name="cart" options={{ title: 'Giỏ hàng', tabBarIcon: tabIcon('basket') }} />
-      <Tabs.Screen name="orders" options={{ title: 'Đơn hàng', tabBarIcon: tabIcon('package') }} />
+      <Tabs.Screen name="jobs" options={{ title: 'Đang giao', tabBarIcon: tabIcon('truck') }} />
+      <Tabs.Screen name="history" options={{ title: 'Lịch sử', tabBarIcon: tabIcon('clock') }} />
       <Tabs.Screen name="account" options={{ title: 'Tài khoản', tabBarIcon: tabIcon('user') }} />
 
-      {/* Screens an khoi tab bar */}
-      <Tabs.Screen name="product/[slug]" options={{ href: null }} />
-      <Tabs.Screen name="checkout" options={{ href: null }} />
-      <Tabs.Screen name="order/[id]" options={{ href: null }} />
-      <Tabs.Screen name="addresses" options={{ href: null }} />
+      {/* Screen an khoi tab bar */}
+      <Tabs.Screen name="job/[id]" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -1,37 +1,33 @@
-import { Linking, Platform } from 'react-native';
+import { Linking } from 'react-native';
 
 /**
- * Mo navigation ngoai (Google Maps / Apple Maps) de chi duong.
+ * Mo navigation ngoai de chi duong - dung OpenStreetMap, KHONG dung Google Maps.
  * MVP khong tu code turn-by-turn.
  *
- * Android: Google Maps.
- * iOS: uu tien Google Maps neu cai dat, fallback Apple Maps.
+ * - Uu tien geo: URI -> mo app ban do mac dinh cua may (vd Organic Maps, OsmAnd...).
+ * - Fallback: mo openstreetmap.org directions tren trinh duyet.
  */
 export async function openExternalNavigation(
   lat: number,
   lng: number,
-  label?: string,
+  _label?: string,
 ): Promise<boolean> {
   const dest = `${lat},${lng}`;
 
-  if (Platform.OS === 'ios') {
-    const googleUrl = `comgooglemaps://?daddr=${dest}&directionsmode=driving`;
-    const canGoogle = await Linking.canOpenURL(googleUrl).catch(() => false);
-    if (canGoogle) {
-      await Linking.openURL(googleUrl);
-      return true;
-    }
-    const q = label ? `&q=${encodeURIComponent(label)}` : '';
-    const appleUrl = `http://maps.apple.com/?daddr=${dest}&dirflg=d${q}`;
-    await Linking.openURL(appleUrl);
+  // geo: URI duoc cac app ban do (OSM-based) xu ly. CHI dua toa do (khong kem label/ten)
+  // vi mot so app hieu sai phan "(ten)" -> mo sai vi tri.
+  const geoUrl = `geo:${dest}?q=${dest}`;
+  const canGeo = await Linking.canOpenURL(geoUrl).catch(() => false);
+  if (canGeo) {
+    await Linking.openURL(geoUrl);
     return true;
   }
 
-  // Android (va web fallback): Google Maps universal URL
-  const url = `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
-  const can = await Linking.canOpenURL(url).catch(() => false);
-  if (can) {
-    await Linking.openURL(url);
+  // Fallback: OpenStreetMap directions (xe hoi) tren trinh duyet, chi dua toa do.
+  const osmUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=;${lat}%2C${lng}`;
+  const canOsm = await Linking.canOpenURL(osmUrl).catch(() => false);
+  if (canOsm) {
+    await Linking.openURL(osmUrl);
     return true;
   }
   return false;

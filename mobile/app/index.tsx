@@ -29,7 +29,7 @@ export default function Index() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <LoadingState label="Dang khoi dong..." />
+      <LoadingState label="Đang khởi động..." />
     </View>
   );
 }

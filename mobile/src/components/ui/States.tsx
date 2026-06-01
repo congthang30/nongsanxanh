@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Button } from './Button';
 import { colors, fontSize, spacing } from '../../theme';
 
-export function LoadingState({ label = 'Dang tai...' }: { label?: string }) {
+export function LoadingState({ label = 'Đang tải...' }: { label?: string }) {
   return (
     <View style={styles.center}>
       <ActivityIndicator size="large" color={colors.primary} />
@@ -13,7 +13,7 @@ export function LoadingState({ label = 'Dang tai...' }: { label?: string }) {
 }
 
 export function ErrorState({
-  message = 'Co loi xay ra',
+  message = 'Có lỗi xảy ra',
   onRetry,
 }: {
   message?: string;
@@ -21,11 +21,11 @@ export function ErrorState({
 }) {
   return (
     <View style={styles.center}>
-      <Text style={styles.errorTitle}>Khong tai duoc du lieu</Text>
+      <Text style={styles.errorTitle}>Không tải được dữ liệu</Text>
       <Text style={styles.muted}>{message}</Text>
       {onRetry && (
         <View style={styles.retryWrap}>
-          <Button title="Thu lai" onPress={onRetry} variant="secondary" fullWidth={false} />
+          <Button title="Thử lại" onPress={onRetry} variant="secondary" fullWidth={false} />
         </View>
       )}
     </View>
@@ -33,7 +33,7 @@ export function ErrorState({
 }
 
 export function EmptyState({
-  title = 'Khong co du lieu',
+  title = 'Không có dữ liệu',
   description,
   actionLabel,
   onAction,
