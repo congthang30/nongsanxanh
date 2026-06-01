@@ -261,9 +261,14 @@ export class AuthService {
       await this.notification.notify({
         userId: user.id,
         type: 'RESET_PASSWORD',
-        title: 'Dat lai mat khau - NongSan Xanh',
-        body: `Ban vua yeu cau dat lai mat khau. Nhan vao lien ket sau de tiep tuc (hieu luc 15 phut):\n${resetLink}\n\nNeu khong phai ban, vui long bo qua email nay.`,
+        title: 'Đặt lại mật khẩu Nông Sản Xanh',
+        body:
+          'Chúng tôi vừa nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.\nLiên kết đặt lại mật khẩu có hiệu lực trong 15 phút. Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.',
         email: user.email,
+        emailAction: {
+          label: 'Đặt lại mật khẩu',
+          url: resetLink,
+        },
       });
 
       const isProd = this.config.get<string>('NODE_ENV') === 'production';

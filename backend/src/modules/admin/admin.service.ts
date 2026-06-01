@@ -519,6 +519,128 @@ export class AdminService {
     return this.audit.list({ action });
   }
 
+  // ============ Reconciliation & COD (P1-02, P1-04) ============
+
+  /**
+   * P1-02: Doi soat doanh thu giua Order, Payment va POSSale theo ngay.
+   * So sanh:
+   *  - Online/COD: tong Order.grandTotal da SUCCESS  vs  tong Payment SUCCESS.
+   *  - POS: tong POSSale PAID grandTotal             vs  tong POSPayment.
+   * Tra ve cac dong lech de ke toan kiem tra. Khong sua du lieu.
+   */
+  async reconciliation(params?: { from?: string; to?: string }) {
+    const from = params?.from ? new Date(params.from) : new Date(Date.now() - 7 * 86400000);
+    const to = params?.to ? new Date(params.to) : new Date();
+    const range = { gte: from, lte: to };
+
+    const [orderPaidAgg, paymentAgg, posSaleAgg, posPaymentAgg, refundAgg] =
+      await this.prisma.$transaction([
+        this.prisma.order.aggregate({
+          _sum: { grandTotal: true },
+          _count: true,
+          where: { paymentStatus: PaymentStatus.SUCCESS, createdAt: range },
+        }),
+        this.prisma.payment.aggregate({
+          _sum: { amount: true },
+          _count: true,
+          where: { status: PaymentStatus.SUCCESS, createdAt: range },
+        }),
+        this.prisma.pOSSale.aggregate({
+          _sum: { grandTotal: true },
+          _count: true,
+          where: { status: 'PAID', createdAt: range },
+        }),
+        this.prisma.pOSPayment.aggregate({
+          _sum: { amount: true },
+          _count: true,
+          where: { status: 'SUCCESS', createdAt: range },
+        }),
+        this.prisma.refund.aggregate({
+          _sum: { amount: true },
+          _count: true,
+          where: { createdAt: range },
+        }),
+      ]);
+
+    // Cac don bat thuong: order paid nhung khong co payment success, va nguoc lai.
+    const paidOrdersNoPayment = await this.prisma.order.findMany({
+      where: {
+        paymentStatus: PaymentStatus.SUCCESS,
+        createdAt: range,
+        payments: { none: { status: PaymentStatus.SUCCESS } },
+      },
+      select: { id: true, orderNumber: true, grandTotal: true, storeId: true },
+      take: 100,
+    });
+    const successPaymentsOrderNotPaid = await this.prisma.payment.findMany({
+      where: {
+        status: PaymentStatus.SUCCESS,
+        createdAt: range,
+        order: { paymentStatus: { not: PaymentStatus.SUCCESS } },
+      },
+      select: {
+        id: true,
+        amount: true,
+        orderId: true,
+        order: { select: { orderNumber: true, paymentStatus: true } },
+      },
+      take: 100,
+    });
+
+    const onlineOrderTotal = orderPaidAgg._sum.grandTotal ?? 0;
+    const paymentTotal = paymentAgg._sum.amount ?? 0;
+    const posSaleTotal = posSaleAgg._sum.grandTotal ?? 0;
+    const posPaymentTotal = posPaymentAgg._sum.amount ?? 0;
+
+    return {
+      range: { from, to },
+      online: {
+        orderPaidTotal: onlineOrderTotal,
+        paymentSuccessTotal: paymentTotal,
+        diff: onlineOrderTotal - paymentTotal,
+        balanced: onlineOrderTotal === paymentTotal,
+      },
+      pos: {
+        salePaidTotal: posSaleTotal,
+        posPaymentTotal,
+        diff: posSaleTotal - posPaymentTotal,
+        balanced: posSaleTotal === posPaymentTotal,
+      },
+      refunds: {
+        count: refundAgg._count,
+        total: refundAgg._sum.amount ?? 0,
+      },
+      anomalies: {
+        paidOrdersNoPayment,
+        successPaymentsOrderNotPaid,
+      },
+    };
+  }
+
+  /**
+   * P1-04: Danh sach don COD da giao (DELIVERED) nhung chua thu tien
+   * (paymentStatus != SUCCESS). Dung de manager doi soat cong no COD.
+   */
+  async codOutstanding(storeId?: string) {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        paymentMethod: 'COD',
+        status: OrderStatus.DELIVERED,
+        paymentStatus: { not: PaymentStatus.SUCCESS },
+        ...(storeId ? { storeId } : {}),
+      },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        store: { select: { id: true, name: true, code: true } },
+        delivery: { select: { shipperId: true, status: true, codCollected: true } },
+        user: { include: { profile: true } },
+      },
+      take: 300,
+    });
+    const totalOutstanding = orders.reduce((s, o) => s + o.grandTotal, 0);
+    return { count: orders.length, totalOutstanding, orders };
+  }
+
   // ============ helpers ============
 
   private async assertStoreExists(id: string) {

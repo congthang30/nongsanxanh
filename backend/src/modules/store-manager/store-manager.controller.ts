@@ -98,6 +98,15 @@ export class StoreManagerController {
     return this.manager.cancelWithRestock(user, id, body.reason ?? 'Manager huy don, hoan kho');
   }
 
+  /** Manager xac nhan da thu tien COD cho don da giao (shipper chua thu luc giao). */
+  @Post('orders/:id/mark-cod-collected')
+  markCodCollected(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    return this.manager.markCodCollected(user, id);
+  }
+
   // ---- Staff ----
 
   @Get('staff')

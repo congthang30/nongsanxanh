@@ -161,6 +161,21 @@ export class OrdersService {
       `${address.line1}, ${address.ward}, ${address.district}, ${address.province}`;
 
     const order = await this.prisma.$transaction(async (tx) => {
+      // P0-02: serialize tao don theo cart (pg_advisory_xact_lock giu den het tx)
+      // de chong double-click tao 2 don tu cung gio hang.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${cart.id}))`;
+      // Sau khi gianh lock, kiem tra lai gio con item khong. Neu request truoc
+      // da tao don (da xoa cart item) -> request nay bi tu choi.
+      const stillHasItems = await tx.cartItem.count({
+        where: { cartId: cart.id },
+      });
+      if (stillHasItems === 0) {
+        throw new BadRequestException({
+          code: 'ORDER_ALREADY_PLACED',
+          message:
+            'Don hang dang duoc xu ly. Vui long kiem tra lai danh sach don hang.',
+        });
+      }
       const created = await tx.order.create({
         data: {
           orderNumber: `NS${orderNo()}`,
@@ -211,12 +226,20 @@ export class OrdersService {
         userId,
       );
 
-      // Coupon usage
+      // Coupon usage - P0-04: atomic conditional increment chong over-redeem.
+      // Chi tang usageCount neu chua cham usageLimit (so sanh cot trong 1 cau lenh).
       if (coupon) {
-        await tx.coupon.update({
-          where: { id: coupon.id },
-          data: { usageCount: { increment: 1 } },
-        });
+        const incremented = await tx.$executeRaw`
+          UPDATE coupons SET usage_count = usage_count + 1
+          WHERE id = ${coupon.id}
+            AND (usage_limit IS NULL OR usage_count < usage_limit)
+        `;
+        if (incremented === 0) {
+          throw new BadRequestException({
+            code: 'COUPON_EXHAUSTED',
+            message: 'Ma giam gia da het luot su dung',
+          });
+        }
         await tx.couponRedemption.create({
           data: {
             couponId: coupon.id,
@@ -435,6 +458,33 @@ export class OrdersService {
         );
       }
     });
+  }
+
+  /**
+   * P0-03: huy cac don VNPAY con PENDING_PAYMENT qua han (mac dinh 30 phut).
+   * Release ton dang reserve. Goi dinh ky boi PaymentMaintenanceService.
+   * Tra ve so don da huy de log.
+   */
+  async expireStalePendingPayments(maxAgeMinutes = 30): Promise<number> {
+    const cutoff = new Date(Date.now() - maxAgeMinutes * 60 * 1000);
+    const stale = await this.prisma.order.findMany({
+      where: {
+        status: OrderStatus.PENDING_PAYMENT,
+        paymentMethod: PaymentMethod.VNPAY,
+        createdAt: { lt: cutoff },
+      },
+      select: { id: true },
+    });
+    let expired = 0;
+    for (const o of stale) {
+      try {
+        await this.markPaymentFailed(o.id);
+        expired += 1;
+      } catch {
+        // Bo qua don loi de khong chan cac don con lai.
+      }
+    }
+    return expired;
   }
 
   // ---------------- Returns ----------------

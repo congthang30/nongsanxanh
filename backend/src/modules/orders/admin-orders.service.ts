@@ -232,4 +232,145 @@ export class AdminOrdersService {
       take: 200,
     });
   }
+
+  /**
+   * P1-01: Duyet/tu choi yeu cau tra hang online.
+   *  - approve=false: REJECTED, dua order ve trang thai truoc (COMPLETED/DELIVERED).
+   *  - approve=true : RETURNED. Cong ton lai (restockReturnedItems). Neu don da
+   *    thanh toan (VNPAY SUCCESS / COD SUCCESS) -> tao Refund PENDING de admin
+   *    hoan tien qua cong + audit. Tat ca trong 1 transaction.
+   */
+  async processReturn(returnId: string, approve: boolean, actorId: string, reason?: string) {
+    const ret = await this.prisma.returnRequest.findUnique({
+      where: { id: returnId },
+      include: {
+        items: { include: { orderItem: true } },
+        order: { include: { payments: true } },
+      },
+    });
+    if (!ret) {
+      throw new NotFoundException({
+        code: 'RETURN_NOT_FOUND',
+        message: 'Khong tim thay yeu cau tra hang',
+      });
+    }
+    if (ret.status !== 'REQUESTED') {
+      throw new BadRequestException({
+        code: 'RETURN_NOT_PENDING',
+        message: 'Yeu cau tra hang khong o trang thai cho duyet',
+      });
+    }
+    const order = ret.order;
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      if (!approve) {
+        await tx.returnRequest.update({
+          where: { id: returnId },
+          data: { status: 'REJECTED' },
+        });
+        // Dua order ve trang thai hoan tat truoc do (RETURN_REQUESTED -> COMPLETED).
+        if (order.status === OrderStatus.RETURN_REQUESTED) {
+          await tx.order.update({
+            where: { id: order.id },
+            data: { status: OrderStatus.COMPLETED },
+          });
+          await tx.orderStatusHistory.create({
+            data: {
+              orderId: order.id,
+              fromStatus: order.status,
+              toStatus: OrderStatus.COMPLETED,
+              actorId,
+              reason: reason ?? 'Tu choi tra hang',
+            },
+          });
+        }
+        await this.audit.log(
+          {
+            action: 'RETURN_REJECTED',
+            actorId,
+            targetType: 'ReturnRequest',
+            targetId: returnId,
+            storeId: order.storeId,
+            metadata: { orderNumber: order.orderNumber, reason },
+          },
+          tx,
+        );
+        return { status: 'REJECTED' };
+      }
+
+      // approve = true: cong ton lai cho cac item tra
+      const lines = ret.items.map((ri) => ({
+        variantId: ri.orderItem.variantId,
+        quantity: Number(ri.quantity),
+      }));
+      await this.inventory.restockReturnedItems(
+        tx,
+        order.storeId,
+        lines,
+        order.id,
+        actorId,
+      );
+
+      // Tao Refund PENDING neu don da thu tien (de hoan qua cong/tien mat).
+      const paidPayment = order.payments
+        .filter((p) => p.status === PaymentStatus.SUCCESS)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+      let refundAmount = 0;
+      if (paidPayment) {
+        refundAmount = ret.items.reduce(
+          (s, ri) => s + Math.round(ri.orderItem.unitPrice * Number(ri.quantity)),
+          0,
+        );
+        await tx.refund.create({
+          data: {
+            paymentId: paidPayment.id,
+            orderId: order.id,
+            amount: refundAmount,
+            status: 'PENDING',
+            reason: reason ?? 'Tra hang online duoc duyet',
+          },
+        });
+        await tx.order.update({
+          where: { id: order.id },
+          data: { paymentStatus: PaymentStatus.REFUND_PENDING },
+        });
+      }
+
+      await tx.returnRequest.update({
+        where: { id: returnId },
+        data: { status: 'RETURNED' },
+      });
+      await tx.order.update({
+        where: { id: order.id },
+        data: { status: OrderStatus.RETURNED },
+      });
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          fromStatus: order.status,
+          toStatus: OrderStatus.RETURNED,
+          actorId,
+          reason: reason ?? 'Tra hang duoc duyet',
+        },
+      });
+      await this.audit.log(
+        {
+          action: 'RETURN_APPROVED',
+          actorId,
+          targetType: 'ReturnRequest',
+          targetId: returnId,
+          storeId: order.storeId,
+          metadata: {
+            orderNumber: order.orderNumber,
+            refundAmount,
+            refundPending: !!paidPayment,
+          },
+        },
+        tx,
+      );
+      return { status: 'RETURNED', refundAmount, refundPending: !!paidPayment };
+    });
+
+    return { returnId, ...result };
+  }
 }

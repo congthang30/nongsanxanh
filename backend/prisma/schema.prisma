@@ -828,6 +828,7 @@ model CouponRedemption {
   createdAt      DateTime @default(now()) @map("created_at")
   coupon         Coupon   @relation(fields: [couponId], references: [id])
 
+  @@unique([couponId, userId, orderId])
   @@index([couponId, userId])
   @@map("coupon_redemptions")
 }

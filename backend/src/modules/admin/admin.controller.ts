@@ -177,6 +177,18 @@ export class AdminController {
     return this.admin.storeReport();
   }
 
+  /** P1-02: Doi soat doanh thu Order vs Payment vs POS theo khoang ngay. */
+  @Get('reports/reconciliation')
+  reconciliation(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.admin.reconciliation({ from, to });
+  }
+
+  /** P1-04: Don COD da giao nhung chua thu tien (cong no COD). */
+  @Get('reports/cod-outstanding')
+  codOutstanding(@Query('storeId') storeId?: string) {
+    return this.admin.codOutstanding(storeId);
+  }
+
   // ---- Audit ----
   @Get('audit-logs')
   auditLogs(@Query('action') action?: string) {

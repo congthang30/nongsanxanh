@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { DeliveryStatus, OrderStatus } from '@prisma/client';
+import { DeliveryStatus, OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { StoreScopeService } from '../store/store-scope.service';
@@ -339,5 +339,83 @@ export class StoreManagerService {
     return this.prisma.order.findUnique({
       where: { id: orderId },
     });
+  }
+
+  /**
+   * P1-08: Manager xac nhan da thu tien COD cho don da giao nhung shipper chua
+   * thu duoc luc giao (DELIVERED, payment con PENDING). Set payment SUCCESS +
+   * order COMPLETED + delivery.codCollected = true. Co audit de doi soat.
+   */
+  async markCodCollected(user: AuthUser, orderId: string) {
+    const storeId = await this.resolveStoreId(user);
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { delivery: true },
+    });
+    if (!order || order.storeId !== storeId) {
+      throw new NotFoundException({
+        code: 'ORDER_NOT_FOUND',
+        message: 'Khong tim thay don trong cua hang',
+      });
+    }
+    if (order.paymentMethod !== PaymentMethod.COD) {
+      throw new BadRequestException({
+        code: 'NOT_COD_ORDER',
+        message: 'Don nay khong phai COD',
+      });
+    }
+    if (order.paymentStatus === PaymentStatus.SUCCESS) {
+      throw new BadRequestException({
+        code: 'ALREADY_PAID',
+        message: 'Don nay da duoc ghi nhan thu tien',
+      });
+    }
+    if (order.status !== OrderStatus.DELIVERED) {
+      throw new BadRequestException({
+        code: 'ORDER_NOT_DELIVERED',
+        message: 'Chi xac nhan thu COD cho don da giao thanh cong',
+      });
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.payment.updateMany({
+        where: { orderId, method: 'COD' },
+        data: { status: PaymentStatus.SUCCESS, paidAt: new Date() },
+      });
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          paymentStatus: PaymentStatus.SUCCESS,
+          status: OrderStatus.COMPLETED,
+        },
+      });
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId,
+          fromStatus: order.status,
+          toStatus: OrderStatus.COMPLETED,
+          actorId: user.id,
+          reason: 'Manager xac nhan da thu COD',
+        },
+      });
+      if (order.delivery) {
+        await tx.delivery.update({
+          where: { id: order.delivery.id },
+          data: { codCollected: true },
+        });
+      }
+      await this.audit.log(
+        {
+          action: 'COD_COLLECTED_CONFIRMED',
+          actorId: user.id,
+          targetType: 'Order',
+          targetId: orderId,
+          storeId,
+          metadata: { amount: order.grandTotal },
+        },
+        tx,
+      );
+    });
+    this.events.emit('order.completed', { orderId });
+    return this.prisma.order.findUnique({ where: { id: orderId } });
   }
 }

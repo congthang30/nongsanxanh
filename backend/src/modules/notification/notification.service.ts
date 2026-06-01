@@ -2,6 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import type { EmailAction } from './email-template';
+import {
+  emailTextFallback,
+  renderEmailTemplate,
+} from './email-template';
 
 @Injectable()
 export class NotificationService {
@@ -36,6 +41,7 @@ export class NotificationService {
     title: string;
     body: string;
     email?: string | null;
+    emailAction?: EmailAction;
     data?: Record<string, unknown>;
   }) {
     await this.prisma.notification.create({
@@ -50,11 +56,20 @@ export class NotificationService {
 
     if (params.email) {
       try {
+        const appName = this.config.get<string>('APP_NAME', 'Nông Sản Xanh');
+        const emailParams = {
+          appName,
+          title: params.title,
+          body: params.body,
+          type: params.type,
+          action: params.emailAction,
+        };
         await this.transporter.sendMail({
           from: this.config.get<string>('SMTP_FROM', 'no-reply@agri.local'),
           to: params.email,
           subject: params.title,
-          text: params.body,
+          text: emailTextFallback(emailParams),
+          html: renderEmailTemplate(emailParams),
         });
       } catch (e) {
         this.logger.warn(`Email gui that bai: ${(e as Error).message}`);
@@ -65,7 +80,14 @@ export class NotificationService {
   /** Gui notification cho tat ca user thuoc mot role (vd ADMIN, WAREHOUSE). */
   async notifyRole(
     roleCode: string,
-    params: { type: string; title: string; body: string; data?: Record<string, unknown>; sendEmail?: boolean },
+    params: {
+      type: string;
+      title: string;
+      body: string;
+      data?: Record<string, unknown>;
+      sendEmail?: boolean;
+      emailAction?: EmailAction;
+    },
   ) {
     const users = await this.prisma.user.findMany({
       where: { userRoles: { some: { role: { code: roleCode } } } },
@@ -79,6 +101,7 @@ export class NotificationService {
           title: params.title,
           body: params.body,
           email: params.sendEmail ? u.email : null,
+          emailAction: params.emailAction,
           data: params.data,
         }),
       ),
@@ -88,7 +111,14 @@ export class NotificationService {
   /** Gui notification cho danh sach userId cu the. */
   async notifyUsers(
     userIds: string[],
-    params: { type: string; title: string; body: string; data?: Record<string, unknown>; sendEmail?: boolean },
+    params: {
+      type: string;
+      title: string;
+      body: string;
+      data?: Record<string, unknown>;
+      sendEmail?: boolean;
+      emailAction?: EmailAction;
+    },
   ) {
     const uniq = [...new Set(userIds.filter(Boolean))];
     if (uniq.length === 0) return;
@@ -104,6 +134,7 @@ export class NotificationService {
           title: params.title,
           body: params.body,
           email: params.sendEmail ? u.email : null,
+          emailAction: params.emailAction,
           data: params.data,
         }),
       ),

@@ -47,6 +47,33 @@ export class POSReturnService {
     }
 
     const itemMap = new Map(sale.items.map((it) => [it.id, it]));
+
+    // P0-06: tong so luong da tra truoc do cho moi saleItem (REQUESTED/APPROVED/
+    // COMPLETED) de khong cho tra vuot so luong da ban.
+    const priorReturns = await this.prisma.pOSReturnItem.findMany({
+      where: {
+        saleItemId: { in: sale.items.map((it) => it.id) },
+        returnRef: {
+          originalSaleId: sale.id,
+          status: {
+            in: [
+              POSReturnStatus.REQUESTED,
+              POSReturnStatus.APPROVED,
+              POSReturnStatus.COMPLETED,
+            ],
+          },
+        },
+      },
+      select: { saleItemId: true, quantity: true },
+    });
+    const alreadyReturned = new Map<string, number>();
+    for (const pr of priorReturns) {
+      alreadyReturned.set(
+        pr.saleItemId,
+        (alreadyReturned.get(pr.saleItemId) ?? 0) + Number(pr.quantity),
+      );
+    }
+
     let refundAmount = 0;
     for (const line of dto.items) {
       const item = itemMap.get(line.saleItemId);
@@ -56,10 +83,13 @@ export class POSReturnService {
           message: 'San pham khong thuoc hoa don',
         });
       }
-      if (line.quantity <= 0 || line.quantity > Number(item.quantity)) {
+      const soldQty = Number(item.quantity);
+      const prevQty = alreadyReturned.get(line.saleItemId) ?? 0;
+      const remaining = soldQty - prevQty;
+      if (line.quantity <= 0 || line.quantity > remaining) {
         throw new BadRequestException({
           code: 'INVALID_RETURN_QTY',
-          message: `So luong tra khong hop le cho ${item.productNameSnapshot}`,
+          message: `So luong tra khong hop le cho ${item.productNameSnapshot} (con co the tra: ${remaining})`,
         });
       }
       refundAmount += Math.round(item.unitPrice * line.quantity);

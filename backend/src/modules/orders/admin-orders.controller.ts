@@ -7,7 +7,7 @@ import {
   AuthUser,
   CurrentUser,
 } from '../../common/decorators/current-user.decorator';
-import { ReassignStoreDto } from './dto/orders.dto';
+import { ReassignStoreDto, ProcessReturnDto } from './dto/orders.dto';
 
 @ApiTags('admin-orders')
 @ApiBearerAuth()
@@ -50,5 +50,15 @@ export class AdminOrdersController {
   @Get('returns/list')
   listReturns(@Query('status') status?: string) {
     return this.adminOrders.listReturns(status);
+  }
+
+  /** P1-01: Admin duyet/tu choi yeu cau tra hang online (restock + refund pending). */
+  @Post('returns/:id/process')
+  processReturn(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: ProcessReturnDto & { reason?: string },
+  ) {
+    return this.adminOrders.processReturn(id, dto.approve, user.id, dto.reason);
   }
 }

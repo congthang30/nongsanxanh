@@ -89,6 +89,23 @@ export class POSSaleService {
     }
   }
 
+  /**
+   * P1-03: chong cashier A thao tac hoa don cua cashier B (cung store).
+   * Chi cashier so huu hoa don, hoac manager/admin, moi duoc thanh toan/huy.
+   * Tranh sai doi soat ca + gian lan noi bo.
+   */
+  private assertCashierOwnsSale(user: AuthUser, sale: { cashierId: string }) {
+    const isManagerOrAdmin =
+      this.scope.isSystemAdmin(user.roles) ||
+      user.roles.includes('STORE_MANAGER');
+    if (!isManagerOrAdmin && sale.cashierId !== user.id) {
+      throw new ForbiddenException({
+        code: 'SALE_NOT_OWNED',
+        message: 'Hoa don nay do thu ngan khac tao. Can quyen quan ly de thao tac.',
+      });
+    }
+  }
+
   /** Tinh lai tong tien sale tu cac line item, update DB. */
   private async recalcTotals(tx: Prisma.TransactionClient, saleId: string) {
     const items = await tx.pOSSaleItem.findMany({ where: { saleId } });
@@ -330,6 +347,7 @@ export class POSSaleService {
     const sale = await this.getSaleInScope(user, saleId, {
       items: true,
     });
+    this.assertCashierOwnsSale(user, sale);
     if (sale.status !== POSSaleStatus.DRAFT && sale.status !== POSSaleStatus.HELD) {
       throw new BadRequestException({
         code: 'SALE_NOT_PAYABLE',
@@ -392,6 +410,23 @@ export class POSSaleService {
     }));
 
     await this.prisma.$transaction(async (tx) => {
+      // P0-05: lock row hoa don + kiem tra lai trang thai trong tx de chong
+      // double-click thanh toan (2 request cung doc DRAFT roi cung tru kho).
+      const locked = await tx.$queryRaw<{ status: POSSaleStatus }[]>(Prisma.sql`
+        SELECT status FROM pos_sales WHERE id = ${saleId} FOR UPDATE
+      `);
+      const current = locked[0];
+      if (
+        !current ||
+        (current.status !== POSSaleStatus.DRAFT &&
+          current.status !== POSSaleStatus.HELD)
+      ) {
+        throw new BadRequestException({
+          code: 'SALE_NOT_PAYABLE',
+          message: 'Hoa don nay khong the thanh toan (da xu ly hoac dang xu ly)',
+        });
+      }
+
       // 1. Tru ton (lock rows + validate) + InventoryTransaction POS_SALE
       await this.inventory.commitPosSale(
         tx,
@@ -474,6 +509,10 @@ export class POSSaleService {
    */
   async voidSale(user: AuthUser, saleId: string, reason: string, isManagerOverride = false) {
     const sale = await this.getSaleInScope(user, saleId, { items: true });
+    // P1-03: void thuong (cashier tu huy) chi cho chu hoa don; manager-void bo qua.
+    if (!isManagerOverride) {
+      this.assertCashierOwnsSale(user, sale);
+    }
 
     if (sale.status === POSSaleStatus.VOIDED) {
       throw new BadRequestException({
@@ -491,6 +530,18 @@ export class POSSaleService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      // P1-11: lock row + kiem tra lai trang thai de chong double-void (double restock).
+      const locked = await tx.$queryRaw<{ status: POSSaleStatus }[]>(Prisma.sql`
+        SELECT status FROM pos_sales WHERE id = ${saleId} FOR UPDATE
+      `);
+      const current = locked[0];
+      if (!current || current.status === POSSaleStatus.VOIDED) {
+        throw new BadRequestException({
+          code: 'ALREADY_VOIDED',
+          message: 'Hoa don da bi huy',
+        });
+      }
+
       // Neu sale da PAID -> hoan ton lai (hang con ban duoc) + refund payment
       if (isPaid) {
         const restockLines = sale.items.map((it) => ({

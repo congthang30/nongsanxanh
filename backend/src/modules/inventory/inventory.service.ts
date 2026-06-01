@@ -210,15 +210,20 @@ export class StoreInventoryService {
     });
     if (!order) return;
     for (const it of order.items) {
-      const inv = await tx.storeInventory.findUnique({
-        where: {
-          storeId_variantId: { storeId: order.storeId, variantId: it.variantId },
-        },
-      });
+      // P1-02: lock row de tranh lost-update khi release dong thoi (cancel + failed).
+      const locked = await tx.$queryRaw<
+        { id: string; quantity_on_hand: string; reserved_quantity: string }[]
+      >(Prisma.sql`
+        SELECT id, quantity_on_hand, reserved_quantity
+        FROM store_inventories
+        WHERE store_id = ${order.storeId} AND variant_id = ${it.variantId}
+        FOR UPDATE
+      `);
+      const inv = locked[0];
       if (!inv) continue;
       const qty = Number(it.quantity);
-      const before = Number(inv.quantityOnHand);
-      const newReserved = Math.max(0, Number(inv.reservedQuantity) - qty);
+      const before = Number(inv.quantity_on_hand);
+      const newReserved = Math.max(0, Number(inv.reserved_quantity) - qty);
       await tx.storeInventory.update({
         where: { id: inv.id },
         data: { reservedQuantity: newReserved },
@@ -251,16 +256,21 @@ export class StoreInventoryService {
     });
     if (!order) return;
     for (const it of order.items) {
-      const inv = await tx.storeInventory.findUnique({
-        where: {
-          storeId_variantId: { storeId: order.storeId, variantId: it.variantId },
-        },
-      });
+      // P1-03: lock row de dong bo voi POS sale cung variant (tranh tru vuot).
+      const locked = await tx.$queryRaw<
+        { id: string; quantity_on_hand: string; reserved_quantity: string }[]
+      >(Prisma.sql`
+        SELECT id, quantity_on_hand, reserved_quantity
+        FROM store_inventories
+        WHERE store_id = ${order.storeId} AND variant_id = ${it.variantId}
+        FOR UPDATE
+      `);
+      const inv = locked[0];
       if (!inv) continue;
       const qty = Number(it.quantity);
-      const before = Number(inv.quantityOnHand);
+      const before = Number(inv.quantity_on_hand);
       const after = Math.max(0, before - qty);
-      const newReserved = Math.max(0, Number(inv.reservedQuantity) - qty);
+      const newReserved = Math.max(0, Number(inv.reserved_quantity) - qty);
       await tx.storeInventory.update({
         where: { id: inv.id },
         data: { quantityOnHand: after, reservedQuantity: newReserved },
@@ -563,6 +573,8 @@ export class StoreInventoryService {
         });
       }
       const after = before - line.quantity;
+      // P2-07: danh dau ban am ton de truy vet doi soat (when allowNegative + vuot ton).
+      const isNegativeOverride = allowNegative && available < line.quantity;
       await tx.storeInventory.update({
         where: { id: inv.id },
         data: {
@@ -578,7 +590,9 @@ export class StoreInventoryService {
           quantity: line.quantity,
           beforeQty: before,
           afterQty: after,
-          reason: `POS sale ${saleNumber}`,
+          reason: isNegativeOverride
+            ? `POS sale ${saleNumber} [BAN AM TON: ${available} -> ${after}]`
+            : `POS sale ${saleNumber}`,
           createdBy: actorId,
         },
       });
@@ -646,6 +660,55 @@ export class StoreInventoryService {
           },
         });
       }
+    }
+  }
+
+  /**
+   * Cong ton lai khi tra hang ONLINE (order return) duoc duyet. Lock row + ghi
+   * InventoryTransaction type POS_RETURN. Dung cho admin processReturn (P1-01).
+   */
+  async restockReturnedItems(
+    tx: Prisma.TransactionClient,
+    storeId: string,
+    lines: { variantId: string; quantity: number }[],
+    orderId: string,
+    actorId: string,
+  ): Promise<void> {
+    for (const line of lines) {
+      const locked = await tx.$queryRaw<
+        { id: string; quantity_on_hand: string; status: string }[]
+      >(Prisma.sql`
+        SELECT id, quantity_on_hand, status
+        FROM store_inventories
+        WHERE store_id = ${storeId} AND variant_id = ${line.variantId}
+        FOR UPDATE
+      `);
+      const inv = locked[0];
+      if (!inv) continue;
+      const before = Number(inv.quantity_on_hand);
+      const after = before + line.quantity;
+      await tx.storeInventory.update({
+        where: { id: inv.id },
+        data: {
+          quantityOnHand: after,
+          ...(inv.status === 'OUT_OF_STOCK' && after > 0
+            ? { status: 'ACTIVE' }
+            : {}),
+        },
+      });
+      await tx.inventoryTransaction.create({
+        data: {
+          storeId,
+          variantId: line.variantId,
+          type: InventoryTxType.POS_RETURN,
+          quantity: line.quantity,
+          beforeQty: before,
+          afterQty: after,
+          reason: 'Tra hang online (return duyet)',
+          orderId,
+          createdBy: actorId,
+        },
+      });
     }
   }
 }
