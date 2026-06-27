@@ -30,7 +30,7 @@ services:
       # Cac bien sau nen override qua .env hoac secrets khi deploy thuc te
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_USER: ${SMTP_USER:-}
@@ -45,7 +45,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "8080:80"
+      - "5173:80"
 
 volumes:
   pgdata:
