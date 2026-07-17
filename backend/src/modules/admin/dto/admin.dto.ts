@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { AdjustStockDto, ExportStockDto, ImportStockDto } from '../../warehouse/dto/warehouse.dto';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsEmail,
   IsIn,
   IsNotEmpty,
   IsNumber,
@@ -216,6 +218,101 @@ export class AddStaffDto {
   @ApiProperty({ enum: ['STORE_STAFF', 'WAREHOUSE_STAFF'] })
   @IsIn(['STORE_STAFF', 'WAREHOUSE_STAFF'])
   role: 'STORE_STAFF' | 'WAREHOUSE_STAFF';
+}
+
+export class UpdateStoreStaffDto {
+  @ApiPropertyOptional({ enum: ['STORE_STAFF', 'WAREHOUSE_STAFF'] })
+  @IsOptional()
+  @IsIn(['STORE_STAFF', 'WAREHOUSE_STAFF'])
+  role?: 'STORE_STAFF' | 'WAREHOUSE_STAFF';
+
+  @ApiPropertyOptional({ enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'] })
+  @IsOptional()
+  @IsIn(['ACTIVE', 'INACTIVE', 'SUSPENDED'])
+  status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+}
+
+export class CreateStaffAccountDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  storeId: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  fullName: string;
+
+  @ApiProperty()
+  @IsEmail()
+  email: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
+  @ApiProperty({ enum: ['STORE_MANAGER', 'STORE_STAFF', 'WAREHOUSE_STAFF', 'SHIPPER'] })
+  @IsIn(['STORE_MANAGER', 'STORE_STAFF', 'WAREHOUSE_STAFF', 'SHIPPER'])
+  role: 'STORE_MANAGER' | 'STORE_STAFF' | 'WAREHOUSE_STAFF' | 'SHIPPER';
+}
+
+export class UpdateStaffAccountDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  storeId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
+  @ApiPropertyOptional({ enum: ['STORE_MANAGER', 'STORE_STAFF', 'WAREHOUSE_STAFF', 'SHIPPER'] })
+  @IsOptional()
+  @IsIn(['STORE_MANAGER', 'STORE_STAFF', 'WAREHOUSE_STAFF', 'SHIPPER'])
+  role?: 'STORE_MANAGER' | 'STORE_STAFF' | 'WAREHOUSE_STAFF' | 'SHIPPER';
+
+  @ApiPropertyOptional({ enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'] })
+  @IsOptional()
+  @IsIn(['ACTIVE', 'INACTIVE', 'SUSPENDED'])
+  status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+}
+
+export class AdminImportStockDto extends ImportStockDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  storeId: string;
+}
+
+export class AdminAdjustStockDto extends AdjustStockDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  storeId: string;
+}
+
+export class AdminExportStockDto extends ExportStockDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  storeId: string;
 }
 
 export class SetUserRolesDto {

@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './infrastructure/database/prisma.module';
+import { RedisModule } from './infrastructure/redis/redis.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
@@ -27,6 +28,7 @@ import { StoreModule } from './modules/store/store.module';
 import { StoreManagerModule } from './modules/store-manager/store-manager.module';
 import { StoreStaffModule } from './modules/store-staff/store-staff.module';
 import { POSModule } from './modules/pos/pos.module';
+import { MediaModule } from './modules/media/media.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -36,6 +38,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     JwtModule.register({ global: true }),
     EventEmitterModule.forRoot(),
     PrismaModule,
+    RedisModule,
     AuditModule,
     AuthModule,
     UsersModule,
@@ -54,6 +57,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     StoreStaffModule,
     WarehouseModule,
     POSModule,
+    MediaModule,
     SupportModule,
     CampaignsModule,
     AiModule,

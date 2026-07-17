@@ -16,7 +16,6 @@ interface DataTableProps<T> {
   actions?: ReactNode;
   emptyText?: string;
   loading?: boolean;
-  /** Thông báo lỗi (kèm nút thử lại nếu có onRetry). */
   error?: string | null;
   onRetry?: () => void;
 }
@@ -44,15 +43,12 @@ export function DataTable<T>({
         <table className="dash-table">
           <thead>
             <tr>
-              {columns.map((c) => (
+              {columns.map((column) => (
                 <th
-                  key={c.key}
-                  style={{
-                    width: c.width,
-                    textAlign: c.align ?? 'left',
-                  }}
+                  key={column.key}
+                  style={{ width: column.width, textAlign: column.align ?? 'left' }}
                 >
-                  {c.title}
+                  {column.title}
                 </th>
               ))}
             </tr>
@@ -85,13 +81,13 @@ export function DataTable<T>({
                 </td>
               </tr>
             ) : (
-              rows.map((row, i) => (
-                <tr key={rowKey ? rowKey(row) : i}>
-                  {columns.map((c) => (
-                    <td key={c.key} style={{ textAlign: c.align ?? 'left' }}>
-                      {c.render
-                        ? c.render(row)
-                        : String((row as Record<string, unknown>)[c.key] ?? '—')}
+              rows.map((row, rowIndex) => (
+                <tr key={rowKey ? rowKey(row) : rowIndex}>
+                  {columns.map((column) => (
+                    <td key={column.key} style={{ textAlign: column.align ?? 'left' }}>
+                      {column.render
+                        ? column.render(row)
+                        : String((row as Record<string, unknown>)[column.key] ?? '-')}
                     </td>
                   ))}
                 </tr>

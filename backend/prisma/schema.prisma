@@ -51,7 +51,6 @@ model User {
   reviews         Review[]
   notifications   Notification[]
   supportTickets  SupportTicket[]
-  aiConversations AiConversation[]
 
   // Store-chain relations
   managedStore     Store?       @relation("StoreManager")
@@ -812,6 +811,7 @@ model Coupon {
   status        String             @default("ACTIVE")
   createdBy     String?            @map("created_by")
   createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @default(now()) @updatedAt @map("updated_at")
   store         Store?             @relation(fields: [storeId], references: [id])
   redemptions   CouponRedemption[]
 
@@ -965,57 +965,39 @@ model ComboItem {
 }
 
 // ============================================================
-// AI CHATBOT (RAG)
+// AI SEMANTIC POINTER INDEX
 // ============================================================
 
-model AiConversation {
-  id        String      @id @default(uuid())
-  userId    String?     @map("user_id")
-  sessionId String?     @map("session_id")
-  createdAt DateTime    @default(now()) @map("created_at")
-  user      User?       @relation(fields: [userId], references: [id])
-  messages  AiMessage[]
+model KnowledgeSource {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  type          String
+  title         String
+  content       String
+  status        String    @default("ACTIVE")
+  effectiveFrom DateTime? @map("effective_from")
+  effectiveTo   DateTime? @map("effective_to")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  @@index([userId])
-  @@index([sessionId])
-  @@map("ai_conversations")
+  @@index([type, status])
+  @@map("knowledge_sources")
 }
 
-model AiMessage {
-  id             String         @id @default(uuid())
-  conversationId String         @map("conversation_id")
-  role           String
-  content        String
-  createdAt      DateTime       @default(now()) @map("created_at")
-  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+model AiVectorIndex {
+  id         String      @id @default(uuid())
+  objectType String      @map("object_type")
+  objectId   String      @map("object_id")
+  text       String
+  embedding  Unsupported("vector(1024)")
+  metadata   Json?
+  status     String      @default("ACTIVE")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
 
-  @@index([conversationId])
-  @@map("ai_messages")
-}
-
-model AiDocument {
-  id         String            @id @default(uuid())
-  title      String
-  sourceType String            @map("source_type")
-  sourceRef  String?           @map("source_ref")
-  content    String
-  createdAt  DateTime          @default(now()) @map("created_at")
-  chunks     AiDocumentChunk[]
-
-  @@map("ai_documents")
-}
-
-model AiDocumentChunk {
-  id         String     @id @default(uuid())
-  documentId String     @map("document_id")
-  chunkIndex Int        @map("chunk_index")
-  content    String
-  embedding  Json?
-  createdAt  DateTime   @default(now()) @map("created_at")
-  document   AiDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
-  @@index([documentId])
-  @@map("ai_document_chunks")
+  @@unique([objectType, objectId])
+  @@index([objectType, status])
+  @@map("ai_vector_index")
 }
 
 // ============================================================

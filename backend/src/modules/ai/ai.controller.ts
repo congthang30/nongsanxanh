@@ -8,12 +8,16 @@ import {
   CurrentUser,
   AuthUser,
 } from '../../common/decorators/current-user.decorator';
-import { ChatDto, IngestDocDto } from './dto/ai.dto';
+import { ChatDto, VectorSyncDto } from './dto/ai.dto';
+import { AiVectorSyncService } from './ai-vector-sync.service';
 
 @ApiTags('ai')
 @Controller('ai')
 export class AiController {
-  constructor(private readonly aiService: AiService) {}
+  constructor(
+    private readonly aiService: AiService,
+    private readonly vectorSync: AiVectorSyncService,
+  ) {}
 
   /**
    * Chat cong khai: ho tro ca khach chua dang nhap (qua sessionId).
@@ -36,14 +40,25 @@ export class AiController {
 
   @Public()
   @Get('conversations/:id')
-  history(@Param('id') id: string) {
-    return this.aiService.history(id);
+  history(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-session-id') sessionId?: string,
+  ) {
+    return this.aiService.history(id, user?.id, sessionId);
   }
 
   @ApiBearerAuth()
   @Roles(ROLE.ADMIN, ROLE.SUPER_ADMIN)
-  @Post('documents')
-  ingest(@Body() dto: IngestDocDto) {
-    return this.aiService.ingestDocument(dto.title, dto.sourceType ?? 'MANUAL', dto.content, dto.sourceRef);
+  @Post('reindex')
+  reindex() {
+    return this.aiService.reindexDomainObjects();
+  }
+
+  @ApiBearerAuth()
+  @Roles(ROLE.ADMIN, ROLE.SUPER_ADMIN)
+  @Post('vector-sync')
+  syncObject(@Body() dto: VectorSyncDto) {
+    return this.vectorSync.enqueue(dto.objectType, dto.objectId, 'manual');
   }
 }

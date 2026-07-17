@@ -7,8 +7,10 @@ import {
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLE } from '../../common/constants/roles.constant';
 import {
@@ -50,6 +52,19 @@ export class AdminPOSController {
     @Body() dto: CreateBarcodeDto,
   ) {
     return this.barcodes.createBarcode(variantId, dto, user.id);
+  }
+
+  @Get('barcodes/:id/image')
+  async barcodeImage(
+    @Param('id') id: string,
+    @Query('format') format: 'barcode' | 'qr' = 'barcode',
+    @Res() response: Response,
+  ) {
+    const selectedFormat = format === 'qr' ? 'qr' : 'barcode';
+    const image = await this.barcodes.renderCode(id, selectedFormat);
+    response.setHeader('Content-Type', 'image/png');
+    response.setHeader('Cache-Control', 'private, max-age=300');
+    response.send(image);
   }
 
   @Patch('barcodes/:id')

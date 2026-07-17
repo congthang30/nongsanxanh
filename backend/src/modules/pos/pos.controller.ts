@@ -58,44 +58,64 @@ export class POSController {
   // ---------------- Shifts ----------------
 
   @Post('shifts/open')
-  openShift(@CurrentUser() user: AuthUser, @Body() dto: OpenShiftDto) {
-    return this.shifts.openShift(user, dto.openingCash ?? 0, dto.note);
+  openShift(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: OpenShiftDto,
+    @Query('storeId') storeId?: string,
+  ) {
+    return this.shifts.openShift(user, dto.openingCash ?? 0, dto.note, storeId);
   }
 
   @Post('shifts/close')
-  closeShift(@CurrentUser() user: AuthUser, @Body() dto: CloseShiftDto) {
-    return this.shifts.closeShift(user, dto.countedCash, dto.note);
+  closeShift(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CloseShiftDto,
+    @Query('storeId') storeId?: string,
+  ) {
+    return this.shifts.closeShift(user, dto.countedCash, dto.note, storeId);
   }
 
   @Get('shifts/current')
-  currentShift(@CurrentUser() user: AuthUser) {
-    return this.shifts.getCurrent(user);
+  currentShift(@CurrentUser() user: AuthUser, @Query('storeId') storeId?: string) {
+    return this.shifts.getCurrent(user, storeId);
   }
 
   // ---------------- Product lookup / search ----------------
 
   @Get('products/lookup')
-  async lookup(@CurrentUser() user: AuthUser, @Query('barcode') barcode: string) {
-    const storeId = await this.shiftStore(user);
+  async lookup(
+    @CurrentUser() user: AuthUser,
+    @Query('barcode') barcode: string,
+    @Query('storeId') requestedStoreId?: string,
+  ) {
+    const storeId = await this.shiftStore(user, requestedStoreId);
     return this.barcodes.lookup(storeId, barcode);
   }
 
   @Get('products/search')
-  async search(@CurrentUser() user: AuthUser, @Query('q') q: string) {
-    const storeId = await this.shiftStore(user);
+  async search(
+    @CurrentUser() user: AuthUser,
+    @Query('q') q: string,
+    @Query('storeId') requestedStoreId?: string,
+  ) {
+    const storeId = await this.shiftStore(user, requestedStoreId);
     return this.barcodes.search(storeId, q ?? '');
   }
 
   // ---------------- Sales ----------------
 
   @Post('sales')
-  createSale(@CurrentUser() user: AuthUser, @Body() dto: CreateSaleDto) {
-    return this.sales.createSale(user, dto.customerPhone);
+  createSale(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateSaleDto,
+    @Query('storeId') storeId?: string,
+  ) {
+    return this.sales.createSale(user, dto.customerPhone, storeId);
   }
 
   @Get('sales/held')
-  heldSales(@CurrentUser() user: AuthUser) {
-    return this.sales.listHeldSales(user);
+  heldSales(@CurrentUser() user: AuthUser, @Query('storeId') storeId?: string) {
+    return this.sales.listHeldSales(user, storeId);
   }
 
   @Get('sales/:id')
@@ -256,7 +276,7 @@ export class POSController {
   }
 
   /** Store cua nhan vien dang dang nhap (dung cho lookup/search). */
-  private shiftStore(user: AuthUser): Promise<string> {
-    return this.scope.requireUserStoreId(user.id);
+  private shiftStore(user: AuthUser, requestedStoreId?: string): Promise<string> {
+    return this.scope.resolveOperationalStoreId(user, requestedStoreId);
   }
 }

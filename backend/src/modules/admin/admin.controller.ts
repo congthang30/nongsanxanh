@@ -19,12 +19,18 @@ import {
 } from '../../common/decorators/current-user.decorator';
 import {
   AddStaffDto,
+  AdminAdjustStockDto,
+  AdminExportStockDto,
+  AdminImportStockDto,
   AssignManagerDto,
   AssignShipperDto,
   CreateServiceAreaDto,
+  CreateStaffAccountDto,
   CreateStoreDto,
   SetUserRolesDto,
+  UpdateStaffAccountDto,
   UpdateStoreDto,
+  UpdateStoreStaffDto,
 } from './dto/admin.dto';
 
 @ApiTags('admin')
@@ -39,8 +45,8 @@ export class AdminController {
 
   // ---- Dashboard ----
   @Get('dashboard/summary')
-  summary() {
-    return this.admin.summary();
+  summary(@Query('storeId') storeId?: string) {
+    return this.admin.summary(storeId);
   }
 
   // ---- Stores ----
@@ -66,6 +72,11 @@ export class AdminController {
     @Body() dto: UpdateStoreDto,
   ) {
     return this.admin.updateStore(id, dto, user.id);
+  }
+
+  @Delete('stores/:id')
+  closeStore(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.admin.closeStore(id, user.id);
   }
 
   // ---- Service areas ----
@@ -115,7 +126,45 @@ export class AdminController {
     return this.admin.addStaff(id, dto.userId, dto.role, user.id);
   }
 
-  // ---- Users / roles ----
+  @Patch('stores/:id/staff/:staffId')
+  updateStaff(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('staffId') staffId: string,
+    @Body() dto: UpdateStoreStaffDto,
+  ) {
+    return this.admin.updateStaff(id, staffId, dto, user.id);
+  }
+
+  @Delete('stores/:id/staff/:staffId')
+  removeStaff(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('staffId') staffId: string,
+  ) {
+    return this.admin.removeStaff(id, staffId, user.id);
+  }
+
+  // ---- Customer accounts ----
+  @Get('customers')
+  customers(
+    @Query('q') q?: string,
+    @Query('status') status?: string,
+    @Query('storeId') storeId?: string,
+  ) {
+    return this.admin.listCustomers({ q, status, storeId });
+  }
+
+  @Patch('customers/:id/status')
+  setCustomerStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: { status: 'ACTIVE' | 'LOCKED' },
+  ) {
+    return this.admin.setCustomerStatus(id, body.status, user.id);
+  }
+
+  // ---- Users / global roles ----
   @Get('users')
   users(@Query('role') role?: string, @Query('storeId') storeId?: string) {
     return this.admin.listUsers({ role, storeId });
@@ -139,6 +188,30 @@ export class AdminController {
     return this.admin.setUserStatus(id, body.status, user.id);
   }
 
+  // ---- Staff accounts / store memberships ----
+  @Get('staff')
+  staff(@Query('storeId') storeId?: string, @Query('status') status?: string) {
+    return this.admin.listStaff({ storeId, status });
+  }
+
+  @Post('staff')
+  createStaff(@CurrentUser() user: AuthUser, @Body() dto: CreateStaffAccountDto) {
+    return this.admin.createStaffAccount(dto, user.id);
+  }
+
+  @Patch('staff/:staffId')
+  updateStaffAccount(
+    @CurrentUser() user: AuthUser,
+    @Param('staffId') staffId: string,
+    @Body() dto: UpdateStaffAccountDto,
+  ) {
+    return this.admin.updateStaffAccount(staffId, dto, user.id);
+  }
+
+  @Delete('staff/:staffId')
+  removeStaffAccount(@CurrentUser() user: AuthUser, @Param('staffId') staffId: string) {
+    return this.admin.removeStaffAccount(staffId, user.id);
+  }
   // ---- Products (global) ----
   @Get('products')
   products(@Query() query: Record<string, string>) {
@@ -166,21 +239,47 @@ export class AdminController {
     return this.admin.inventoryByStore(storeId);
   }
 
+  @Get('inventory/transactions')
+  inventoryTransactions(
+    @Query('storeId') storeId: string,
+    @Query('variantId') variantId?: string,
+    @Query('type') type?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.admin.inventoryTransactions(storeId, { variantId, type, from, to });
+  }
+
+  @Post('inventory/import')
+  importStock(@CurrentUser() user: AuthUser, @Body() dto: AdminImportStockDto) {
+    return this.admin.importStock(dto.storeId, dto, user.id);
+  }
+
+  @Post('inventory/adjust')
+  adjustStock(@CurrentUser() user: AuthUser, @Body() dto: AdminAdjustStockDto) {
+    return this.admin.adjustStock(dto.storeId, dto, user.id);
+  }
+
+  @Post('inventory/export')
+  exportStock(@CurrentUser() user: AuthUser, @Body() dto: AdminExportStockDto) {
+    return this.admin.exportStock(dto.storeId, dto, user.id);
+  }
+
   // ---- Reports ----
   @Get('reports/revenue')
-  revenueReport(@Query('days') days?: string) {
-    return this.admin.revenueReport(days ? Number(days) : 30);
+  revenueReport(@Query('days') days?: string, @Query('storeId') storeId?: string) {
+    return this.admin.revenueReport(days ? Number(days) : 30, storeId);
   }
 
   @Get('reports/stores')
-  storeReport() {
-    return this.admin.storeReport();
+  storeReport(@Query('storeId') storeId?: string) {
+    return this.admin.storeReport(storeId);
   }
 
   /** P1-02: Doi soat doanh thu Order vs Payment vs POS theo khoang ngay. */
   @Get('reports/reconciliation')
-  reconciliation(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.admin.reconciliation({ from, to });
+  reconciliation(@Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
+    return this.admin.reconciliation({ from, to, storeId });
   }
 
   /** P1-04: Don COD da giao nhung chua thu tien (cong no COD). */
@@ -191,7 +290,7 @@ export class AdminController {
 
   // ---- Audit ----
   @Get('audit-logs')
-  auditLogs(@Query('action') action?: string) {
-    return this.admin.listAuditLogs(action);
+  auditLogs(@Query('action') action?: string, @Query('storeId') storeId?: string) {
+    return this.admin.listAuditLogs(action, storeId);
   }
 }

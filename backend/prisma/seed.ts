@@ -7,13 +7,13 @@ const prisma = new PrismaClient();
 // ---------------- ROLES & PERMISSIONS ----------------
 const ROLES = [
   { code: 'SUPER_ADMIN', name: 'Super Admin' },
-  { code: 'ADMIN', name: 'Quan tri he thong' },
-  { code: 'STORE_MANAGER', name: 'Quan ly cua hang' },
-  { code: 'STORE_STAFF', name: 'Nhan vien ban hang' },
-  { code: 'WAREHOUSE_STAFF', name: 'Nhan vien kho' },
+  { code: 'ADMIN', name: 'Quản trị hệ thống' },
+  { code: 'STORE_MANAGER', name: 'Quản lý cửa hàng' },
+  { code: 'STORE_STAFF', name: 'Nhân viên bán hàng' },
+  { code: 'WAREHOUSE_STAFF', name: 'Nhân viên kho' },
   { code: 'SHIPPER', name: 'Shipper' },
-  { code: 'SUPPORT', name: 'Cham soc khach hang' },
-  { code: 'CUSTOMER', name: 'Khach hang' },
+  { code: 'SUPPORT', name: 'Chăm sóc khách hàng' },
+  { code: 'CUSTOMER', name: 'Khách hàng' },
 ];
 
 const PERMISSIONS = [
@@ -26,10 +26,10 @@ const PERMISSIONS = [
 ];
 
 const CATEGORIES = [
-  { name: 'Rau cu', slug: 'rau-cu' },
-  { name: 'Trai cay', slug: 'trai-cay' },
-  { name: 'Gao & Hat', slug: 'gao-hat' },
-  { name: 'Thit & Trung', slug: 'thit-trung' },
+  { name: 'Rau củ', slug: 'rau-cu' },
+  { name: 'Trái cây', slug: 'trai-cay' },
+  { name: 'Gạo & Hạt', slug: 'gao-hat' },
+  { name: 'Thịt & Trứng', slug: 'thit-trung' },
 ];
 
 // ---------------- STORES ----------------
@@ -46,7 +46,7 @@ interface SeedStore {
   lng: number;
   serviceRadiusKm: number;
   phone: string;
-  // Nhan su
+  // Nhân sự
   managerEmail: string;
   staffEmails: string[];
   warehouseEmails: string[];
@@ -58,13 +58,13 @@ interface SeedStore {
 const STORES: SeedStore[] = [
   {
     code: 'BHX-Q1',
-    name: 'NongSan Xanh - Quan 1',
+    name: 'Nông Sản Xanh - Quận 1',
     slug: 'nsx-quan-1',
     province: 'TP.HCM',
-    district: 'Quan 1',
-    ward: 'Ben Nghe',
-    addressLine: '10 Le Duan',
-    formattedAddress: '10 Le Duan, Ben Nghe, Quan 1, TP.HCM',
+    district: 'Quận 1',
+    ward: 'Bến Nghé',
+    addressLine: '10 Lê Duẩn',
+    formattedAddress: '10 Lê Duẩn, Bến Nghé, Quận 1, TP.HCM',
     lat: 10.7821,
     lng: 106.6998,
     serviceRadiusKm: 8,
@@ -74,20 +74,20 @@ const STORES: SeedStore[] = [
     warehouseEmails: ['kho.q1.a@nsx.local', 'kho.q1.b@nsx.local'],
     shipperEmail: 'shipper.q1@nsx.local',
     serviceAreas: [
-      { province: 'TP.HCM', district: 'Quan 1' },
-      { province: 'TP.HCM', district: 'Quan 3' },
-      { province: 'TP.HCM', district: 'Binh Thanh' },
+      { province: 'TP.HCM', district: 'Quận 1' },
+      { province: 'TP.HCM', district: 'Quận 3' },
+      { province: 'TP.HCM', district: 'Bình Thạnh' },
     ],
   },
   {
     code: 'BHX-Q7',
-    name: 'NongSan Xanh - Quan 7',
+    name: 'Nông Sản Xanh - Quận 7',
     slug: 'nsx-quan-7',
     province: 'TP.HCM',
-    district: 'Quan 7',
-    ward: 'Tan Phong',
-    addressLine: '01 Nguyen Van Linh',
-    formattedAddress: '01 Nguyen Van Linh, Tan Phong, Quan 7, TP.HCM',
+    district: 'Quận 7',
+    ward: 'Tân Phong',
+    addressLine: '01 Nguyễn Văn Linh',
+    formattedAddress: '01 Nguyễn Văn Linh, Tân Phong, Quận 7, TP.HCM',
     lat: 10.7295,
     lng: 106.7215,
     serviceRadiusKm: 8,
@@ -97,20 +97,20 @@ const STORES: SeedStore[] = [
     warehouseEmails: ['kho.q7.a@nsx.local'],
     shipperEmail: 'shipper.q7@nsx.local',
     serviceAreas: [
-      { province: 'TP.HCM', district: 'Quan 7' },
-      { province: 'TP.HCM', district: 'Quan 4' },
-      { province: 'TP.HCM', district: 'Nha Be' },
+      { province: 'TP.HCM', district: 'Quận 7' },
+      { province: 'TP.HCM', district: 'Quận 4' },
+      { province: 'TP.HCM', district: 'Nhà Bè' },
     ],
   },
   {
     code: 'BHX-TD',
-    name: 'NongSan Xanh - Thu Duc',
+    name: 'Nông Sản Xanh - Thủ Đức',
     slug: 'nsx-thu-duc',
     province: 'TP.HCM',
-    district: 'Thu Duc',
+    district: 'Thủ Đức',
     ward: 'Linh Trung',
-    addressLine: '01 Vo Van Ngan',
-    formattedAddress: '01 Vo Van Ngan, Linh Trung, Thu Duc, TP.HCM',
+    addressLine: '01 Võ Văn Ngân',
+    formattedAddress: '01 Võ Văn Ngân, Linh Trung, Thủ Đức, TP.HCM',
     lat: 10.8499,
     lng: 106.7716,
     serviceRadiusKm: 10,
@@ -119,7 +119,7 @@ const STORES: SeedStore[] = [
     staffEmails: ['staff.td.a@nsx.local'],
     warehouseEmails: ['kho.td.a@nsx.local'],
     shipperEmail: 'shipper.td@nsx.local',
-    serviceAreas: [{ province: 'TP.HCM', district: 'Thu Duc' }],
+    serviceAreas: [{ province: 'TP.HCM', district: 'Thủ Đức' }],
   },
 ];
 
@@ -140,11 +140,11 @@ interface SeedProduct {
 
 const PRODUCTS: SeedProduct[] = [
   {
-    name: 'Ca chua bi huu co',
+    name: 'Cà chua bi hữu cơ',
     slug: 'ca-chua-bi-huu-co',
     category: 'rau-cu',
-    origin: 'Da Lat, Lam Dong',
-    description: 'Ca chua bi trong huu co, vo mong, vi ngot, giau vitamin.',
+    origin: 'Đà Lạt, Lâm Đồng',
+    description: 'Cà chua bi trồng hữu cơ, vỏ mỏng, vị ngọt, giàu vitamin.',
     image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=800',
     price: 45000,
     unit: 'kg',
@@ -153,23 +153,23 @@ const PRODUCTS: SeedProduct[] = [
     allowDecimalQuantity: true,
   },
   {
-    name: 'Rau cai ngot sach',
+    name: 'Rau cải ngọt sạch',
     slug: 'rau-cai-ngot-sach',
     category: 'rau-cu',
-    origin: 'Lam Dong',
-    description: 'Rau cai ngot trong theo tieu chuan an toan, giao trong ngay.',
+    origin: 'Lâm Đồng',
+    description: 'Rau cải ngọt trồng theo tiêu chuẩn an toàn, giao trong ngày.',
     image: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800',
     price: 18000,
-    unit: 'bo',
+    unit: 'bó',
     barcode: '8930000000024',
     saleMode: 'UNIT',
   },
   {
-    name: 'Xoai cat Hoa Loc',
+    name: 'Xoài cát Hòa Lộc',
     slug: 'xoai-cat-hoa-loc',
     category: 'trai-cay',
-    origin: 'Tien Giang',
-    description: 'Xoai cat Hoa Loc chin cay, ngot thanh, thom dac trung.',
+    origin: 'Tiền Giang',
+    description: 'Xoài cát Hòa Lộc chín cây, ngọt thanh, thơm đặc trưng.',
     image: 'https://images.unsplash.com/photo-1605027990121-cbae9e0642df?w=800',
     price: 85000,
     unit: 'kg',
@@ -178,11 +178,11 @@ const PRODUCTS: SeedProduct[] = [
     allowDecimalQuantity: true,
   },
   {
-    name: 'Bo sap Dak Lak',
+    name: 'Bơ sáp Đắk Lắk',
     slug: 'bo-sap-dak-lak',
     category: 'trai-cay',
-    origin: 'Dak Lak',
-    description: 'Bo sap deo, beo, com day, hat nho.',
+    origin: 'Đắk Lắk',
+    description: 'Bơ sáp dẻo, béo, cơm dày, hạt nhỏ.',
     image: 'https://images.unsplash.com/photo-1601039641847-7857b994d704?w=800',
     price: 65000,
     unit: 'kg',
@@ -191,35 +191,35 @@ const PRODUCTS: SeedProduct[] = [
     allowDecimalQuantity: true,
   },
   {
-    name: 'Gao ST25 thuong hang',
+    name: 'Gạo ST25 thượng hạng',
     slug: 'gao-st25-thuong-hang',
     category: 'gao-hat',
-    origin: 'Soc Trang',
-    description: 'Gao ST25 - gao ngon nhat the gioi, hat dai, deo thom tu nhien.',
+    origin: 'Sóc Trăng',
+    description: 'Gạo ST25 - gạo ngon hàng đầu, hạt dài, dẻo thơm tự nhiên.',
     image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800',
     price: 38000,
-    unit: 'tui 5kg',
+    unit: 'túi 5kg',
     barcode: '8930000000055',
     saleMode: 'UNIT',
   },
   {
-    name: 'Trung ga ta',
+    name: 'Trứng gà ta',
     slug: 'trung-ga-ta',
     category: 'thit-trung',
-    origin: 'Dong Nai',
-    description: 'Trung ga ta nuoi tha vuon, long do dam, thom beo.',
+    origin: 'Đồng Nai',
+    description: 'Trứng gà ta nuôi thả vườn, lòng đỏ đậm, thơm béo.',
     image: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=800',
     price: 35000,
-    unit: 'hop 10',
+    unit: 'hộp 10',
     barcode: '8930000000062',
     saleMode: 'UNIT',
   },
   {
-    name: 'Nuoc mam Phu Quoc 500ml',
+    name: 'Nước mắm Phú Quốc 500ml',
     slug: 'nuoc-mam-phu-quoc-500ml',
     category: 'gao-hat',
-    origin: 'Phu Quoc, Kien Giang',
-    description: 'Nuoc mam nhi truyen thong 40 do dam, chai thuy tinh 500ml.',
+    origin: 'Phú Quốc, Kiên Giang',
+    description: 'Nước mắm nhĩ truyền thống 40 độ đạm, chai thủy tinh 500ml.',
     image: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=800',
     price: 52000,
     unit: 'chai',
@@ -232,30 +232,30 @@ const PRODUCTS: SeedProduct[] = [
 const CUSTOMERS = [
   {
     email: 'customer@nsx.local',
-    fullName: 'Tran Thi Khach (Q1)',
+    fullName: 'Trần Thị Khách (Q1)',
     address: {
-      recipientName: 'Tran Thi Khach',
+      recipientName: 'Trần Thị Khách',
       phone: '0901234567',
       province: 'TP.HCM',
-      district: 'Quan 1',
-      ward: 'Ben Nghe',
-      line1: '1 Le Duan',
-      formattedAddress: '1 Le Duan, Ben Nghe, Quan 1, TP.HCM',
+      district: 'Quận 1',
+      ward: 'Bến Nghé',
+      line1: '1 Lê Duẩn',
+      formattedAddress: '1 Lê Duẩn, Bến Nghé, Quận 1, TP.HCM',
       lat: 10.7805,
       lng: 106.6995,
     },
   },
   {
     email: 'customer.q7@nsx.local',
-    fullName: 'Nguyen Van Q7',
+    fullName: 'Nguyễn Văn Q7',
     address: {
-      recipientName: 'Nguyen Van Q7',
+      recipientName: 'Nguyễn Văn Q7',
       phone: '0902222222',
       province: 'TP.HCM',
-      district: 'Quan 7',
-      ward: 'Tan Phong',
-      line1: '10 Nguyen Van Linh',
-      formattedAddress: '10 Nguyen Van Linh, Tan Phong, Quan 7, TP.HCM',
+      district: 'Quận 7',
+      ward: 'Tân Phong',
+      line1: '10 Nguyễn Văn Linh',
+      formattedAddress: '10 Nguyễn Văn Linh, Tân Phong, Quận 7, TP.HCM',
       lat: 10.7298,
       lng: 106.722,
     },
@@ -310,6 +310,20 @@ async function main() {
           profile: { create: { fullName } },
         },
       });
+    } else {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
+          profile: {
+            upsert: {
+              create: { fullName },
+              update: { fullName },
+            },
+          },
+        },
+      });
     }
     const roleId = roleMap.get(roleCode);
     if (roleId) {
@@ -323,8 +337,8 @@ async function main() {
   }
 
   console.log('Seeding admin/support...');
-  await ensureUser('admin@nsx.local', 'Quan Tri Vien', 'ADMIN');
-  await ensureUser('support@nsx.local', 'Nhan Vien Ho Tro', 'SUPPORT');
+  await ensureUser('admin@nsx.local', 'Quản trị viên', 'ADMIN');
+  await ensureUser('support@nsx.local', 'Nhân viên hỗ trợ', 'SUPPORT');
 
   console.log('Seeding categories...');
   const catMap = new Map<string, string>();
@@ -332,7 +346,7 @@ async function main() {
     const cat = await prisma.category.upsert({
       where: { slug: c.slug },
       create: c,
-      update: {},
+      update: { name: c.name },
     });
     catMap.set(c.slug, cat.id);
   }
@@ -342,7 +356,7 @@ async function main() {
   for (const p of PRODUCTS) {
     let product = await prisma.product.findUnique({
       where: { slug: p.slug },
-      include: { variants: true },
+      include: { images: true, variants: true },
     });
     if (!product) {
       product = await prisma.product.create({
@@ -366,13 +380,41 @@ async function main() {
             },
           },
         },
-        include: { variants: true },
+        include: { images: true, variants: true },
       });
     } else {
+      await prisma.product.update({
+        where: { id: product.id },
+        data: {
+          categoryId: catMap.get(p.category)!,
+          name: p.name,
+          description: p.description,
+          status: ProductStatus.ACTIVE,
+          originRegion: p.origin,
+        },
+      });
+      const primaryImage = product.images.find((image) => image.isPrimary) ?? product.images[0];
+      if (primaryImage) {
+        await prisma.productImage.update({
+          where: { id: primaryImage.id },
+          data: { url: p.image, isPrimary: true, sortOrder: 0 },
+        });
+      } else {
+        await prisma.productImage.create({
+          data: {
+            productId: product.id,
+            url: p.image,
+            isPrimary: true,
+            sortOrder: 0,
+          },
+        });
+      }
       // Dam bao saleMode/allowDecimalQuantity dung neu product da ton tai
       await prisma.productVariant.update({
         where: { id: product.variants[0].id },
         data: {
+          unit: p.unit,
+          price: p.price,
           saleMode: p.saleMode ?? 'UNIT',
           allowDecimalQuantity: p.allowDecimalQuantity ?? false,
         },
@@ -399,7 +441,7 @@ async function main() {
   for (const s of STORES) {
     const manager = await ensureUser(
       s.managerEmail,
-      `Quan ly ${s.name}`,
+      `Quản lý ${s.name}`,
       'STORE_MANAGER',
     );
     const shipper = await ensureUser(
@@ -410,7 +452,7 @@ async function main() {
     const staffUsers: { id: string }[] = [];
     for (let i = 0; i < s.staffEmails.length; i++) {
       staffUsers.push(
-        await ensureUser(s.staffEmails[i], `NV ban hang ${i + 1} ${s.code}`, 'STORE_STAFF'),
+        await ensureUser(s.staffEmails[i], `NV bán hàng ${i + 1} ${s.code}`, 'STORE_STAFF'),
       );
     }
     const warehouseUsers: { id: string }[] = [];
@@ -446,7 +488,24 @@ async function main() {
     } else {
       await prisma.store.update({
         where: { id: store.id },
-        data: { managerId: manager.id, primaryShipperId: shipper.id },
+        data: {
+          name: s.name,
+          slug: s.slug,
+          status: 'ACTIVE',
+          phone: s.phone,
+          addressLine: s.addressLine,
+          formattedAddress: s.formattedAddress,
+          province: s.province,
+          district: s.district,
+          ward: s.ward,
+          lat: s.lat,
+          lng: s.lng,
+          serviceRadiusKm: s.serviceRadiusKm,
+          openTime: '06:00',
+          closeTime: '22:00',
+          managerId: manager.id,
+          primaryShipperId: shipper.id,
+        },
       });
     }
 
@@ -503,7 +562,7 @@ async function main() {
           quantity: base,
           beforeQty: 0,
           afterQty: base,
-          reason: 'Nhap hang khoi tao (seed)',
+          reason: 'Nhập hàng khởi tạo (seed)',
         },
       });
     }
@@ -535,6 +594,24 @@ async function main() {
           isDefault: true,
         },
       });
+    } else {
+      await prisma.address.update({
+        where: { id: hasAddr.id },
+        data: {
+          recipientName: c.address.recipientName,
+          phone: c.address.phone,
+          province: c.address.province,
+          district: c.address.district,
+          ward: c.address.ward,
+          line1: c.address.line1,
+          formattedAddress: c.address.formattedAddress,
+          lat: c.address.lat,
+          lng: c.address.lng,
+          geocodeProvider: 'seed',
+          geocodeConfidence: 0.9,
+          isDefault: true,
+        },
+      });
     }
   }
 
@@ -543,7 +620,7 @@ async function main() {
     where: { code: 'NSXMUAHE' },
     create: {
       code: 'NSXMUAHE',
-      name: 'Mua he NongSan Xanh',
+      name: 'Mùa hè Nông Sản Xanh',
       scope: 'PLATFORM',
       type: 'PERCENT',
       value: 10,
@@ -554,7 +631,16 @@ async function main() {
       usageLimit: 1000,
       status: 'ACTIVE',
     },
-    update: {},
+    update: {
+      name: 'Mùa hè Nông Sản Xanh',
+      scope: 'PLATFORM',
+      type: 'PERCENT',
+      value: 10,
+      maxDiscount: 50000,
+      minOrderValue: 100000,
+      usageLimit: 1000,
+      status: 'ACTIVE',
+    },
   });
   const q1 = await prisma.store.findUnique({ where: { code: 'BHX-Q1' } });
   if (q1) {
@@ -562,7 +648,7 @@ async function main() {
       where: { code: 'Q1GIAM10' },
       create: {
         code: 'Q1GIAM10',
-        name: 'Giam 10k cua hang Quan 1',
+        name: 'Giảm 10k cửa hàng Quận 1',
         scope: 'STORE',
         storeId: q1.id,
         type: 'FIXED',
@@ -573,50 +659,63 @@ async function main() {
         usageLimit: 200,
         status: 'ACTIVE',
       },
-      update: {},
+      update: {
+        name: 'Giảm 10k cửa hàng Quận 1',
+        scope: 'STORE',
+        storeId: q1.id,
+        type: 'FIXED',
+        value: 10000,
+        minOrderValue: 80000,
+        usageLimit: 200,
+        status: 'ACTIVE',
+      },
     });
   }
 
-  console.log('Seeding AI knowledge...');
-  const AI_DOCS = [
+  console.log('Seeding knowledge sources...');
+  const knowledgeSources = [
     {
-      title: 'Mo hinh chuoi cua hang',
+      code: 'STORE_CHAIN_MODEL',
+      type: 'POLICY',
+      title: 'Mô hình chuỗi cửa hàng',
       content:
-        'NongSan Xanh la chuoi cua hang nong san theo khu vuc (giong Bach Hoa Xanh). Khi khach dat hang, he thong tu dong chon cua hang gan nhat con hang va co shipper de giao. Moi cua hang co quan ly, nhan vien ban hang, nhan vien kho va shipper rieng.',
+        'Nông Sản Xanh là chuỗi cửa hàng nông sản theo khu vực. Khi khách đặt hàng, hệ thống chọn cửa hàng phù hợp còn hàng để giao.',
     },
     {
-      title: 'Chinh sach giao hang',
+      code: 'DELIVERY_POLICY',
+      type: 'POLICY',
+      title: 'Chính sách giao hàng',
       content:
-        'Phi giao tinh tu cua hang phuc vu den dia chi khach. Don tu 300.000d va trong 10km duoc mien phi ship. Shipper chinh cua cua hang giao truc tiep.',
+        'Phí giao hàng tính từ cửa hàng phục vụ đến địa chỉ khách. Đơn từ 300.000đ và trong 10km được miễn phí ship.',
     },
     {
-      title: 'Doi tra va hoan tien',
+      code: 'RETURN_REFUND_POLICY',
+      type: 'POLICY',
+      title: 'Đổi trả và hoàn tiền',
       content:
-        'Khach co the yeu cau tra hang sau khi nhan. Cua hang/quan ly xu ly va hoan tien trong 3-5 ngay lam viec.',
+        'Khách có thể yêu cầu trả hàng sau khi nhận. Cửa hàng xử lý và hoàn tiền trong 3-5 ngày làm việc.',
     },
     {
-      title: 'Phuong thuc thanh toan',
-      content:
-        'Ho tro COD (thanh toan khi nhan hang) va VNPay (thanh toan online).',
+      code: 'PAYMENT_METHODS',
+      type: 'FAQ',
+      title: 'Phương thức thanh toán',
+      content: 'Hỗ trợ COD và VNPay.',
     },
   ];
-  for (const doc of AI_DOCS) {
-    const exists = await prisma.aiDocument.findFirst({
-      where: { title: doc.title },
+  for (const source of knowledgeSources) {
+    await prisma.knowledgeSource.upsert({
+      where: { code: source.code },
+      create: source,
+      update: {
+        type: source.type,
+        title: source.title,
+        content: source.content,
+        status: 'ACTIVE',
+      },
     });
-    if (!exists) {
-      await prisma.aiDocument.create({
-        data: {
-          title: doc.title,
-          sourceType: 'POLICY',
-          content: doc.content,
-          chunks: { create: { chunkIndex: 0, content: doc.content } },
-        },
-      });
-    }
   }
 
-  console.log('\nSeed done. Tat ca mat khau: Password123!');
+  console.log('\nSeed done. Tất cả mật khẩu: Password123!');
   console.log('  Admin:     admin@nsx.local');
   console.log('  Support:   support@nsx.local');
   console.log('  Customers: customer@nsx.local (Q1), customer.q7@nsx.local (Q7)');
@@ -626,7 +725,7 @@ async function main() {
     console.log(`        staff=${s.staffEmails.join(', ')}`);
     console.log(`        kho=${s.warehouseEmails.join(', ')}`);
   }
-  console.log('  Coupons: NSXMUAHE (platform 10%), Q1GIAM10 (store Quan 1)');
+  console.log('  Coupons: NSXMUAHE (platform 10%), Q1GIAM10 (store Quận 1)');
 }
 
 main()

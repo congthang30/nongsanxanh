@@ -37,6 +37,11 @@ export class ProductQueryDto {
   @Min(1)
   limit?: number;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  storeId?: string;
+
   @ApiPropertyOptional({ description: 'Admin: bao gom ca san pham khong ACTIVE' })
   @IsOptional()
   @Type(() => Boolean)

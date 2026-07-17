@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
-import type { EmailAction } from './email-template';
+import type { EmailAction, EmailCredential } from './email-template';
 import {
   emailTextFallback,
   renderEmailTemplate,
@@ -23,7 +23,7 @@ export class NotificationService {
     this.transporter = nodemailer.createTransport({
       host: this.config.get<string>('SMTP_HOST', 'localhost'),
       port: Number(this.config.get<string>('SMTP_PORT', '1025')),
-      secure: false,
+      secure: this.config.get<string>('SMTP_SECURE', 'false') === 'true',
       auth:
         smtpUser && smtpPass
           ? {
@@ -31,6 +31,32 @@ export class NotificationService {
               pass: smtpPass,
             }
           : undefined,
+    });
+  }
+
+  async sendEmail(params: {
+    to: string;
+    title: string;
+    body: string;
+    type?: string;
+    action?: EmailAction;
+    credentials?: EmailCredential[];
+  }): Promise<void> {
+    const appName = this.config.get<string>('APP_NAME', 'Nông Sản Xanh');
+    const emailParams = {
+      appName,
+      title: params.title,
+      body: params.body,
+      type: params.type,
+      action: params.action,
+      credentials: params.credentials,
+    };
+    await this.transporter.sendMail({
+      from: this.config.get<string>('SMTP_FROM', 'no-reply@agri.local'),
+      to: params.to,
+      subject: params.title,
+      text: emailTextFallback(emailParams),
+      html: renderEmailTemplate(emailParams),
     });
   }
 

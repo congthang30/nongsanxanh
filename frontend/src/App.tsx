@@ -26,6 +26,7 @@ import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminReportsPage from './pages/admin/AdminReportsPage';
 import AdminReturnsPage from './pages/admin/AdminReturnsPage';
 import AdminAuditPage from './pages/admin/AdminAuditPage';
+import AdminRoleSwitchPage from './pages/admin/AdminRoleSwitchPage';
 
 // Store manager
 import StoreManagerDashboard from './dashboard/pages/StoreManagerDashboard';
@@ -88,6 +89,7 @@ export default function App() {
         >
           <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/switch" element={<AdminRoleSwitchPage />} />
           <Route path="/admin/stores" element={<AdminStoresPage />} />
           <Route path="/admin/orders" element={<AdminOrdersPage />} />
           <Route path="/admin/returns" element={<AdminReturnsPage />} />
@@ -131,7 +133,7 @@ export default function App() {
         <Route
           path="/pos"
           element={
-            <ProtectedRoute roles={['STORE_STAFF', 'STORE_MANAGER', ...ADMIN]}>
+            <ProtectedRoute roles={['STORE_STAFF', 'STORE_MANAGER', ...ADMIN]} requireAdminStore>
               <POSTerminalPage />
             </ProtectedRoute>
           }
@@ -139,7 +141,7 @@ export default function App() {
         <Route
           path="/pos/returns"
           element={
-            <ProtectedRoute roles={['STORE_MANAGER', ...ADMIN]}>
+            <ProtectedRoute roles={['STORE_MANAGER', ...ADMIN]} requireAdminStore>
               <POSReturnsPage />
             </ProtectedRoute>
           }

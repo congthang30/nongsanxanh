@@ -21,6 +21,7 @@ import { StoreResolverService } from '../store/store-resolver.service';
 import { AuditService } from '../audit/audit.service';
 import { canTransition, CUSTOMER_CANCELLABLE } from './order-state.machine';
 import { CreateOrderDto } from './dto/orders.dto';
+import { AI_VECTOR_SYNC_EVENT } from '../ai/ai-vector-sync.types';
 
 const orderNo = customAlphabet('0123456789', 10);
 
@@ -327,6 +328,16 @@ export class OrdersService {
     this.events.emit('order.created', { orderId: order.id, userId, storeId });
     if (paymentMethod === PaymentMethod.COD) {
       this.events.emit('order.placed', { orderId: order.id, userId, storeId });
+    }
+    if (
+      coupon?.usageLimit != null &&
+      coupon.usageCount + 1 >= coupon.usageLimit
+    ) {
+      this.events.emit(AI_VECTOR_SYNC_EVENT, {
+        objectType: 'COUPON',
+        objectId: coupon.id,
+        reason: 'usage_limit_reached',
+      });
     }
     return this.getOrderForUser(userId, order.id);
   }

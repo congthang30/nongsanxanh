@@ -1,3 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.text-gradient-green {
+  background: linear-gradient(135deg, #006e2f 0%, #00b050 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero-bg {
+  background: radial-gradient(100% 100% at 50% 0%, rgba(0, 176, 80, 0.05) 0%, rgba(248, 250, 252, 0) 100%);
+}
+.organic-shadow {
+  box-shadow: 0 8px 30px rgba(21, 29, 27, 0.05);
+}
+.organic-shadow-hover {
+  transition: all 0.3s ease;
+}
+.organic-shadow-hover:hover {
+  box-shadow: 0 12px 40px rgba(21, 29, 27, 0.08);
+  transform: translateY(-2px);
+}
+
 /* ============================================================
    NongSan Xanh — Design System
    Palette: vuon nong san (xanh la / dat / nang)

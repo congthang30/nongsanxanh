@@ -1,8 +1,17 @@
 # ---- Build stage ----
-FROM node:20-bookworm-slim AS builder
+FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci
+
+# ---- Dev stage (hot reload) ----
+FROM deps AS dev
+ENV NODE_ENV=development
+EXPOSE 5173
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+# ---- Build stage ----
+FROM deps AS builder
 COPY . .
 RUN npm run build
 

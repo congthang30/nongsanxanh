@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { api } from '../../lib/api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, getErrorMessage } from '../../lib/api';
+import { useToastStore } from '../../lib/toast.store';
 import { PageHeader } from '../components/PageHeader';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
@@ -10,9 +11,21 @@ interface StaffRow {
 }
 
 export default function StoreManagerStaff() {
+  const qc = useQueryClient();
+  const { push } = useToastStore();
   const { data, isLoading } = useQuery({
     queryKey: ['sm-staff'],
     queryFn: () => api.get('/store-manager/staff').then((r) => r.data.data as StaffRow[]),
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      api.patch('/store-manager/staff/' + id + '/status', { status }),
+    onSuccess: () => {
+      push('Đã cập nhật trạng thái nhân viên');
+      qc.invalidateQueries({ queryKey: ['sm-staff'] });
+    },
+    onError: (error) => push(getErrorMessage(error), 'error'),
   });
 
   return (
@@ -30,11 +43,27 @@ export default function StoreManagerStaff() {
           { key: 'role', title: 'Vai trò', render: (r) => <StatusBadge status={r.role} /> },
           { key: 'status', title: 'Trạng thái', render: (r) => <StatusBadge status={r.status} /> },
           { key: 'joined', title: 'Ngày vào', render: (r) => <span className="muted">{new Date(r.joinedAt).toLocaleDateString('vi-VN')}</span> },
+          {
+            key: 'action',
+            title: 'Cập nhật',
+            render: (r) => (
+              <select
+                className="input"
+                style={{ minWidth: 140 }}
+                value={r.status}
+                disabled={r.role === 'STORE_MANAGER' || updateStatus.isPending}
+                onChange={(e) => updateStatus.mutate({ id: r.id, status: e.target.value })}
+                aria-label={'Cập nhật trạng thái ' + (r.fullName ?? r.email ?? '')}
+              >
+                <option value="ACTIVE">Đang làm</option>
+                <option value="SUSPENDED">Tạm đình chỉ</option>
+                <option value="INACTIVE">Đã nghỉ</option>
+              </select>
+            ),
+          },
         ]}
       />
-      <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>
-        Để thêm/gỡ nhân viên, liên hệ Admin (trang Cửa hàng).
-      </p>
+
     </>
   );
 }

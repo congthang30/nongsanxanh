@@ -32,14 +32,14 @@ export class CatalogController {
   }
 
   @Public()
-  @Get('products/:slug')
-  product(@Param('slug') slug: string) {
-    return this.catalogService.getProductBySlug(slug);
+  @Get('products/:identifier')
+  product(@Param('identifier') identifier: string) {
+    return this.catalogService.getProduct(identifier);
   }
 
   @Public()
-  @Get('products/:slug/related')
-  related(@Param('slug') slug: string) {
-    return this.catalogService.relatedProducts(slug);
+  @Get('products/:identifier/related')
+  related(@Param('identifier') identifier: string) {
+    return this.catalogService.relatedProducts(identifier);
   }
 }

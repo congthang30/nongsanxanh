@@ -11,6 +11,7 @@ import './product-detail.css';
 interface Variant {
   id: string; sku: string; unit: string; price: number;
   compareAtPrice: number | null; available: number; storeCoverage?: number;
+  stores?: { id: string; name: string; available: number }[];
 }
 interface ProductDetail {
   id: string; name: string; description: string | null; originRegion: string | null;
@@ -28,7 +29,7 @@ interface Review {
 }
 
 export default function ProductDetailPage() {
-  const { slug } = useParams();
+  const { productId } = useParams();
   const { add } = useCartStore();
   const { push } = useToastStore();
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
@@ -38,8 +39,9 @@ export default function ProductDetailPage() {
 
   // San pham la global cua he thong; ton kho hien thi la GOP toan he thong.
   const { data: product, isLoading } = useQuery({
-    queryKey: ['product', slug],
-    queryFn: () => api.get(`/products/${slug}`).then((r) => r.data.data as ProductDetail),
+    queryKey: ['product', productId],
+    enabled: !!productId,
+    queryFn: () => api.get(`/products/${productId}`).then((r) => r.data.data as ProductDetail),
   });
 
   const { data: reviews } = useQuery({
@@ -49,10 +51,10 @@ export default function ProductDetailPage() {
   });
 
   const { data: related } = useQuery({
-    queryKey: ['related', slug],
-    enabled: !!slug,
+    queryKey: ['related', productId],
+    enabled: !!productId,
     queryFn: () =>
-      api.get(`/products/${slug}/related`).then(
+      api.get(`/products/${productId}/related`).then(
         (r) => r.data.data as { id: string; name: string; slug: string; image: string | null; fromPrice: number | null; unit: string | null; ratingAvg: number }[],
       ),
   });
@@ -148,6 +150,36 @@ export default function ProductDetailPage() {
               </span>
             )}
           </p>
+
+          {inStock && variant?.stores && variant.stores.length > 0 && (
+            <div style={{ marginTop: 12, marginBottom: 16 }}>
+              <span style={{ fontSize: 13, color: '#6d7b6c', fontWeight: 500, display: 'block', marginBottom: 6 }}>
+                Có sẵn tại các chi nhánh:
+              </span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {variant.stores.map((s) => (
+                  <span
+                    key={s.id}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '4px 10px',
+                      backgroundColor: '#f4f8f5',
+                      border: '1px solid #bccbb9',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      color: '#111c2c',
+                      fontWeight: 500,
+                    }}
+                  >
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#006e2f' }}></span>
+                    {s.name} (còn {s.available} {variant.unit})
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="qty-row">
             <div className="qty-stepper">

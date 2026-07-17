@@ -20,10 +20,10 @@ export default function StoreManagerReports() {
     <>
       <PageHeader title="Báo cáo cửa hàng" subtitle="Hiệu suất 7 ngày gần nhất" />
       <div className="dash-stat-grid">
-        <StatCard icon="" label="Tổng đơn" value={data?.totalOrders ?? 0} color="#0891b2" />
-        <StatCard icon="" label="Đơn hoàn tất" value={data?.completedOrders ?? 0} color="#16a34a" />
-        <StatCard icon="" label="Doanh thu" value={data?.revenue ?? 0} format={formatVnd} color="#15803d" />
-        <StatCard icon="" label="Giá trị TB/đơn" value={data?.avgOrderValue ?? 0} format={formatVnd} color="#7c3aed" />
+        <StatCard icon="ShoppingBag" label="Tổng đơn" value={data?.totalOrders ?? 0} color="#0891b2" />
+        <StatCard icon="CheckCircle" label="Đơn hoàn tất" value={data?.completedOrders ?? 0} color="#16a34a" />
+        <StatCard icon="TrendingUp" label="Doanh thu" value={data?.revenue ?? 0} format={formatVnd} color="#15803d" />
+        <StatCard icon="DollarSign" label="Giá trị TB/đơn" value={data?.avgOrderValue ?? 0} format={formatVnd} color="#7c3aed" />
       </div>
       <div className="dash-table-card" style={{ marginTop: 24, padding: 20 }}>
         <h3 style={{ marginBottom: 16 }}>Doanh thu theo ngày</h3>

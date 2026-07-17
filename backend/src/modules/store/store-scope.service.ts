@@ -6,6 +6,7 @@ import {
 import { StoreStaffRole } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { SYSTEM_ADMIN_ROLES } from '../../common/constants/roles.constant';
+import { AuthUser } from '../../common/decorators/current-user.decorator';
 
 /**
  * Tien ich xac dinh store ma mot user duoc phep thao tac, dung cho
@@ -18,6 +19,22 @@ export class StoreScopeService {
   /** True neu user co role toan he thong (admin/super admin). */
   isSystemAdmin(roles: string[]): boolean {
     return roles.some((r) => SYSTEM_ADMIN_ROLES.includes(r));
+  }
+  async listAccessibleStores(user: AuthUser) {
+    if (this.isSystemAdmin(user.roles)) {
+      return this.prisma.store.findMany({
+        where: { status: 'ACTIVE' },
+        select: { id: true, code: true, name: true },
+        orderBy: { createdAt: 'asc' },
+      });
+    }
+
+    const memberships = await this.prisma.storeStaff.findMany({
+      where: { userId: user.id, status: 'ACTIVE', store: { status: 'ACTIVE' } },
+      select: { store: { select: { id: true, code: true, name: true } } },
+      orderBy: { joinedAt: 'desc' },
+    });
+    return memberships.map((membership) => membership.store);
   }
 
   /**
@@ -54,6 +71,42 @@ export class StoreScopeService {
       });
     }
     return storeId;
+  }
+
+  /**
+   * Resolve chi nhanh cho mot nghiep vu van hanh.
+   * Admin dung storeId duoc chon tren giao dien; nhan vien dung membership ACTIVE.
+   */
+  async resolveOperationalStoreId(
+    user: AuthUser,
+    requestedStoreId?: string,
+    role?: StoreStaffRole,
+  ): Promise<string> {
+    if (this.isSystemAdmin(user.roles)) {
+      if (!requestedStoreId) {
+        throw new ForbiddenException({
+          code: 'ADMIN_STORE_CONTEXT_REQUIRED',
+          message: 'Vui long chon chi nhanh truoc khi thuc hien nghiep vu',
+        });
+      }
+      const store = await this.prisma.store.findFirst({
+        where: { id: requestedStoreId, status: 'ACTIVE' },
+        select: { id: true },
+      });
+      if (!store) {
+        throw new NotFoundException({
+          code: 'STORE_NOT_FOUND',
+          message: 'Khong tim thay chi nhanh dang hoat dong',
+        });
+      }
+      return store.id;
+    }
+
+    if (requestedStoreId) {
+      await this.assertStoreAccess(user.id, user.roles, requestedStoreId, role);
+      return requestedStoreId;
+    }
+    return this.requireUserStoreId(user.id, role);
   }
 
   /**

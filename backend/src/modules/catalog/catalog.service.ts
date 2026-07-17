@@ -3,7 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, ProductStatus } from '@prisma/client';
+import { BarcodeType, Prisma, ProductStatus } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { StoreInventoryService } from '../inventory/inventory.service';
 import { ProductQueryDto } from './dto/catalog.dto';
@@ -45,6 +46,16 @@ export class CatalogService {
         { originRegion: { contains: query.q, mode: 'insensitive' } },
       ];
     }
+    if (query.storeId) {
+      where.variants = {
+        some: {
+          status: 'ACTIVE',
+          storeInventories: {
+            some: { storeId: query.storeId, status: 'ACTIVE' },
+          },
+        },
+      };
+    }
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.product.findMany({
@@ -58,7 +69,16 @@ export class CatalogService {
         include: {
           category: { select: { id: true, name: true, slug: true } },
           images: { where: { isPrimary: true }, take: 1 },
-          variants: { where: { status: 'ACTIVE' }, orderBy: { price: 'asc' }, take: 1 },
+          variants: {
+            where: {
+              status: 'ACTIVE',
+              ...(query.storeId
+                ? { storeInventories: { some: { storeId: query.storeId, status: 'ACTIVE' } } }
+                : {}),
+            },
+            orderBy: { price: 'asc' },
+            take: 1,
+          },
         },
       }),
       this.prisma.product.count({ where }),
@@ -66,7 +86,9 @@ export class CatalogService {
 
     // Ton kho GOP toan he thong cho variant dai dien (de hien con/het hang)
     const variantIds = items.map((p) => p.variants[0]?.id).filter(Boolean) as string[];
-    const availMap = await this.inventory.getAggregateAvailabilityMap(variantIds);
+    const availMap = query.storeId
+      ? await this.inventory.getAvailabilityMap(query.storeId, variantIds)
+      : await this.inventory.getAggregateAvailabilityMap(variantIds);
 
     const data = items.map((p) => {
       const v0 = p.variants[0];
@@ -81,6 +103,7 @@ export class CatalogService {
         ratingCount: p.ratingCount,
         category: p.category,
         image: p.images[0]?.url ?? null,
+        imageUrl: p.images[0]?.url ?? null,
         fromPrice: v0?.price ?? null,
         unit: v0?.unit ?? null,
         available,
@@ -93,9 +116,13 @@ export class CatalogService {
     };
   }
 
-  async getProductBySlug(slug: string) {
+  async getProduct(identifier: string) {
     const product = await this.prisma.product.findFirst({
-      where: { slug, status: ProductStatus.ACTIVE, deletedAt: null },
+      where: {
+        OR: [{ id: identifier }, { slug: identifier }],
+        status: ProductStatus.ACTIVE,
+        deletedAt: null,
+      },
       include: {
         category: true,
         images: { orderBy: { sortOrder: 'asc' } },
@@ -111,14 +138,46 @@ export class CatalogService {
     }
     // Gan ton kho GOP toan he thong cho moi variant + so khu vuc con hang
     const variantIds = product.variants.map((v) => v.id);
-    const availMap = await this.inventory.getAggregateAvailabilityMap(variantIds);
+    const availMap = query.storeId
+      ? await this.inventory.getAvailabilityMap(query.storeId, variantIds)
+      : await this.inventory.getAggregateAvailabilityMap(variantIds);
     const coverageMap = await this.inventory.getStoreCoverageMap(variantIds);
+
+    // Lay thong tin chi tiet cac cua hang con san pham nay
+    const storeInventories = await this.prisma.storeInventory.findMany({
+      where: {
+        variantId: { in: variantIds },
+        status: 'ACTIVE',
+        store: { status: 'ACTIVE' },
+      },
+      include: {
+        store: {
+          select: { id: true, name: true }
+        }
+      }
+    });
+
+    const variantStoresMap = new Map<string, { id: string; name: string; available: number }[]>();
+    for (const si of storeInventories) {
+      const avail = Math.max(0, Number(si.quantityOnHand) - Number(si.reservedQuantity));
+      if (avail > 0) {
+        const list = variantStoresMap.get(si.variantId) ?? [];
+        list.push({
+          id: si.store.id,
+          name: si.store.name,
+          available: avail,
+        });
+        variantStoresMap.set(si.variantId, list);
+      }
+    }
+
     return {
       ...product,
       variants: product.variants.map((v) => ({
         ...v,
         available: availMap.get(v.id) ?? 0,
         storeCoverage: coverageMap.get(v.id) ?? 0,
+        stores: variantStoresMap.get(v.id) ?? [],
       })),
     };
   }
@@ -212,6 +271,9 @@ export class CatalogService {
         message: 'Slug san pham da ton tai',
       });
     }
+    const sku = dto.variant.sku.trim().toUpperCase();
+    const cleanSku = sku.replace(/[^A-Z0-9]/g, '').slice(0, 16) || 'ITEM';
+    const barcode = `NSX-${cleanSku}-${randomUUID().slice(0, 8).toUpperCase()}`;
     return this.prisma.product.create({
       data: {
         name: dto.name,
@@ -227,16 +289,24 @@ export class CatalogService {
           : undefined,
         variants: {
           create: {
-            sku: dto.variant.sku,
+            sku,
             unit: dto.variant.unit,
             unitValue: dto.variant.unitValue ?? 1,
             price: dto.variant.price,
             compareAtPrice: dto.variant.compareAtPrice,
+            barcode,
             status: 'ACTIVE',
+            barcodes: {
+              create: {
+                barcode,
+                type: BarcodeType.CODE128,
+                isPrimary: true,
+              },
+            },
           },
         },
       },
-      include: { variants: true, images: true },
+      include: { variants: { include: { barcodes: true } }, images: true },
     });
   }
 

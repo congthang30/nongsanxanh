@@ -26,59 +26,90 @@ export function ProductCard({ product }: { product: ProductSummary }) {
       )
     : 0;
   const soldOut = product.available != null && product.available <= 0;
+
   return (
     <Link
-      to={`/products/${product.slug}`}
-      className="card card-hover product-card fade-up"
+      to={`/products/${product.id}`}
+      className="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-premium-hover transition-all duration-500 border border-outline-variant/60 flex flex-col hover:-translate-y-1"
     >
-      <div className="product-img">
+      <div className="relative overflow-hidden aspect-[4/3] bg-surface-container-low flex items-center justify-center">
         {product.image ? (
-          <img src={product.image} alt={product.name} loading="lazy" />
+          <img 
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+            src={product.image} 
+            alt={product.name} 
+            loading="lazy" 
+          />
         ) : (
-          <div className="product-img-ph">NS</div>
+          <div className="text-primary font-bold text-lg select-none">NS</div>
         )}
-        {onSale && <span className="flash-badge">-{discountPct}%</span>}
-        {soldOut && <span className="soldout-badge">Tạm hết</span>}
+        
+        {onSale && (
+          <div className="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-sm">
+            -{discountPct}%
+          </div>
+        )}
+        {!onSale && !soldOut && (
+          <div className="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-sm">
+            Mới
+          </div>
+        )}
+        {soldOut && (
+          <div className="absolute top-4 left-4 bg-error text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-sm">
+            Tạm hết
+          </div>
+        )}
+        
         {product.originRegion && (
-          <span className="badge badge-green origin-badge">
+          <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-on-surface-variant shadow-sm border border-white/50">
             {product.originRegion}
-          </span>
+          </div>
         )}
       </div>
-      <div className="product-body">
+
+      <div className="p-6 flex-1 flex flex-col">
         {product.category && (
-          <span className="product-cat">{product.category.name}</span>
+          <span className="text-[11px] font-semibold text-outline uppercase tracking-wider mb-2 block">
+            {product.category.name}
+          </span>
         )}
-        <h3 className="product-name">{product.name}</h3>
-        <div className="product-rating">
-          {product.ratingAvg > 0 ? product.ratingAvg.toFixed(1) : 'Mới'}
+        <h4 className="font-headline-md text-lg font-semibold text-on-surface group-hover:text-primary transition-colors leading-tight mb-2 flex-grow">
+          {product.name}
+        </h4>
+        
+        <div className="flex items-center gap-1 text-xs text-outline mb-4">
+          <span className="material-symbols-outlined text-[14px] text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+          <span className="font-semibold text-on-surface-variant">
+            {product.ratingAvg > 0 ? product.ratingAvg.toFixed(1) : 'Mới'}
+          </span>
           {product.ratingCount > 0 && (
-            <span className="muted"> ({product.ratingCount} đánh giá)</span>
+            <span>({product.ratingCount})</span>
           )}
         </div>
-        <div className="product-foot">
+
+        <div className="mt-auto pt-6 flex justify-between items-end border-t border-outline-variant/30">
           <div>
             {onSale ? (
-              <>
-                <span className="price product-price product-price-sale">
+              <div className="flex flex-col">
+                <span className="font-display-lg text-xl font-bold text-primary">
                   {formatVnd(product.salePrice as number)}
                 </span>
-                <span className="price-strike">
+                <span className="text-xs line-through text-outline">
                   {formatVnd(product.fromPrice as number)}
                 </span>
-              </>
+              </div>
             ) : (
-              <span className="price product-price">
-                {product.fromPrice != null
-                  ? formatVnd(product.fromPrice)
-                  : '—'}
+              <span className="font-display-lg text-xl font-bold text-primary">
+                {product.fromPrice != null ? formatVnd(product.fromPrice) : '—'}
               </span>
             )}
             {product.unit && (
-              <span className="muted product-unit">/{product.unit}</span>
+              <span className="text-sm text-outline ml-1">/{product.unit}</span>
             )}
           </div>
-          <span className="add-pill" aria-hidden="true">+</span>
+          <button className="w-10 h-10 bg-secondary-container text-primary rounded-full flex items-center justify-center hover:bg-primary hover:text-white transition-all duration-300 shadow-sm border border-transparent hover:border-primary">
+            <span className="material-symbols-outlined text-[20px]">add</span>
+          </button>
         </div>
       </div>
     </Link>

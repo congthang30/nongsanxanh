@@ -3,16 +3,25 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus, PaymentStatus, Prisma } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { randomInt } from 'crypto';
+import { InventoryTxType, OrderStatus, PaymentStatus, Prisma, StoreStaffStatus } from '@prisma/client';
+import * as argon2 from 'argon2';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ROLE } from '../../common/constants/roles.constant';
+import { StoreInventoryService } from '../inventory/inventory.service';
+import { NotificationService } from '../notification/notification.service';
+import { AdjustStockDto, ExportStockDto, ImportStockDto } from '../warehouse/dto/warehouse.dto';
 import {
   AssignManagerDto,
   AssignShipperDto,
   CreateServiceAreaDto,
+  CreateStaffAccountDto,
   CreateStoreDto,
+  UpdateStaffAccountDto,
   UpdateStoreDto,
+  UpdateStoreStaffDto,
 } from './dto/admin.dto';
 
 /**
@@ -25,17 +34,24 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly inventory: StoreInventoryService,
+    private readonly notifications: NotificationService,
+    private readonly config: ConfigService,
   ) {}
 
   // ============ Dashboard ============
 
-  async summary() {
+  async summary(storeId?: string) {
+    const orderScope: Prisma.OrderWhereInput = storeId ? { storeId } : {};
     const [totalOrders, totalStores, pendingOrders, deliveryFailed, totalUsers, revenueAgg] =
       await this.prisma.$transaction([
-        this.prisma.order.count(),
-        this.prisma.store.count({ where: { status: 'ACTIVE' } }),
+        this.prisma.order.count({ where: orderScope }),
+        this.prisma.store.count({
+          where: { status: 'ACTIVE', ...(storeId ? { id: storeId } : {}) },
+        }),
         this.prisma.order.count({
           where: {
+            ...orderScope,
             status: {
               in: [
                 OrderStatus.PLACED,
@@ -46,10 +62,17 @@ export class AdminService {
             },
           },
         }),
-        this.prisma.order.count({ where: { status: OrderStatus.DELIVERY_FAILED } }),
-        this.prisma.user.count(),
+        this.prisma.order.count({
+          where: { ...orderScope, status: OrderStatus.DELIVERY_FAILED },
+        }),
+        this.prisma.user.count({
+          where: storeId
+            ? { storeMemberships: { some: { storeId, status: 'ACTIVE' } } }
+            : {},
+        }),
         this.prisma.order.aggregate({
           where: {
+            ...orderScope,
             status: { in: [OrderStatus.DELIVERED, OrderStatus.COMPLETED] },
           },
           _sum: { grandTotal: true },
@@ -57,7 +80,7 @@ export class AdminService {
       ]);
 
     const lowStockStores = await this.prisma.storeInventory.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: 'ACTIVE', ...(storeId ? { storeId } : {}) },
       select: {
         storeId: true,
         quantityOnHand: true,
@@ -213,6 +236,50 @@ export class AdminService {
     return store;
   }
 
+  async closeStore(id: string, actorId: string) {
+    await this.assertStoreExists(id);
+    const activeOrders = await this.prisma.order.count({
+      where: {
+        storeId: id,
+        status: {
+          notIn: [OrderStatus.CANCELLED, OrderStatus.DELIVERED, OrderStatus.COMPLETED],
+        },
+      },
+    });
+    if (activeOrders > 0) {
+      throw new BadRequestException({
+        code: 'STORE_HAS_ACTIVE_ORDERS',
+        message: 'Khong the dong cua hang khi con don dang xu ly',
+      });
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.store.update({
+        where: { id },
+        data: {
+          status: 'CLOSED',
+          managerId: null,
+          primaryShipperId: null,
+        },
+      });
+      await tx.storeStaff.updateMany({
+        where: { storeId: id, status: { not: 'INACTIVE' } },
+        data: { status: 'INACTIVE', leftAt: new Date() },
+      });
+      await this.audit.log(
+        {
+          action: 'STORE_CLOSED',
+          actorId,
+          targetType: 'Store',
+          targetId: id,
+          storeId: id,
+        },
+        tx,
+      );
+    });
+    return { message: 'Da dong cua hang' };
+  }
+
   // ============ Service areas ============
 
   async addServiceArea(storeId: string, dto: CreateServiceAreaDto, actorId: string) {
@@ -366,7 +433,115 @@ export class AdminService {
     return staff;
   }
 
+  async updateStaff(
+    storeId: string,
+    staffId: string,
+    dto: UpdateStoreStaffDto,
+    actorId: string,
+  ) {
+    const existing = await this.prisma.storeStaff.findFirst({
+      where: { id: staffId, storeId },
+    });
+    if (!existing) {
+      throw new NotFoundException({
+        code: 'STORE_STAFF_NOT_FOUND',
+        message: 'Khong tim thay nhan vien trong cua hang',
+      });
+    }
+    if (existing.role === 'STORE_MANAGER' || existing.role === 'SHIPPER') {
+      throw new BadRequestException({
+        code: 'STAFF_MANAGED_SEPARATELY',
+        message: 'Quan ly va shipper chinh phai cap nhat bang chuc nang gan rieng',
+      });
+    }
+    if (dto.role) {
+      const roleCode =
+        dto.role === 'STORE_STAFF' ? ROLE.STORE_STAFF : ROLE.WAREHOUSE_STAFF;
+      await this.assertUserHasRole(existing.userId, roleCode);
+    }
+    const status = dto.status as StoreStaffStatus | undefined;
+    const staff = await this.prisma.storeStaff.update({
+      where: { id: staffId },
+      data: {
+        role: dto.role,
+        status,
+        leftAt:
+          status === StoreStaffStatus.ACTIVE
+            ? null
+            : status === StoreStaffStatus.INACTIVE
+              ? new Date()
+              : undefined,
+      },
+    });
+    await this.audit.log({
+      action: 'STORE_STAFF_UPDATED',
+      actorId,
+      targetType: 'StoreStaff',
+      targetId: staffId,
+      storeId,
+      metadata: { role: dto.role, status: dto.status },
+    });
+    return staff;
+  }
+
+  async removeStaff(storeId: string, staffId: string, actorId: string) {
+    const existing = await this.prisma.storeStaff.findFirst({
+      where: { id: staffId, storeId },
+    });
+    if (!existing) {
+      throw new NotFoundException({
+        code: 'STORE_STAFF_NOT_FOUND',
+        message: 'Khong tim thay nhan vien trong cua hang',
+      });
+    }
+    if (existing.role === 'STORE_MANAGER' || existing.role === 'SHIPPER') {
+      throw new BadRequestException({
+        code: 'STAFF_MANAGED_SEPARATELY',
+        message: 'Quan ly va shipper chinh phai cap nhat bang chuc nang gan rieng',
+      });
+    }
+    await this.prisma.storeStaff.update({
+      where: { id: staffId },
+      data: { status: StoreStaffStatus.INACTIVE, leftAt: new Date() },
+    });
+    await this.audit.log({
+      action: 'STORE_STAFF_REMOVED',
+      actorId,
+      targetType: 'StoreStaff',
+      targetId: staffId,
+      storeId,
+      metadata: { userId: existing.userId, role: existing.role },
+    });
+    return { message: 'Da go nhan vien khoi cua hang' };
+  }
+
   // ============ Users / roles ============
+
+  listCustomers(filter: { storeId?: string; status?: string; q?: string }) {
+    const where: Prisma.UserWhereInput = {
+      userRoles: { some: { role: { code: ROLE.CUSTOMER } } },
+      ...(filter.status ? { status: filter.status as never } : {}),
+      ...(filter.storeId ? { orders: { some: { storeId: filter.storeId } } } : {}),
+      ...(filter.q
+        ? {
+            OR: [
+              { email: { contains: filter.q, mode: 'insensitive' } },
+              { phone: { contains: filter.q } },
+              { profile: { fullName: { contains: filter.q, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    };
+    return this.prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 300,
+      include: {
+        profile: { select: { fullName: true, avatarUrl: true } },
+        _count: { select: { orders: true } },
+      },
+    });
+  }
 
   listUsers(filter: { role?: string; storeId?: string }) {
     const where: Prisma.UserWhereInput = {};
@@ -413,6 +588,23 @@ export class AdminService {
     return { message: 'Da cap nhat role', roles: roleCodes };
   }
 
+  async setCustomerStatus(id: string, status: 'ACTIVE' | 'LOCKED', actorId: string) {
+    const customer = await this.prisma.user.findFirst({
+      where: {
+        id,
+        userRoles: { some: { role: { code: ROLE.CUSTOMER } } },
+      },
+      select: { id: true },
+    });
+    if (!customer) {
+      throw new NotFoundException({
+        code: 'CUSTOMER_NOT_FOUND',
+        message: 'Không tìm thấy tài khoản khách hàng',
+      });
+    }
+    return this.setUserStatus(id, status, actorId);
+  }
+
   async setUserStatus(id: string, status: 'ACTIVE' | 'LOCKED', actorId: string) {
     await this.prisma.user.update({ where: { id }, data: { status } });
     await this.audit.log({
@@ -425,6 +617,231 @@ export class AdminService {
     return { message: 'Da cap nhat trang thai user' };
   }
 
+  async listStaff(filter: { storeId?: string; status?: string }) {
+    const rows = await this.prisma.storeStaff.findMany({
+      where: {
+        ...(filter.storeId ? { storeId: filter.storeId } : {}),
+        ...(filter.status ? { status: filter.status as StoreStaffStatus } : {}),
+      },
+      orderBy: { joinedAt: 'desc' },
+      include: {
+        store: { select: { id: true, code: true, name: true, managerId: true, primaryShipperId: true } },
+        user: {
+          include: {
+            profile: true,
+            userRoles: { include: { role: { select: { code: true } } } },
+          },
+        },
+      },
+      take: 500,
+    });
+    return rows.map((s) => ({
+      id: s.id,
+      storeId: s.storeId,
+      userId: s.userId,
+      role: s.role,
+      status: s.status,
+      joinedAt: s.joinedAt,
+      leftAt: s.leftAt,
+      store: { id: s.store.id, code: s.store.code, name: s.store.name },
+      user: {
+        id: s.user.id,
+        email: s.user.email,
+        phone: s.user.phone,
+        status: s.user.status,
+        profile: s.user.profile,
+        roles: s.user.userRoles.map((ur) => ur.role.code),
+      },
+      isStoreManager: s.store.managerId === s.userId,
+      isPrimaryShipper: s.store.primaryShipperId === s.userId,
+    }));
+  }
+
+  async createStaffAccount(dto: CreateStaffAccountDto, actorId: string) {
+    const email = dto.email.trim().toLowerCase();
+    await this.assertStoreExists(dto.storeId);
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email },
+          ...(dto.phone ? [{ phone: dto.phone }] : []),
+        ],
+      },
+    });
+    if (existing) {
+      throw new BadRequestException({
+        code: 'STAFF_ACCOUNT_EXISTS',
+        message: 'Email hoặc số điện thoại đã được sử dụng',
+      });
+    }
+
+    const temporaryPassword = this.generateTemporaryPassword();
+    const passwordHash = await argon2.hash(temporaryPassword);
+    const role = this.roleCodeForStaffRole(dto.role);
+    const result = await this.prisma.$transaction(async (tx) => {
+      const roleRow = await tx.role.findUnique({ where: { code: role } });
+      const user = await tx.user.create({
+        data: {
+          email,
+          phone: dto.phone || null,
+          passwordHash,
+          status: 'ACTIVE',
+          emailVerifiedAt: new Date(),
+          profile: { create: { fullName: dto.fullName, avatarUrl: dto.avatarUrl } },
+          userRoles: roleRow ? { create: { roleId: roleRow.id } } : undefined,
+        },
+        include: { profile: true },
+      });
+      const staff = await tx.storeStaff.create({
+        data: {
+          storeId: dto.storeId,
+          userId: user.id,
+          role: dto.role,
+          status: 'ACTIVE',
+        },
+        include: { store: true, user: { include: { profile: true } } },
+      });
+      await this.applyPrimaryStaffRole(tx, dto.storeId, user.id, dto.role);
+      await this.audit.log(
+        {
+          action: 'STAFF_ACCOUNT_CREATED',
+          actorId,
+          targetType: 'StoreStaff',
+          targetId: staff.id,
+          storeId: dto.storeId,
+          metadata: { userId: user.id, role: dto.role },
+        },
+        tx,
+      );
+      return staff;
+    });
+
+    let onboardingEmailSent = true;
+    try {
+      const appUrl = this.config.get<string>('PUBLIC_APP_URL', 'http://localhost:5173');
+      await this.notifications.sendEmail({
+        to: email,
+        title: 'Tài khoản nhân viên của bạn đã sẵn sàng',
+        type: 'STAFF_WELCOME',
+        body:
+          'Xin chào ' + dto.fullName + '.\n' +
+          'Bạn đã được thêm vào ' + result.store.name + '. Dùng thông tin bên dưới để đăng nhập. Sau khi đăng nhập, bạn có thể tự quản lý mật khẩu bằng chức năng Quên mật khẩu.',
+        credentials: [
+          { label: 'Email đăng nhập', value: email },
+          { label: 'Mật khẩu tạm', value: temporaryPassword, secret: true },
+          { label: 'Chi nhánh', value: result.store.name },
+        ],
+        action: { label: 'Đăng nhập hệ thống', url: appUrl + '/login' },
+      });
+    } catch {
+      onboardingEmailSent = false;
+    }
+
+    return { ...result, onboardingEmailSent };
+  }
+  async updateStaffAccount(staffId: string, dto: UpdateStaffAccountDto, actorId: string) {
+    const existing = await this.prisma.storeStaff.findUnique({
+      where: { id: staffId },
+      include: { user: { include: { profile: true } }, store: true },
+    });
+    if (!existing) {
+      throw new NotFoundException({
+        code: 'STORE_STAFF_NOT_FOUND',
+        message: 'Khong tim thay nhan vien',
+      });
+    }
+    const nextStoreId = dto.storeId ?? existing.storeId;
+    const nextRole = dto.role ?? existing.role;
+    const nextStatus = dto.status ? (dto.status as StoreStaffStatus) : undefined;
+    if (dto.storeId && dto.storeId !== existing.storeId) {
+      await this.assertStoreExists(dto.storeId);
+    }
+
+    const staff = await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: existing.userId },
+        data: {
+          phone: dto.phone === undefined ? undefined : dto.phone || null,
+        },
+      });
+      if (dto.fullName !== undefined || dto.avatarUrl !== undefined) {
+        await tx.userProfile.upsert({
+          where: { userId: existing.userId },
+          create: {
+            userId: existing.userId,
+            fullName: dto.fullName || existing.user.profile?.fullName || 'Nhan vien',
+            avatarUrl: dto.avatarUrl,
+          },
+          update: {
+            fullName: dto.fullName,
+            avatarUrl: dto.avatarUrl,
+          },
+        });
+      }
+      await this.replaceStaffUserRole(tx, existing.userId, this.roleCodeForStaffRole(nextRole));
+      await this.clearPrimaryStaffRole(tx, existing.storeId, existing.userId);
+      const updated = await tx.storeStaff.update({
+        where: { id: staffId },
+        data: {
+          storeId: nextStoreId,
+          role: nextRole,
+          status: nextStatus,
+          leftAt:
+            nextStatus === StoreStaffStatus.ACTIVE
+              ? null
+              : nextStatus === StoreStaffStatus.INACTIVE
+                ? new Date()
+                : undefined,
+        },
+        include: { store: true, user: { include: { profile: true } } },
+      });
+      if ((nextStatus ?? existing.status) === StoreStaffStatus.ACTIVE) {
+        await this.applyPrimaryStaffRole(tx, nextStoreId, existing.userId, nextRole);
+      }
+      await this.audit.log(
+        {
+          action: 'STAFF_ACCOUNT_UPDATED',
+          actorId,
+          targetType: 'StoreStaff',
+          targetId: staffId,
+          storeId: nextStoreId,
+          metadata: { role: nextRole, status: dto.status, userId: existing.userId },
+        },
+        tx,
+      );
+      return updated;
+    });
+    return staff;
+  }
+
+  async removeStaffAccount(staffId: string, actorId: string) {
+    const existing = await this.prisma.storeStaff.findUnique({ where: { id: staffId } });
+    if (!existing) {
+      throw new NotFoundException({
+        code: 'STORE_STAFF_NOT_FOUND',
+        message: 'Khong tim thay nhan vien',
+      });
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await this.clearPrimaryStaffRole(tx, existing.storeId, existing.userId);
+      await tx.storeStaff.update({
+        where: { id: staffId },
+        data: { status: StoreStaffStatus.INACTIVE, leftAt: new Date() },
+      });
+      await this.audit.log(
+        {
+          action: 'STAFF_ACCOUNT_REMOVED',
+          actorId,
+          targetType: 'StoreStaff',
+          targetId: staffId,
+          storeId: existing.storeId,
+          metadata: { userId: existing.userId, role: existing.role },
+        },
+        tx,
+      );
+    });
+    return { message: 'Da ngung kich hoat nhan vien' };
+  }
   // ============ Inventory by store ============
 
   async inventoryByStore(storeId: string) {
@@ -449,14 +866,89 @@ export class AdminService {
     }));
   }
 
+  inventoryTransactions(
+    storeId: string,
+    filter: { variantId?: string; type?: string; from?: string; to?: string },
+  ) {
+    return this.inventory.listTransactions(storeId, {
+      variantId: filter.variantId,
+      type: filter.type ? (filter.type as InventoryTxType) : undefined,
+      from: filter.from,
+      to: filter.to,
+    });
+  }
+
+  async importStock(storeId: string, dto: ImportStockDto, actorId: string) {
+    await this.assertStoreExists(storeId);
+    const result = await this.inventory.importStock(
+      storeId,
+      dto.variantId,
+      dto.quantity,
+      dto.reason,
+      actorId,
+    );
+    await this.audit.log({
+      action: 'INVENTORY_IMPORT',
+      actorId,
+      targetType: 'StoreInventory',
+      targetId: result.id,
+      storeId,
+      metadata: { variantId: dto.variantId, quantity: dto.quantity, reason: dto.reason },
+    });
+    return result;
+  }
+
+  async adjustStock(storeId: string, dto: AdjustStockDto, actorId: string) {
+    await this.assertStoreExists(storeId);
+    const result = await this.inventory.adjustStock(
+      storeId,
+      dto.variantId,
+      dto.newQuantity,
+      dto.reason,
+      actorId,
+    );
+    await this.audit.log({
+      action: 'INVENTORY_ADJUST',
+      actorId,
+      targetType: 'StoreInventory',
+      targetId: result.id,
+      storeId,
+      metadata: { variantId: dto.variantId, newQuantity: dto.newQuantity, reason: dto.reason },
+    });
+    return result;
+  }
+
+  async exportStock(storeId: string, dto: ExportStockDto, actorId: string) {
+    await this.assertStoreExists(storeId);
+    const kind = dto.kind ?? 'EXPORT';
+    const result = await this.inventory.exportStock(
+      storeId,
+      dto.variantId,
+      dto.quantity,
+      dto.reason,
+      kind,
+      actorId,
+    );
+    await this.audit.log({
+      action: kind === 'LOSS' ? 'INVENTORY_LOSS' : 'INVENTORY_EXPORT',
+      actorId,
+      targetType: 'StoreInventory',
+      targetId: result.id,
+      storeId,
+      metadata: { variantId: dto.variantId, quantity: dto.quantity, reason: dto.reason, kind },
+    });
+    return result;
+  }
+
   // ============ Reports ============
 
-  async revenueReport(days = 30) {
+  async revenueReport(days = 30, storeId?: string) {
     const since = new Date(Date.now() - days * 24 * 3600 * 1000);
     const orders = await this.prisma.order.findMany({
       where: {
         createdAt: { gte: since },
         status: { in: [OrderStatus.DELIVERED, OrderStatus.COMPLETED] },
+        ...(storeId ? { storeId } : {}),
       },
       select: { grandTotal: true, createdAt: true, storeId: true },
     });
@@ -480,8 +972,9 @@ export class AdminService {
     };
   }
 
-  async storeReport() {
+  async storeReport(storeId?: string) {
     const stores = await this.prisma.store.findMany({
+      where: storeId ? { id: storeId } : undefined,
       include: { _count: { select: { orders: true } } },
     });
     const result: {
@@ -515,8 +1008,8 @@ export class AdminService {
     return result;
   }
 
-  listAuditLogs(action?: string) {
-    return this.audit.list({ action });
+  listAuditLogs(action?: string, storeId?: string) {
+    return this.audit.list({ action, storeId });
   }
 
   // ============ Reconciliation & COD (P1-02, P1-04) ============
@@ -528,10 +1021,11 @@ export class AdminService {
    *  - POS: tong POSSale PAID grandTotal             vs  tong POSPayment.
    * Tra ve cac dong lech de ke toan kiem tra. Khong sua du lieu.
    */
-  async reconciliation(params?: { from?: string; to?: string }) {
+  async reconciliation(params?: { from?: string; to?: string; storeId?: string }) {
     const from = params?.from ? new Date(params.from) : new Date(Date.now() - 7 * 86400000);
     const to = params?.to ? new Date(params.to) : new Date();
     const range = { gte: from, lte: to };
+    const storeId = params?.storeId;
 
     const [orderPaidAgg, paymentAgg, posSaleAgg, posPaymentAgg, refundAgg] =
       await this.prisma.$transaction([
@@ -567,6 +1061,7 @@ export class AdminService {
       where: {
         paymentStatus: PaymentStatus.SUCCESS,
         createdAt: range,
+        ...(storeId ? { storeId } : {}),
         payments: { none: { status: PaymentStatus.SUCCESS } },
       },
       select: { id: true, orderNumber: true, grandTotal: true, storeId: true },
@@ -576,6 +1071,7 @@ export class AdminService {
       where: {
         status: PaymentStatus.SUCCESS,
         createdAt: range,
+        ...(storeId ? { order: { storeId } } : {}),
         order: { paymentStatus: { not: PaymentStatus.SUCCESS } },
       },
       select: {
@@ -642,6 +1138,104 @@ export class AdminService {
   }
 
   // ============ helpers ============
+
+  private generateTemporaryPassword(length = 14): string {
+    const groups = [
+      'ABCDEFGHJKLMNPQRSTUVWXYZ',
+      'abcdefghijkmnopqrstuvwxyz',
+      '23456789',
+      '!@#$%*+-_',
+    ];
+    const all = groups.join('');
+    const chars = groups.map((group) => group[randomInt(group.length)]);
+    while (chars.length < length) {
+      chars.push(all[randomInt(all.length)]);
+    }
+    for (let index = chars.length - 1; index > 0; index -= 1) {
+      const swapIndex = randomInt(index + 1);
+      [chars[index], chars[swapIndex]] = [chars[swapIndex], chars[index]];
+    }
+    return chars.join('');
+  }
+
+  private roleCodeForStaffRole(role: string) {
+    if (role === 'STORE_MANAGER') return ROLE.STORE_MANAGER;
+    if (role === 'WAREHOUSE_STAFF') return ROLE.WAREHOUSE_STAFF;
+    if (role === 'SHIPPER') return ROLE.SHIPPER;
+    return ROLE.STORE_STAFF;
+  }
+
+  private async replaceStaffUserRole(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    roleCode: string,
+  ) {
+    const staffRoles = await tx.role.findMany({
+      where: {
+        code: {
+          in: [
+            ROLE.STORE_MANAGER,
+            ROLE.STORE_STAFF,
+            ROLE.WAREHOUSE_STAFF,
+            ROLE.SHIPPER,
+          ],
+        },
+      },
+      select: { id: true },
+    });
+    await tx.userRole.deleteMany({
+      where: {
+        userId,
+        roleId: { in: staffRoles.map((role) => role.id) },
+      },
+    });
+    await this.ensureUserRole(tx, userId, roleCode);
+  }
+
+  private async ensureUserRole(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    roleCode: string,
+  ) {
+    const role = await tx.role.findUnique({ where: { code: roleCode } });
+    if (!role) return;
+    await tx.userRole.upsert({
+      where: { userId_roleId: { userId, roleId: role.id } },
+      create: { userId, roleId: role.id },
+      update: {},
+    });
+  }
+
+  private async clearPrimaryStaffRole(
+    tx: Prisma.TransactionClient,
+    storeId: string,
+    userId: string,
+  ) {
+    await tx.store.updateMany({
+      where: { id: storeId, managerId: userId },
+      data: { managerId: null },
+    });
+    await tx.store.updateMany({
+      where: { id: storeId, primaryShipperId: userId },
+      data: { primaryShipperId: null },
+    });
+  }
+
+  private async applyPrimaryStaffRole(
+    tx: Prisma.TransactionClient,
+    storeId: string,
+    userId: string,
+    role: string,
+  ) {
+    if (role === 'STORE_MANAGER') {
+      await tx.store.updateMany({ where: { managerId: userId }, data: { managerId: null } });
+      await tx.store.update({ where: { id: storeId }, data: { managerId: userId } });
+    }
+    if (role === 'SHIPPER') {
+      await tx.store.updateMany({ where: { primaryShipperId: userId }, data: { primaryShipperId: null } });
+      await tx.store.update({ where: { id: storeId }, data: { primaryShipperId: userId } });
+    }
+  }
 
   private async assertStoreExists(id: string) {
     const store = await this.prisma.store.findUnique({ where: { id } });

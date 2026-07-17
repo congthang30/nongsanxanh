@@ -161,7 +161,7 @@ interface StoreDetail {
   id: string; code: string; name: string; status: string; province: string; district: string | null;
   manager: { id: string; profile?: { fullName: string } | null; email: string | null } | null;
   primaryShipper: { id: string; profile?: { fullName: string } | null; email: string | null } | null;
-  staff: { id: string; role: string; user: { email: string | null; profile?: { fullName: string } | null } }[];
+  staff: { id: string; role: string; status: string; user: { id: string; email: string | null; profile?: { fullName: string } | null } }[];
 }
 
 function StoreDetailModal({ storeId, onClose, onChanged }: { storeId: string; onClose: () => void; onChanged: () => void }) {
@@ -169,6 +169,10 @@ function StoreDetailModal({ storeId, onClose, onChanged }: { storeId: string; on
   const { push } = useToastStore();
   const [managerId, setManagerId] = useState('');
   const [shipperId, setShipperId] = useState('');
+  const [staffUserId, setStaffUserId] = useState('');
+  const [staffRole, setStaffRole] = useState<'STORE_STAFF' | 'WAREHOUSE_STAFF'>('STORE_STAFF');
+  const [editName, setEditName] = useState('');
+  const [storeStatus, setStoreStatus] = useState('');
 
   const { data: store } = useQuery({
     queryKey: ['admin-store', storeId],
@@ -181,6 +185,11 @@ function StoreDetailModal({ storeId, onClose, onChanged }: { storeId: string; on
   const { data: shippers } = useQuery({
     queryKey: ['users', 'SHIPPER'],
     queryFn: () => api.get('/admin/users', { params: { role: 'SHIPPER' } }).then((r) => r.data.data as UserRow[]),
+  });
+
+  const { data: staffUsers } = useQuery({
+    queryKey: ['users', staffRole],
+    queryFn: () => api.get('/admin/users', { params: { role: staffRole } }).then((r) => r.data.data as UserRow[]),
   });
 
   const refresh = () => { qc.invalidateQueries({ queryKey: ['admin-store', storeId] }); onChanged(); };
@@ -196,6 +205,43 @@ function StoreDetailModal({ storeId, onClose, onChanged }: { storeId: string; on
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
+  const updateStore = useMutation({
+    mutationFn: () => api.patch('/admin/stores/' + storeId, {
+      name: editName || store?.name,
+      status: storeStatus || store?.status,
+    }),
+    onSuccess: () => { push('Đã cập nhật cửa hàng'); refresh(); },
+    onError: (e) => push(getErrorMessage(e), 'error'),
+  });
+  const closeStore = useMutation({
+    mutationFn: () => api.delete('/admin/stores/' + storeId),
+    onSuccess: () => { push('Đã đóng cửa hàng'); onChanged(); onClose(); },
+    onError: (e) => push(getErrorMessage(e), 'error'),
+  });
+  const addStaff = useMutation({
+    mutationFn: () => api.post('/admin/stores/' + storeId + '/staff', {
+      userId: staffUserId,
+      role: staffRole,
+    }),
+    onSuccess: () => {
+      push('Đã thêm nhân viên');
+      setStaffUserId('');
+      refresh();
+    },
+    onError: (e) => push(getErrorMessage(e), 'error'),
+  });
+  const updateStaff = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: { role?: string; status?: string } }) =>
+      api.patch('/admin/stores/' + storeId + '/staff/' + id, patch),
+    onSuccess: () => { push('Đã cập nhật nhân viên'); refresh(); },
+    onError: (e) => push(getErrorMessage(e), 'error'),
+  });
+  const removeStaff = useMutation({
+    mutationFn: (id: string) => api.delete('/admin/stores/' + storeId + '/staff/' + id),
+    onSuccess: () => { push('Đã gỡ nhân viên'); refresh(); },
+    onError: (e) => push(getErrorMessage(e), 'error'),
+  });
+
   return (
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal dash-modal-lg" onClick={(e) => e.stopPropagation()}>
@@ -205,6 +251,35 @@ function StoreDetailModal({ storeId, onClose, onChanged }: { storeId: string; on
         </div>
 
         <div className="stack gap-lg" style={{ marginTop: 16 }}>
+          <section>
+            <h4>Thông tin cửa hàng</h4>
+            <div className="dash-form-grid">
+              <label>
+                Tên cửa hàng
+                <input className="input" value={editName || store?.name || ''} onChange={(e) => setEditName(e.target.value)} />
+              </label>
+              <label>
+                Trạng thái
+                <select className="input" value={storeStatus || store?.status || 'ACTIVE'} onChange={(e) => setStoreStatus(e.target.value)}>
+                  <option value="ACTIVE">Hoạt động</option>
+                  <option value="PAUSED">Tạm dừng</option>
+                  <option value="SUSPENDED">Đình chỉ</option>
+                  <option value="CLOSED">Đã đóng</option>
+                </select>
+              </label>
+            </div>
+            <div className="flex gap-sm" style={{ marginTop: 10 }}>
+              <button className="btn btn-primary btn-sm" onClick={() => updateStore.mutate()} disabled={updateStore.isPending}>Lưu thay đổi</button>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ color: '#dc2626' }}
+                onClick={() => { if (confirm('Đóng cửa hàng này?')) closeStore.mutate(); }}
+                disabled={store?.status === 'CLOSED' || closeStore.isPending}
+              >
+                Đóng cửa hàng
+              </button>
+            </div>
+          </section>
           <section>
             <h4>Quản lý cửa hàng</h4>
             <p className="muted">Hiện tại: {store?.manager?.profile?.fullName ?? store?.manager?.email ?? 'Chưa gán'}</p>
@@ -231,11 +306,55 @@ function StoreDetailModal({ storeId, onClose, onChanged }: { storeId: string; on
 
           <section>
             <h4>Nhân viên ({store?.staff.length ?? 0})</h4>
+            <div className="flex gap-sm" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+              <select className="input" value={staffRole} onChange={(e) => { setStaffRole(e.target.value as 'STORE_STAFF' | 'WAREHOUSE_STAFF'); setStaffUserId(''); }}>
+                <option value="STORE_STAFF">Nhân viên bán hàng</option>
+                <option value="WAREHOUSE_STAFF">Nhân viên kho</option>
+              </select>
+              <select className="input" value={staffUserId} onChange={(e) => setStaffUserId(e.target.value)} aria-label="Chọn nhân viên">
+                <option value="">-- Chọn tài khoản --</option>
+                {staffUsers?.map((u) => <option key={u.id} value={u.id}>{u.profile?.fullName ?? u.email}</option>)}
+              </select>
+              <button className="btn btn-primary btn-sm" disabled={!staffUserId || addStaff.isPending} onClick={() => addStaff.mutate()}>Thêm</button>
+            </div>
             <div className="stack gap-sm">
               {store?.staff.map((s) => (
-                <div key={s.id} className="between" style={{ padding: '4px 0' }}>
+                <div key={s.id} className="between" style={{ padding: '8px 0', gap: 10, flexWrap: 'wrap' }}>
                   <span>{s.user.profile?.fullName ?? s.user.email}</span>
-                  <StatusBadge status={s.role} />
+                  <div className="flex gap-sm">
+                    {s.role === 'STORE_MANAGER' || s.role === 'SHIPPER' ? (
+                      <StatusBadge status={s.role} />
+                    ) : (
+                      <select
+                        className="input"
+                        value={s.role}
+                        onChange={(e) => updateStaff.mutate({ id: s.id, patch: { role: e.target.value } })}
+                        aria-label="Đổi vai trò nhân viên"
+                      >
+                        <option value="STORE_STAFF">Bán hàng</option>
+                        <option value="WAREHOUSE_STAFF">Kho</option>
+                      </select>
+                    )}
+                    <select
+                      className="input"
+                      value={s.status}
+                      disabled={s.role === 'STORE_MANAGER' || s.role === 'SHIPPER'}
+                      onChange={(e) => updateStaff.mutate({ id: s.id, patch: { status: e.target.value } })}
+                    >
+                      <option value="ACTIVE">Đang làm</option>
+                      <option value="SUSPENDED">Tạm đình chỉ</option>
+                      <option value="INACTIVE">Đã nghỉ</option>
+                    </select>
+                    {s.role !== 'STORE_MANAGER' && s.role !== 'SHIPPER' && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: '#dc2626' }}
+                        onClick={() => { if (confirm('Gỡ nhân viên khỏi cửa hàng?')) removeStaff.mutate(s.id); }}
+                      >
+                        Gỡ
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

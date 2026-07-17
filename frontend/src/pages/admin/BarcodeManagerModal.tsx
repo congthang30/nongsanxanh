@@ -19,7 +19,7 @@ interface ProductDetail {
 interface Barcode {
   id: string;
   barcode: string;
-  type: 'EAN13' | 'EAN8' | 'UPC' | 'CODE128' | 'CODE39' | 'QR' | 'INTERNAL';
+  type: 'EAN13' | 'UPC' | 'CODE128' | 'INTERNAL' | 'SCALE_LABEL';
   isPrimary: boolean;
   status: 'ACTIVE' | 'INACTIVE';
   variantId: string;
@@ -27,7 +27,7 @@ interface Barcode {
   productName: string;
 }
 
-const TYPES: Barcode['type'][] = ['EAN13', 'EAN8', 'UPC', 'CODE128', 'CODE39', 'QR', 'INTERNAL'];
+const TYPES: Barcode['type'][] = ['EAN13', 'UPC', 'CODE128', 'INTERNAL', 'SCALE_LABEL'];
 
 /**
  * Modal quan ly ma vach (barcode) cho mot san pham. Hien danh sach barcode hien co
@@ -88,6 +88,20 @@ export function BarcodeManagerModal({
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
 
+  const openCode = async (id: string, format: 'barcode' | 'qr') => {
+    try {
+      const response = await api.get('/admin/barcodes/' + id + '/image', {
+        params: { format },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(response.data);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      push(getErrorMessage(error), 'error');
+    }
+  };
+
   const submitDisabled = !variantId || !form.barcode.trim() || form.barcode.trim().length < 4 || createMut.isPending;
 
   return (
@@ -139,6 +153,12 @@ export function BarcodeManagerModal({
                     </span>
                   </div>
                   <div className="flex gap-sm">
+                    <button className="btn btn-ghost btn-sm" onClick={() => void openCode(b.id, 'barcode')}>
+                      Xem mã vạch
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => void openCode(b.id, 'qr')}>
+                      Xem QR
+                    </button>
                     {!b.isPrimary && b.status === 'ACTIVE' && (
                       <button
                         className="btn btn-ghost btn-sm"
