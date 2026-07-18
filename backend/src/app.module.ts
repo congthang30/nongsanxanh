@@ -29,12 +29,14 @@ import { StoreStaffModule } from './modules/store-staff/store-staff.module';
 import { POSModule } from './modules/pos/pos.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     JwtModule.register({ global: true }),
     EventEmitterModule.forRoot(),
+    HealthModule,
     PrismaModule,
     AuditModule,
     AuthModule,
