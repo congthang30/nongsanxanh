@@ -1,0 +1,53 @@
+/* Scroll-triggered reveal — replay when scrolling back into view */
+
+.scroll-reveal {
+  --reveal-delay: 0ms;
+  opacity: 0;
+  will-change: opacity, transform;
+  transition:
+    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay),
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay);
+}
+
+/* Idle / not yet in view */
+.scroll-reveal--up {
+  transform: translate3d(0, 36px, 0) scale(0.96);
+}
+.scroll-reveal--down {
+  transform: translate3d(0, -28px, 0) scale(0.96);
+}
+.scroll-reveal--left {
+  transform: translate3d(-40px, 12px, 0) scale(0.96);
+}
+.scroll-reveal--right {
+  transform: translate3d(40px, 12px, 0) scale(0.96);
+}
+.scroll-reveal--scale {
+  transform: translate3d(0, 16px, 0) scale(0.88);
+}
+.scroll-reveal--fade {
+  transform: none;
+}
+
+/* Enter viewport — "jump out" */
+.scroll-reveal.is-revealed {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+/* Leave viewport — soft settle out */
+.scroll-reveal.is-leaving:not(.is-revealed) {
+  opacity: 0;
+  transform: translate3d(0, -16px, 0) scale(0.98);
+  transition:
+    opacity 0.35s cubic-bezier(0.4, 0, 1, 1),
+    transform 0.35s cubic-bezier(0.4, 0, 1, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}

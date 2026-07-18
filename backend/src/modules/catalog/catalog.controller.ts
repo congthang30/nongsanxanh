@@ -33,8 +33,11 @@ export class CatalogController {
 
   @Public()
   @Get('products/:identifier')
-  product(@Param('identifier') identifier: string) {
-    return this.catalogService.getProduct(identifier);
+  product(
+    @Param('identifier') identifier: string,
+    @Query('storeId') storeId?: string,
+  ) {
+    return this.catalogService.getProduct(identifier, storeId);
   }
 
   @Public()

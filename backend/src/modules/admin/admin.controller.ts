@@ -11,6 +11,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { CatalogService } from '../catalog/catalog.service';
+import { CoPurchaseService } from '../recommendations/co-purchase.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLE } from '../../common/constants/roles.constant';
 import {
@@ -41,6 +42,7 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly catalog: CatalogService,
+    private readonly coPurchase: CoPurchaseService,
   ) {}
 
   // ---- Dashboard ----
@@ -292,5 +294,14 @@ export class AdminController {
   @Get('audit-logs')
   auditLogs(@Query('action') action?: string, @Query('storeId') storeId?: string) {
     return this.admin.listAuditLogs(action, storeId);
+  }
+
+  /**
+   * Rebuild bang co-purchase (item-item) tu don DELIVERED/COMPLETED.
+   * Chay batch — khong chay moi request cart.
+   */
+  @Post('recommendations/rebuild-co-purchase')
+  rebuildCoPurchase() {
+    return this.coPurchase.rebuildStats();
   }
 }

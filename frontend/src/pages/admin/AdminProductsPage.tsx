@@ -7,6 +7,7 @@ import { PageHeader } from '../../dashboard/components/PageHeader';
 import { DataTable } from '../../dashboard/components/DataTable';
 import { StatusBadge } from '../../dashboard/components/StatusBadge';
 import { BarcodeManagerModal } from './BarcodeManagerModal';
+import { ModalPortal } from '../../components/ModalPortal';
 
 interface ProductRow {
   id: string;
@@ -169,6 +170,7 @@ function CreateProductModal({ onClose, onDone }: { onClose: () => void; onDone: 
   });
 
   return (
+    <ModalPortal>
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(e) => e.stopPropagation()}>
         <h2>Thêm sản phẩm</h2>
@@ -215,5 +217,6 @@ function CreateProductModal({ onClose, onDone }: { onClose: () => void; onDone: 
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

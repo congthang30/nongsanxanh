@@ -216,9 +216,9 @@ export const posApi = {
 };
 
 export const PAYMENT_LABELS: Record<POSPaymentMethod, string> = {
-  CASH: 'Tien mat',
-  BANK_TRANSFER_MANUAL: 'Chuyen khoan',
-  CARD: 'The',
+  CASH: 'Tiền mặt',
+  BANK_TRANSFER_MANUAL: 'Chuyển khoản',
+  CARD: 'Thẻ',
   VNPAY: 'VNPay',
   MOMO: 'MoMo',
   ZALOPAY: 'ZaloPay',

@@ -335,46 +335,45 @@ export default function POSTerminalPage() {
         <aside className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-surface-container-low border-r border-outline-variant shadow-md flex flex-col py-lg z-40 hidden md:flex">
           {/* Navigation Links */}
           <nav className="flex-1 px-4 space-y-2">
-            {/* Active: New Sale */}
             <button className="w-[calc(100%-1rem)] flex items-center gap-3 px-4 py-3 bg-primary-container/20 text-primary rounded-lg mx-2 my-1 font-label-bold text-label-bold transition-all font-semibold text-left" onClick={startNewSale}>
               <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>point_of_sale</span>
-              <span className="font-label-bold text-label-bold font-semibold text-primary">New Sale</span>
+              <span className="font-label-bold text-label-bold font-semibold text-primary">Bán hàng mới</span>
             </button>
             <Link className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg mx-2 my-1 font-label-bold text-label-bold transition-all hover:bg-primary-container/20 font-semibold" to="/pos/returns">
               <span className="material-symbols-outlined">receipt_long</span>
-              <span className="font-label-bold text-label-bold font-semibold">Order History</span>
+              <span className="font-label-bold text-label-bold font-semibold">Trả hàng / Lịch sử</span>
             </Link>
-            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed">
+            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed" title="Sắp ra mắt">
               <span className="material-symbols-outlined">inventory_2</span>
-              <span className="font-label-bold text-label-bold font-semibold">Stock Check</span>
+              <span className="font-label-bold text-label-bold font-semibold">Kiểm tồn</span>
             </div>
-            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed">
+            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed" title="Sắp ra mắt">
               <span className="material-symbols-outlined">groups</span>
-              <span className="font-label-bold text-label-bold font-semibold">Customers</span>
+              <span className="font-label-bold text-label-bold font-semibold">Khách hàng</span>
             </div>
-            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed">
+            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed" title="Sắp ra mắt">
               <span className="material-symbols-outlined">admin_panel_settings</span>
-              <span className="font-label-bold text-label-bold font-semibold">Admin</span>
+              <span className="font-label-bold text-label-bold font-semibold">Quản trị</span>
             </div>
           </nav>
           {/* Footer Actions */}
           <div className="px-4 mt-auto space-y-2">
-            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed">
+            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed" title="Sắp ra mắt">
               <span className="material-symbols-outlined">help</span>
-              <span className="font-label-bold text-label-bold font-semibold">Help</span>
+              <span className="font-label-bold text-label-bold font-semibold">Trợ giúp</span>
             </div>
             <Link to="/store" className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg mx-2 my-1 font-label-bold text-label-bold transition-all hover:bg-primary-container/20 font-semibold">
               <span className="material-symbols-outlined text-on-surface-variant">logout</span>
-              <span className="font-label-bold text-label-bold font-semibold">Exit Terminal</span>
+              <span className="font-label-bold text-label-bold font-semibold">Thoát quầy</span>
             </Link>
             <div className="mt-4 px-2">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-primary font-bold border border-outline-variant">
-                  {user?.fullName?.slice(0, 2).toUpperCase() ?? 'CT'}
+                  {user?.fullName?.slice(0, 2).toUpperCase() ?? 'TN'}
                 </div>
                 <div>
-                  <p className="font-label-bold text-label-bold text-on-surface font-bold">Terminal 01</p>
-                  <p className="text-xs text-on-surface-variant">Cashier: {user?.fullName ?? user?.email}</p>
+                  <p className="font-label-bold text-label-bold text-on-surface font-bold">Quầy 01</p>
+                  <p className="text-xs text-on-surface-variant">Thu ngân: {user?.fullName ?? user?.email}</p>
                 </div>
               </div>
               {shift ? (
@@ -382,14 +381,14 @@ export default function POSTerminalPage() {
                   className="w-full py-2 px-4 bg-outline-variant text-on-surface font-label-bold font-semibold rounded-lg hover:bg-outline transition-colors"
                   onClick={() => setShiftModal('close')}
                 >
-                  Close Shift
+                  Đóng ca
                 </button>
               ) : (
                 <button 
                   className="w-full py-2 px-4 bg-primary text-white font-label-bold font-semibold rounded-lg hover:bg-primary-dark transition-colors"
                   onClick={() => setShiftModal('open')}
                 >
-                  Open Shift
+                  Mở ca
                 </button>
               )}
             </div>
@@ -466,7 +465,7 @@ export default function POSTerminalPage() {
                     <div className="w-32 h-32 mb-4">
                       <img
                         className="w-full h-full object-contain"
-                        alt="Empty Basket"
+                        alt="Giỏ hàng trống"
                         src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_0Q2B53Ec9TNjFSwSKfLwaEAll447J7lA1fDayj3If0MkMG_SjtwF-gc2tGsIi5papVKU4ogZv0_vBb862ISatSfYaXIKjpb6aZEyn9tApV_TGqnuvbh4zQuNCrs4OgmUsjC04duy7wwPHfm125xBuWVhvbnxZ83OSMoJlWIeNQyyahBgSsyfz39StmgFyiSlmKzIeJhGOXgjTobqvva4kICZa9c1obpDNUq2uRRMK0wpfMGTuk-PmQ"
                       />
                     </div>
@@ -639,7 +638,7 @@ export default function POSTerminalPage() {
                           <span className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
                         </div>
                       ) : (
-                        <a href={vnpQr.payUrl} target="_blank" rel="noopener noreferrer" title="Mở cổng VNPay (Cashier Test)">
+                        <a href={vnpQr.payUrl} target="_blank" rel="noopener noreferrer" title="Mở cổng VNPay (thử nghiệm thu ngân)">
                           <img className="w-32 h-32 object-contain bg-white p-2 rounded-lg border border-outline-variant" src={vnpQr.imageUrl} alt="VNPay QR" />
                         </a>
                       )}

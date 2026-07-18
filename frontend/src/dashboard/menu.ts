@@ -43,13 +43,6 @@ const ADMIN_GROUPS: MenuGroup[] = [
     ],
   },
   {
-    title: 'Ngữ cảnh vận hành',
-    items: [
-      { to: '/admin/switch', label: 'Chọn vai trò làm việc', icon: 'Shuffle' },
-      { to: '/pos', label: 'Màn hình thu ngân', icon: 'Calculator' },
-    ],
-  },
-  {
     title: 'Quản trị',
     items: [
       { to: '/admin/users', label: 'Tài khoản và nhân viên', icon: 'Users' },

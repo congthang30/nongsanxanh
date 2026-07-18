@@ -1000,6 +1000,20 @@ model AiVectorIndex {
   @@map("ai_vector_index")
 }
 
+/// Co-purchase (market basket) — dem cap SP cung don, precompute de online chi doc.
+/// productIdA < productIdB (lexicographic) de moi cap 1 dong.
+model ProductCoPurchase {
+  productIdA String   @map("product_id_a")
+  productIdB String   @map("product_id_b")
+  coCount    Int      @default(0) @map("co_count")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@id([productIdA, productIdB])
+  @@index([productIdA, coCount(sort: Desc)])
+  @@index([productIdB, coCount(sort: Desc)])
+  @@map("product_co_purchases")
+}
+
 // ============================================================
 // AUDIT LOG
 // ============================================================

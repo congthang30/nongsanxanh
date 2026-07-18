@@ -1,27 +1,81 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, LayoutDashboard, LogOut, Package } from 'lucide-react';
 import { useAuthStore } from '../../lib/auth.store';
 import { useCartStore } from '../../lib/cart.store';
+import { pickRoleConfig } from '../../dashboard/menu';
 import { ChatWidget } from '../ChatWidget';
 import { NotificationBell } from '../NotificationBell';
+import { PageTransition } from '../PageTransition';
 import './layout.css';
 
 export function CustomerLayout() {
-  const { user, logout, hasRole } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { count, fetch } = useCartStore();
   const navigate = useNavigate();
   const [headerSearch, setHeaderSearch] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  const management = useMemo(() => {
+    if (!user) return null;
+    const config = pickRoleConfig(user.roles);
+    if (!config) return null;
+    // Only operational/admin roles get a console entry (not pure CUSTOMER)
+    const staffRoles = [
+      'ADMIN',
+      'SUPER_ADMIN',
+      'STORE_MANAGER',
+      'STORE_STAFF',
+      'WAREHOUSE_STAFF',
+      'SHIPPER',
+      'SUPPORT',
+    ];
+    if (!user.roles.some((r) => staffRoles.includes(r))) return null;
+    return {
+      to: config.homePath,
+      label: 'Vào trang quản lý',
+      roleLabel: config.label,
+    };
+  }, [user]);
 
   useEffect(() => {
     fetch().catch(() => {});
   }, [fetch]);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!profileRef.current?.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setProfileOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [profileOpen]);
 
   const handleHeaderSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const q = headerSearch.trim();
     navigate(q ? `/products?q=${encodeURIComponent(q)}` : '/products');
   };
+
+  const displayName = user?.fullName ?? user?.email ?? 'Tài khoản';
+  const initials =
+    (user?.fullName ?? user?.email ?? 'KH')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('') || 'KH';
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-on-surface">
@@ -34,85 +88,25 @@ export function CustomerLayout() {
             <h1 className="font-display-lg text-xl sm:text-2xl font-bold text-on-surface tracking-tight whitespace-nowrap">Nông Sản Xanh</h1>
           </Link>
           
-          {/* Navigation Links (Desktop - Hidden on Tablet/Mobile) */}
+          {/* Navigation Links (Desktop) — storefront only */}
           <nav className="hidden lg:flex gap-4 xl:gap-6 items-center flex-shrink-0 text-sm">
-            <NavLink 
-              className={({ isActive }) => 
+            <NavLink
+              className={({ isActive }) =>
                 `font-body-md font-medium pb-1 border-b-2 transition-all duration-200 ${isActive ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-primary hover:border-primary/30'}`
-              } 
-              to="/" 
+              }
+              to="/"
               end
             >
               Trang chủ
             </NavLink>
-            <NavLink 
-              className={({ isActive }) => 
+            <NavLink
+              className={({ isActive }) =>
                 `font-body-md font-medium pb-1 border-b-2 transition-all duration-200 ${isActive ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-primary hover:border-primary/30'}`
-              } 
+              }
               to="/products"
             >
               Sản phẩm
             </NavLink>
-            {hasRole('ADMIN', 'SUPER_ADMIN') && (
-              <NavLink 
-                className={({ isActive }) => 
-                  `font-body-md font-medium pb-1 border-b-2 transition-all duration-200 ${isActive ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-primary hover:border-primary/30'}`
-                } 
-                to="/admin/dashboard"
-              >
-                Quản trị
-              </NavLink>
-            )}
-            {hasRole('STORE_MANAGER') && !hasRole('ADMIN', 'SUPER_ADMIN') && (
-              <NavLink 
-                className={({ isActive }) => 
-                  `font-body-md font-medium pb-1 border-b-2 transition-all duration-200 ${isActive ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-primary hover:border-primary/30'}`
-                } 
-                to="/store-manager/dashboard"
-              >
-                Cửa hàng
-              </NavLink>
-            )}
-            {hasRole('STORE_STAFF') && !hasRole('STORE_MANAGER', 'ADMIN', 'SUPER_ADMIN') && (
-              <NavLink 
-                className={({ isActive }) => 
-                  `font-body-md font-medium pb-1 border-b-2 transition-all duration-200 ${isActive ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-primary hover:border-primary/30'}`
-                } 
-                to="/store/orders"
-              >
-                Đơn hàng
-              </NavLink>
-            )}
-            {hasRole('WAREHOUSE_STAFF') && !hasRole('STORE_MANAGER', 'ADMIN', 'SUPER_ADMIN') && (
-              <NavLink 
-                className={({ isActive }) => 
-                  `font-body-md font-medium pb-1 border-b-2 transition-all duration-200 ${isActive ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-primary hover:border-primary/30'}`
-                } 
-                to="/warehouse/dashboard"
-              >
-                Kho
-              </NavLink>
-            )}
-            {hasRole('SHIPPER') && !hasRole('ADMIN', 'SUPER_ADMIN') && (
-              <NavLink 
-                className={({ isActive }) => 
-                  `font-body-md font-medium pb-1 border-b-2 transition-all duration-200 ${isActive ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-primary hover:border-primary/30'}`
-                } 
-                to="/shipper/dashboard"
-              >
-                Giao hàng
-              </NavLink>
-            )}
-            {hasRole('SUPPORT') && !hasRole('ADMIN', 'SUPER_ADMIN') && (
-              <NavLink 
-                className={({ isActive }) => 
-                  `font-body-md font-medium pb-1 border-b-2 transition-all duration-200 ${isActive ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-primary hover:border-primary/30'}`
-                } 
-                to="/staff/dashboard"
-              >
-                Hỗ trợ
-              </NavLink>
-            )}
           </nav>
 
           {/* Action Cluster */}
@@ -143,28 +137,93 @@ export function CustomerLayout() {
             
             <div className="h-6 w-[1px] bg-outline-variant hidden lg:block"></div>
             
-            {/* User Details (Desktop Only - Hidden on Tablet/Mobile) */}
-            <div className="hidden lg:flex items-center gap-2 xl:gap-4 flex-shrink-0">
+            {/* Profile dropdown (Desktop) */}
+            <div className="hidden lg:flex items-center flex-shrink-0">
               {user ? (
-                <>
-                  <Link className="font-label-bold text-sm text-on-surface-variant hover:text-primary transition-colors whitespace-nowrap" to="/orders">Đơn của tôi</Link>
-                  <span className="text-sm font-medium text-on-surface-variant max-w-[100px] xl:max-w-[120px] truncate">{user.fullName ?? user.email}</span>
-                  <button 
-                    onClick={() => { logout(); navigate('/'); }}
-                    className="px-4 py-2 bg-primary text-white rounded-full font-label-bold text-xs hover:bg-primary-container shadow-premium hover:shadow-premium-hover transition-all duration-300 flex-shrink-0"
+                <div className="relative" ref={profileRef}>
+                  <button
+                    type="button"
+                    onClick={() => setProfileOpen((open) => !open)}
+                    className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-surface-container-low transition-colors max-w-[220px]"
+                    aria-expanded={profileOpen}
+                    aria-haspopup="menu"
+                    aria-label="Mở menu tài khoản"
                   >
-                    Đăng xuất
+                    <span className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                      {initials}
+                    </span>
+                    <span className="text-sm font-medium text-on-surface truncate text-left">
+                      {displayName}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className={`text-on-surface-variant flex-shrink-0 transition-transform ${profileOpen ? 'rotate-180' : ''}`}
+                    />
                   </button>
-                </>
+
+                  {profileOpen && (
+                    <div
+                      className="absolute right-0 top-full mt-2 w-60 bg-white border border-outline-variant/40 rounded-xl shadow-lg py-2 z-50"
+                      role="menu"
+                    >
+                      <div className="px-4 py-2 border-b border-outline-variant/30 mb-1">
+                        <p className="text-sm font-semibold text-on-surface truncate">{displayName}</p>
+                        {user.email && (
+                          <p className="text-xs text-on-surface-variant truncate">{user.email}</p>
+                        )}
+                      </div>
+
+                      <Link
+                        to="/orders"
+                        role="menuitem"
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
+                        onClick={() => setProfileOpen(false)}
+                      >
+                        <Package size={16} className="text-primary flex-shrink-0" />
+                        Đơn của tôi
+                      </Link>
+
+                      {management && (
+                        <Link
+                          to={management.to}
+                          role="menuitem"
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
+                          onClick={() => setProfileOpen(false)}
+                          title={management.roleLabel}
+                        >
+                          <LayoutDashboard size={16} className="text-primary flex-shrink-0" />
+                          <span className="min-w-0">
+                            <span className="block">{management.label}</span>
+                            <span className="block text-[11px] text-on-surface-variant truncate">
+                              {management.roleLabel}
+                            </span>
+                          </span>
+                        </Link>
+                      )}
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex items-center gap-2 w-full text-left px-4 py-2.5 text-sm text-error hover:bg-error-container/20 transition-colors mt-1 border-t border-outline-variant/30"
+                        onClick={() => {
+                          setProfileOpen(false);
+                          logout();
+                          navigate('/');
+                        }}
+                      >
+                        <LogOut size={16} className="flex-shrink-0" />
+                        Đăng xuất
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : (
-                <>
-                  <Link 
-                    to="/login"
-                    className="px-4 py-2 bg-primary text-white rounded-full font-label-bold text-xs hover:bg-primary-container shadow-premium hover:shadow-premium-hover transition-all duration-300 flex-shrink-0"
-                  >
-                    Đăng nhập
-                  </Link>
-                </>
+                <Link
+                  to="/login"
+                  className="px-4 py-2 bg-primary text-white rounded-full font-label-bold text-xs hover:bg-primary-container shadow-premium hover:shadow-premium-hover transition-all duration-300 flex-shrink-0"
+                >
+                  Đăng nhập
+                </Link>
               )}
             </div>
 
@@ -199,97 +258,75 @@ export function CustomerLayout() {
                 </button>
               </div>
 
-              {/* Navigation Links */}
+              {/* Navigation Links — storefront only */}
               <nav className="flex flex-col gap-2 mt-6">
-                <NavLink 
-                  className={({ isActive }) => `font-semibold py-2 px-3 rounded-lg text-sm transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'}`} 
-                  to="/" 
-                  end 
+                <NavLink
+                  className={({ isActive }) =>
+                    `font-semibold py-2 px-3 rounded-lg text-sm transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'}`
+                  }
+                  to="/"
+                  end
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Trang chủ
                 </NavLink>
-                <NavLink 
-                  className={({ isActive }) => `font-semibold py-2 px-3 rounded-lg text-sm transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'}`} 
-                  to="/products" 
+                <NavLink
+                  className={({ isActive }) =>
+                    `font-semibold py-2 px-3 rounded-lg text-sm transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'}`
+                  }
+                  to="/products"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Sản phẩm
                 </NavLink>
-                {hasRole('ADMIN', 'SUPER_ADMIN') && (
-                  <NavLink 
-                    className={({ isActive }) => `font-semibold py-2 px-3 rounded-lg text-sm transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'}`} 
-                    to="/admin/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Quản trị
-                  </NavLink>
-                )}
-                {hasRole('STORE_MANAGER') && !hasRole('ADMIN', 'SUPER_ADMIN') && (
-                  <NavLink 
-                    className={({ isActive }) => `font-semibold py-2 px-3 rounded-lg text-sm transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'}`} 
-                    to="/store-manager/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Cửa hàng
-                  </NavLink>
-                )}
-                {hasRole('STORE_STAFF') && !hasRole('STORE_MANAGER', 'ADMIN', 'SUPER_ADMIN') && (
-                  <NavLink 
-                    className={({ isActive }) => `font-semibold py-2 px-3 rounded-lg text-sm transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'}`} 
-                    to="/store/orders"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Đơn hàng
-                  </NavLink>
-                )}
-                {hasRole('WAREHOUSE_STAFF') && !hasRole('STORE_MANAGER', 'ADMIN', 'SUPER_ADMIN') && (
-                  <NavLink 
-                    className={({ isActive }) => `font-semibold py-2 px-3 rounded-lg text-sm transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'}`} 
-                    to="/warehouse/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Kho
-                  </NavLink>
-                )}
-                {hasRole('SHIPPER') && !hasRole('ADMIN', 'SUPER_ADMIN') && (
-                  <NavLink 
-                    className={({ isActive }) => `font-semibold py-2 px-3 rounded-lg text-sm transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'}`} 
-                    to="/shipper/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Giao hàng
-                  </NavLink>
-                )}
-                {hasRole('SUPPORT') && !hasRole('ADMIN', 'SUPER_ADMIN') && (
-                  <NavLink 
-                    className={({ isActive }) => `font-semibold py-2 px-3 rounded-lg text-sm transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'}`} 
-                    to="/staff/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Hỗ trợ
-                  </NavLink>
-                )}
               </nav>
             </div>
 
             {/* Account Info/Login in Drawer */}
             <div className="pt-4 border-t border-outline-variant mt-auto">
               {user ? (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-3 px-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                      {user.fullName?.slice(0, 2).toUpperCase() ?? 'KH'}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3 px-3 mb-1">
+                    <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm">
+                      {initials}
                     </div>
-                    <div className="truncate">
-                      <p className="font-semibold text-sm text-on-surface">{user.fullName ?? user.email}</p>
-                      <Link to="/orders" className="text-xs text-primary hover:underline" onClick={() => setMobileMenuOpen(false)}>Đơn của tôi</Link>
+                    <div className="truncate min-w-0">
+                      <p className="font-semibold text-sm text-on-surface truncate">{displayName}</p>
+                      {user.email && (
+                        <p className="text-xs text-on-surface-variant truncate">{user.email}</p>
+                      )}
                     </div>
                   </div>
-                  <button 
-                    onClick={() => { logout(); navigate('/'); setMobileMenuOpen(false); }}
-                    className="w-full py-2 bg-error-container text-error rounded-xl font-bold text-sm hover:bg-error/15 transition-all mt-2"
+                  <Link
+                    to="/orders"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-on-surface hover:bg-surface-container-low"
+                    onClick={() => setMobileMenuOpen(false)}
                   >
+                    <Package size={16} className="text-primary" />
+                    Đơn của tôi
+                  </Link>
+                  {management && (
+                    <Link
+                      to={management.to}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-on-surface hover:bg-surface-container-low"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <LayoutDashboard size={16} className="text-primary" />
+                      <span className="min-w-0">
+                        <span className="block">{management.label}</span>
+                        <span className="block text-[11px] text-on-surface-variant">{management.roleLabel}</span>
+                      </span>
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => {
+                      logout();
+                      navigate('/');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full py-2 bg-error-container text-error rounded-xl font-bold text-sm hover:bg-error/15 transition-all mt-2 flex items-center justify-center gap-2"
+                  >
+                    <LogOut size={16} />
                     Đăng xuất
                   </button>
                 </div>
@@ -309,7 +346,7 @@ export function CustomerLayout() {
 
       {/* Main Content */}
       <main className="flex-grow">
-        <Outlet />
+        <PageTransition />
       </main>
 
       {/* Footer */}

@@ -49,50 +49,50 @@ export default function POSReturnsPage() {
           <nav className="flex-1 px-4 space-y-2">
             <Link className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg mx-2 my-1 font-label-bold text-label-bold transition-all hover:bg-primary-container/20 font-semibold" to="/pos">
               <span className="material-symbols-outlined">point_of_sale</span>
-              New Sale
+              Bán hàng mới
             </Link>
             <button className="w-[calc(100%-1rem)] flex items-center gap-3 px-4 py-3 bg-primary-container/20 text-on-primary-container rounded-lg mx-2 my-1 font-label-bold text-label-bold transition-all font-semibold text-left">
               <span className="material-symbols-outlined text-primary">receipt_long</span>
-              Order History
+              Trả hàng / Lịch sử
             </button>
-            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed">
+            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed" title="Sắp ra mắt">
               <span className="material-symbols-outlined">inventory_2</span>
-              Stock Check
+              Kiểm tồn
             </div>
-            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed">
+            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed" title="Sắp ra mắt">
               <span className="material-symbols-outlined">groups</span>
-              Customers
+              Khách hàng
             </div>
-            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed">
+            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed" title="Sắp ra mắt">
               <span className="material-symbols-outlined">admin_panel_settings</span>
-              Admin
+              Quản trị
             </div>
           </nav>
           {/* Footer Actions */}
           <div className="px-4 mt-auto space-y-2">
-            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed">
+            <div className="flex items-center gap-3 px-4 py-3 text-on-surface-variant/50 rounded-lg mx-2 my-1 font-label-bold text-label-bold font-semibold cursor-not-allowed" title="Sắp ra mắt">
               <span className="material-symbols-outlined">help</span>
-              Help
+              Trợ giúp
             </div>
             <Link className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg mx-2 my-1 font-label-bold text-label-bold transition-all hover:bg-primary-container/20 font-semibold" to="/store">
               <span className="material-symbols-outlined">logout</span>
-              Sign Out
+              Thoát quầy
             </Link>
             <div className="mt-4 px-2">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-primary font-bold border border-outline-variant">
-                  {user?.fullName?.slice(0, 2).toUpperCase() ?? 'CT'}
+                  {user?.fullName?.slice(0, 2).toUpperCase() ?? 'TN'}
                 </div>
                 <div>
-                  <p className="font-label-bold text-label-bold text-on-surface font-bold">Terminal 01</p>
-                  <p className="text-xs text-on-surface-variant">Cashier: {user?.fullName ?? user?.email}</p>
+                  <p className="font-label-bold text-label-bold text-on-surface font-bold">Quầy 01</p>
+                  <p className="text-xs text-on-surface-variant">Thu ngân: {user?.fullName ?? user?.email}</p>
                 </div>
               </div>
               <button 
                 className="w-full py-2 px-4 bg-outline-variant text-on-surface font-label-bold font-semibold rounded-lg hover:bg-outline transition-colors disabled:opacity-50"
                 disabled
               >
-                {shift ? `Expected: ${formatVnd(shift.expectedCash)}` : 'Shift Closed'}
+                {shift ? `Dự kiến: ${formatVnd(shift.expectedCash)}` : 'Ca đã đóng'}
               </button>
             </div>
           </div>
@@ -103,7 +103,7 @@ export default function POSReturnsPage() {
           {/* Tabs Navigation */}
           <div className="border-b border-outline-variant bg-white sticky top-0 z-30">
             <div className="max-w-container-max mx-auto px-lg">
-              <nav aria-label="Tabs" className="flex space-x-8">
+              <nav aria-label="Thẻ điều hướng" className="flex space-x-8">
                 {(['create', 'requested', 'approved', 'completed'] as Tab[]).map((t) => (
                   <button
                     key={t}

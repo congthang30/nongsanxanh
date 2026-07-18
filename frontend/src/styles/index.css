@@ -178,8 +178,92 @@ img { display: block; max-width: 100%; }
   width: 100%; padding: 13px 16px; border: 1.5px solid var(--line);
   border-radius: var(--radius-sm); font-size: 15px; background: var(--surface);
   transition: border-color 0.2s, box-shadow 0.2s;
+  line-height: 1.4;
 }
-.input:focus { outline: none; border-color: var(--green-400); box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12); }
+.input:focus,
+.input:focus-visible {
+  outline: none;
+  outline: 2px solid transparent;
+  border-color: var(--green-400);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+}
+
+/* File input: native "Choose File" often draws a harsh black outline — match form language */
+input.input[type='file'],
+.input-file {
+  cursor: pointer;
+  padding: 10px 12px;
+  color: var(--ink-700);
+  font-size: 14px;
+}
+input.input[type='file']:focus,
+input.input[type='file']:focus-visible,
+.input-file:focus,
+.input-file:focus-visible {
+  outline: none;
+  outline: 2px solid transparent;
+  border-color: var(--green-400);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+}
+input.input[type='file']::file-selector-button,
+.input-file::file-selector-button {
+  margin-right: 12px;
+  padding: 8px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--green-50, #f0fdf4);
+  color: var(--green-800, #166534);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+input.input[type='file']::-webkit-file-upload-button,
+.input-file::-webkit-file-upload-button {
+  margin-right: 12px;
+  padding: 8px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--green-50, #f0fdf4);
+  color: var(--green-800, #166534);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+input.input[type='file']::file-selector-button:hover,
+.input-file::file-selector-button:hover,
+input.input[type='file']::-webkit-file-upload-button:hover,
+.input-file::-webkit-file-upload-button:hover {
+  border-color: var(--green-400);
+  background: var(--green-100, #dcfce7);
+}
+input.input[type='file']::file-selector-button:focus,
+input.input[type='file']::file-selector-button:focus-visible,
+.input-file::file-selector-button:focus,
+.input-file::file-selector-button:focus-visible,
+input.input[type='file']::-webkit-file-upload-button:focus,
+input.input[type='file']::-webkit-file-upload-button:focus-visible,
+.input-file::-webkit-file-upload-button:focus,
+.input-file::-webkit-file-upload-button:focus-visible {
+  outline: none;
+  outline: 2px solid transparent;
+  border-color: var(--green-400);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+/* Native <select.input>: fixed height + large vertical padding clips text on Y axis */
+select.input {
+  height: auto;
+  min-height: 2.75rem;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+  padding-right: 2rem;
+  line-height: 1.45;
+  overflow: visible;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ---------- Utilities ---------- */
 .price { font-family: var(--font-display); font-weight: 700; color: var(--green-700); }

@@ -76,59 +76,108 @@ describe('CatalogService vector sync events', () => {
 
   it('uses vector hits and filters related products through business rules', async () => {
     const { service, prisma, inventory, vectorIndex } = createService();
-    (prisma.product.findFirst as jest.Mock).mockResolvedValue({ id: 'source-1' });
+    (prisma.product.findFirst as jest.Mock).mockResolvedValue({
+      id: 'source-1',
+      categoryId: 'cat-1',
+    });
     (vectorIndex.relatedProductIds as jest.Mock).mockResolvedValue([
       { objectId: 'product-2', score: 0.91 },
       { objectId: 'product-3', score: 0.88 },
     ]);
-    (prisma.product.findMany as jest.Mock).mockResolvedValue([
-      {
-        id: 'product-3',
-        name: 'Buoi da xanh',
-        slug: 'buoi-da-xanh',
-        ratingAvg: 4.6,
-        images: [{ url: '/buoi.jpg' }],
-        variants: [{ id: 'variant-3', price: 72000, unit: 'kg' }],
-      },
-      {
-        id: 'product-2',
-        name: 'Xoai cat',
-        slug: 'xoai-cat',
-        ratingAvg: 4.8,
-        images: [{ url: '/xoai.jpg' }],
-        variants: [{ id: 'variant-2', price: 65000, unit: 'kg' }],
-      },
-    ]);
+    (prisma.product.findMany as jest.Mock).mockImplementation(async (args: {
+      select?: { id?: boolean };
+      where?: { id?: { in?: string[] }; categoryId?: string };
+    }) => {
+      // Category candidate query (select id only)
+      if (args?.select?.id) {
+        return [{ id: 'product-4' }, { id: 'product-2' }];
+      }
+      // Detail hydrate
+      return [
+        {
+          id: 'product-3',
+          categoryId: 'cat-1',
+          name: 'Buoi da xanh',
+          slug: 'buoi-da-xanh',
+          ratingAvg: 4.6,
+          images: [{ url: '/buoi.jpg' }],
+          variants: [{ id: 'variant-3', price: 72000, unit: 'kg' }],
+        },
+        {
+          id: 'product-2',
+          categoryId: 'cat-2',
+          name: 'Xoai cat',
+          slug: 'xoai-cat',
+          ratingAvg: 4.8,
+          images: [{ url: '/xoai.jpg' }],
+          variants: [{ id: 'variant-2', price: 65000, unit: 'kg' }],
+        },
+        {
+          id: 'product-4',
+          categoryId: 'cat-1',
+          name: 'Cam sanh',
+          slug: 'cam-sanh',
+          ratingAvg: 4.2,
+          images: [{ url: '/cam.jpg' }],
+          variants: [{ id: 'variant-4', price: 40000, unit: 'kg' }],
+        },
+      ];
+    });
     (inventory.getAggregateAvailabilityMap as jest.Mock).mockResolvedValue(
       new Map([
         ['variant-2', 12],
         ['variant-3', 0],
+        ['variant-4', 5],
       ]),
     );
 
     const related = await service.relatedProducts('source-slug');
 
     expect(vectorIndex.relatedProductIds).toHaveBeenCalledWith('source-1', 24);
-    expect(prisma.product.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          id: { in: ['product-2', 'product-3'] },
-          status: ProductStatus.ACTIVE,
-          deletedAt: null,
-          variants: { some: { status: 'ACTIVE' } },
-        }),
-      }),
-    );
-    expect(related).toEqual([
-      {
-        id: 'product-2',
-        name: 'Xoai cat',
-        slug: 'xoai-cat',
-        ratingAvg: 4.8,
-        image: '/xoai.jpg',
-        fromPrice: 65000,
-        unit: 'kg',
-      },
-    ]);
+    // product-3 het hang (embedding) bi loai; product-2 embedding con hang; product-4 category
+    expect(related).toEqual({
+      byEmbedding: [
+        {
+          id: 'product-2',
+          name: 'Xoai cat',
+          slug: 'xoai-cat',
+          ratingAvg: 4.8,
+          image: '/xoai.jpg',
+          fromPrice: 65000,
+          unit: 'kg',
+        },
+      ],
+      byCategory: [
+        {
+          id: 'product-4',
+          name: 'Cam sanh',
+          slug: 'cam-sanh',
+          ratingAvg: 4.2,
+          image: '/cam.jpg',
+          fromPrice: 40000,
+          unit: 'kg',
+        },
+      ],
+      preview: [
+        {
+          id: 'product-2',
+          name: 'Xoai cat',
+          slug: 'xoai-cat',
+          ratingAvg: 4.8,
+          image: '/xoai.jpg',
+          fromPrice: 65000,
+          unit: 'kg',
+        },
+        {
+          id: 'product-4',
+          name: 'Cam sanh',
+          slug: 'cam-sanh',
+          ratingAvg: 4.2,
+          image: '/cam.jpg',
+          fromPrice: 40000,
+          unit: 'kg',
+        },
+      ],
+    });
   });
 });

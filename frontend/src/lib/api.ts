@@ -23,24 +23,41 @@ api.interceptors.request.use((config) => {
   const requestPath = config.url ?? '';
   const isGlobalAdminRequest =
     requestPath === '/admin/stores' ||
-    requestPath.startsWith('/admin/stores/') ||    requestPath.startsWith('/admin/media') ||
+    requestPath.startsWith('/admin/stores/') ||
+    requestPath.startsWith('/admin/media') ||
     requestPath.startsWith('/admin/barcodes');
   const usesAdminStoreContext =
     requestPath.startsWith('/pos') ||
     (requestPath.startsWith('/admin/') && !isGlobalAdminRequest);
 
-  if (activeBranchId && usesAdminStoreContext) {
-    config.params = config.params || {};
-    config.params.storeId = activeBranchId;
-    config.headers['X-Active-Branch-Id'] = activeBranchId;
+  if (usesAdminStoreContext) {
+    if (activeBranchId) {
+      config.headers['X-Active-Branch-Id'] = activeBranchId;
+    }
+
+    // Only inject storeId when the caller did not set it explicitly.
+    // Explicit empty/undefined means "all stores" and must not be overwritten.
+    const params = { ...((config.params ?? {}) as Record<string, unknown>) };
+    const hasExplicitStoreId = Object.prototype.hasOwnProperty.call(params, 'storeId');
+    if (!hasExplicitStoreId) {
+      if (activeBranchId) params.storeId = activeBranchId;
+    } else if (params.storeId == null || params.storeId === '') {
+      delete params.storeId;
+    }
+    config.params = params;
 
     if (
+      activeBranchId &&
       config.data &&
       typeof config.data === 'object' &&
-      !(config.data instanceof FormData) &&
-      'storeId' in config.data
+      !(config.data instanceof FormData)
     ) {
-      config.data = { ...config.data, storeId: activeBranchId };
+      const body = config.data as Record<string, unknown>;
+      const bodyHasStoreId = Object.prototype.hasOwnProperty.call(body, 'storeId');
+      // Never overwrite a concrete storeId chosen in forms/modals.
+      if (!bodyHasStoreId || body.storeId == null || body.storeId === '') {
+        config.data = { ...body, storeId: activeBranchId };
+      }
     }
   }
   return config;

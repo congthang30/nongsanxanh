@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { api, getErrorMessage } from '../../lib/api';
 import { useToastStore } from '../../lib/toast.store';
+import { ModalPortal } from '../../components/ModalPortal';
 
 export interface StockMovementRow {
   id: string;
@@ -99,6 +100,7 @@ export function StockMovementModal({
         : 'Xuất kho / ghi nhận hư hỏng';
 
   return (
+    <ModalPortal>
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(event) => event.stopPropagation()}>
         <h2>{title}</h2>
@@ -164,5 +166,6 @@ export function StockMovementModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

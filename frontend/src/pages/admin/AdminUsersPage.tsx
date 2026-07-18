@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Eye,
   LockKeyhole,
   Pencil,
   Plus,
@@ -9,11 +10,13 @@ import {
   UserRoundX,
 } from 'lucide-react';
 import { api, getErrorMessage } from '../../lib/api';
+import { useBranchContextStore } from '../../lib/branch-context.store';
 import { useToastStore } from '../../lib/toast.store';
 import { PageHeader } from '../../dashboard/components/PageHeader';
 import { DataTable } from '../../dashboard/components/DataTable';
 import { StatusBadge } from '../../dashboard/components/StatusBadge';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { ModalPortal } from '../../components/ModalPortal';
 
 interface CustomerRow {
   id: string;
@@ -70,12 +73,15 @@ const STAFF_STATUSES = [
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
   const { push } = useToastStore();
+  const activeBranchId = useBranchContextStore((state) => state.activeBranchId);
+  const setActiveBranch = useBranchContextStore((state) => state.setActiveBranch);
+  const storeId = activeBranchId ?? '';
   const [tab, setTab] = useState<TabKey>('customers');
-  const [storeId, setStoreId] = useState(() => localStorage.getItem('adminActiveStoreId') ?? '');
   const [search, setSearch] = useState('');
   const [customerStatus, setCustomerStatus] = useState('');
   const [customerLockTarget, setCustomerLockTarget] = useState<CustomerRow | null>(null);
   const [staffEditing, setStaffEditing] = useState<StaffRow | null>(null);
+  const [staffViewing, setStaffViewing] = useState<StaffRow | null>(null);
   const [creatingStaff, setCreatingStaff] = useState(false);
   const [removeStaffTarget, setRemoveStaffTarget] = useState<StaffRow | null>(null);
 
@@ -84,6 +90,19 @@ export default function AdminUsersPage() {
     queryFn: () => api.get('/admin/stores').then((response) => response.data.data as StoreLite[]),
   });
 
+  const handleStoreFilterChange = (nextStoreId: string) => {
+    if (!nextStoreId) {
+      setActiveBranch(null);
+      return;
+    }
+    const store = storesQuery.data?.find((item) => item.id === nextStoreId);
+    setActiveBranch(
+      store
+        ? { id: store.id, name: store.code ? `${store.code} - ${store.name}` : store.name }
+        : { id: nextStoreId, name: nextStoreId },
+    );
+  };
+
   const customersQuery = useQuery({
     queryKey: ['admin-customers', storeId, customerStatus, search],
     enabled: tab === 'customers',
@@ -91,7 +110,8 @@ export default function AdminUsersPage() {
       api
         .get('/admin/customers', {
           params: {
-            storeId: storeId || undefined,
+            // Explicit key so interceptor does not force topbar store over this page filter.
+            ...(storeId ? { storeId } : { storeId: undefined }),
             status: customerStatus || undefined,
             q: search.trim() || undefined,
           },
@@ -104,7 +124,10 @@ export default function AdminUsersPage() {
     enabled: tab === 'staff',
     queryFn: () =>
       api
-        .get('/admin/staff', { params: { storeId: storeId || undefined } })
+        .get('/admin/staff', {
+          // Explicit key so "Toàn hệ thống" is not overwritten by interceptor inject.
+          params: storeId ? { storeId } : { storeId: undefined },
+        })
         .then((response) => response.data.data as StaffRow[]),
   });
 
@@ -183,15 +206,22 @@ export default function AdminUsersPage() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 12 }}>
+        <div className="dash-filter-bar">
           <select
             className="input"
-            style={{ maxWidth: 300, height: 38, fontSize: 13 }}
             value={storeId}
-            onChange={(event) => setStoreId(event.target.value)}
-            aria-label="Lọc theo cụm cửa hàng"
+            onChange={(event) => handleStoreFilterChange(event.target.value)}
+            aria-label="Lọc theo chi nhánh"
+            title={
+              storeId
+                ? (() => {
+                    const store = storesQuery.data?.find((s) => s.id === storeId);
+                    return store ? `${store.code} - ${store.name}` : 'Chi nhánh đã chọn';
+                  })()
+                : 'Toàn hệ thống'
+            }
           >
-            <option value="">Toàn bộ cụm cửa hàng</option>
+            <option value="">Toàn hệ thống</option>
             {storeGroups.map(([province, stores]) => (
               <optgroup key={province} label={province}>
                 {stores.map((store) => (
@@ -209,7 +239,7 @@ export default function AdminUsersPage() {
                 <Search
                   size={16}
                   aria-hidden="true"
-                  style={{ position: 'absolute', left: 12, top: 11, color: '#64748b' }}
+                  style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b' }}
                 />
                 <input
                   className="input"
@@ -217,7 +247,7 @@ export default function AdminUsersPage() {
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Tìm theo tên, email hoặc số điện thoại"
                   aria-label="Tìm tài khoản khách hàng"
-                  style={{ width: '100%', height: 38, paddingLeft: 36 }}
+                  style={{ width: '100%', paddingLeft: 36 }}
                 />
               </div>
               <select
@@ -225,7 +255,7 @@ export default function AdminUsersPage() {
                 value={customerStatus}
                 onChange={(event) => setCustomerStatus(event.target.value)}
                 aria-label="Lọc trạng thái khách hàng"
-                style={{ maxWidth: 180, height: 38, fontSize: 13 }}
+                style={{ flex: '0 1 11rem', minWidth: '10rem', maxWidth: '14rem' }}
               >
                 <option value="">Mọi trạng thái</option>
                 <option value="ACTIVE">Đang hoạt động</option>
@@ -250,8 +280,20 @@ export default function AdminUsersPage() {
           loading={staffQuery.isLoading}
           error={staffQuery.isError ? getErrorMessage(staffQuery.error) : null}
           onRetry={() => staffQuery.refetch()}
+          onView={setStaffViewing}
           onEdit={setStaffEditing}
           onRemove={setRemoveStaffTarget}
+        />
+      )}
+
+      {staffViewing && (
+        <StaffViewModal
+          staff={staffViewing}
+          onClose={() => setStaffViewing(null)}
+          onEdit={() => {
+            setStaffEditing(staffViewing);
+            setStaffViewing(null);
+          }}
         />
       )}
 
@@ -380,6 +422,7 @@ function StaffTable({
   loading,
   error,
   onRetry,
+  onView,
   onEdit,
   onRemove,
 }: {
@@ -387,6 +430,7 @@ function StaffTable({
   loading: boolean;
   error: string | null;
   onRetry: () => void;
+  onView: (row: StaffRow) => void;
   onEdit: (row: StaffRow) => void;
   onRemove: (row: StaffRow) => void;
 }) {
@@ -398,17 +442,25 @@ function StaffTable({
       error={error}
       onRetry={onRetry}
       rowKey={(row) => row.id}
-      emptyText="Chưa có nhân viên trong cụm cửa hàng này"
+      emptyText="Chưa có nhân viên tại chi nhánh này"
       columns={[
         {
           key: 'identity',
           title: 'Nhân viên',
           render: (row) => (
-            <UserIdentity
-              name={row.user.profile?.fullName ?? 'Chưa cập nhật tên'}
-              contact={row.user.email ?? 'Chưa có email'}
-              avatarUrl={row.user.profile?.avatarUrl}
-            />
+            <button
+              type="button"
+              className="staff-identity-btn"
+              onClick={() => onView(row)}
+              title="Xem thông tin nhân viên"
+            >
+              <UserIdentity
+                name={row.user.profile?.fullName ?? 'Chưa cập nhật tên'}
+                contact={row.user.email ?? 'Chưa có email'}
+                avatarUrl={row.user.profile?.avatarUrl}
+                size="lg"
+              />
+            </button>
           ),
         },
         { key: 'store', title: 'Chi nhánh', render: (row) => row.store.code + ' - ' + row.store.name },
@@ -420,9 +472,13 @@ function StaffTable({
           title: 'Thao tác',
           render: (row) => (
             <div className="dash-row-actions">
+              <button className="dash-btn dash-btn-sm flex items-center gap-2" onClick={() => onView(row)}>
+                <Eye size={15} />
+                Xem
+              </button>
               <button className="dash-btn dash-btn-sm flex items-center gap-2" onClick={() => onEdit(row)}>
                 <Pencil size={15} />
-                Sửa hồ sơ
+                Sửa
               </button>
               <button
                 className="dash-btn dash-btn-sm flex items-center gap-2"
@@ -444,26 +500,37 @@ function UserIdentity({
   name,
   contact,
   avatarUrl,
+  size = 'md',
 }: {
   name: string;
   contact: string;
   avatarUrl?: string | null;
+  size?: 'md' | 'lg';
 }) {
+  const dim = size === 'lg' ? 56 : 42;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 220 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: size === 'lg' ? 12 : 10, minWidth: 220 }}>
       {avatarUrl ? (
         <img
           src={avatarUrl}
           alt={name}
           loading="lazy"
-          style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0' }}
+          style={{
+            width: dim,
+            height: dim,
+            borderRadius: '50%',
+            objectFit: 'cover',
+            border: '2px solid #e2e8f0',
+            flexShrink: 0,
+            background: '#fff',
+          }}
         />
       ) : (
         <div
           aria-hidden="true"
           style={{
-            width: 42,
-            height: 42,
+            width: dim,
+            height: dim,
             borderRadius: '50%',
             background: '#f1f5f9',
             color: '#475569',
@@ -471,6 +538,8 @@ function UserIdentity({
             alignItems: 'center',
             justifyContent: 'center',
             fontWeight: 700,
+            fontSize: size === 'lg' ? 16 : 14,
+            flexShrink: 0,
           }}
         >
           {initials(name)}
@@ -483,6 +552,108 @@ function UserIdentity({
         </span>
       </div>
     </div>
+  );
+}
+
+function StaffViewModal({
+  staff,
+  onClose,
+  onEdit,
+}: {
+  staff: StaffRow;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const name = staff.user.profile?.fullName ?? 'Chưa cập nhật tên';
+  const avatarUrl = staff.user.profile?.avatarUrl;
+  const statusLabel =
+    STAFF_STATUSES.find((item) => item.code === staff.status)?.label ?? staff.status;
+
+  return (
+    <ModalPortal>
+    <div className="dash-modal-overlay" onClick={onClose}>
+      <div
+        className="dash-modal dash-modal-staff"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="staff-view-title"
+      >
+        <h2 id="staff-view-title">Thông tin nhân viên</h2>
+        <p className="muted" style={{ marginTop: 6, marginBottom: 16, fontSize: 13 }}>
+          Hồ sơ vận hành và ảnh đại diện đăng ký trên hệ thống.
+        </p>
+
+        <div className="staff-view-hero">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={name} className="staff-view-avatar" />
+          ) : (
+            <div className="staff-view-avatar staff-view-avatar-fallback" aria-hidden="true">
+              {initials(name)}
+            </div>
+          )}
+          <div className="staff-view-hero-meta">
+            <h3 className="staff-view-name">{name}</h3>
+            <p className="muted" style={{ margin: '4px 0 10px' }}>
+              {staff.user.email ?? 'Chưa có email'}
+            </p>
+            <div className="staff-view-badges">
+              <StatusBadge status={staff.status} />
+              <StatusBadge status={staff.user.status} />
+              <span className="staff-view-role-chip">{roleLabel(staff.role)}</span>
+            </div>
+          </div>
+        </div>
+
+        <dl className="staff-view-grid">
+          <div>
+            <dt>Họ và tên</dt>
+            <dd>{name}</dd>
+          </div>
+          <div>
+            <dt>Email đăng nhập</dt>
+            <dd>{staff.user.email ?? '—'}</dd>
+          </div>
+          <div>
+            <dt>Số điện thoại</dt>
+            <dd>{staff.user.phone ?? 'Chưa cập nhật'}</dd>
+          </div>
+          <div>
+            <dt>Chi nhánh</dt>
+            <dd>
+              {staff.store.code} — {staff.store.name}
+            </dd>
+          </div>
+          <div>
+            <dt>Vai trò vận hành</dt>
+            <dd>{roleLabel(staff.role)}</dd>
+          </div>
+          <div>
+            <dt>Trạng thái làm việc</dt>
+            <dd>{statusLabel}</dd>
+          </div>
+          <div>
+            <dt>Trạng thái tài khoản</dt>
+            <dd>{staff.user.status === 'LOCKED' ? 'Đã khóa' : 'Đang hoạt động'}</dd>
+          </div>
+          <div>
+            <dt>Ảnh đại diện</dt>
+            <dd>{avatarUrl ? 'Đã cập nhật' : 'Chưa có ảnh'}</dd>
+          </div>
+        </dl>
+
+        <div className="flex gap-sm" style={{ marginTop: 20, justifyContent: 'flex-end' }}>
+          <button className="btn btn-ghost" onClick={onClose}>
+            Đóng
+          </button>
+          <button className="btn btn-primary flex items-center gap-2" onClick={onEdit}>
+            <Pencil size={16} />
+            Sửa hồ sơ
+          </button>
+        </div>
+      </div>
+    </div>
+    </ModalPortal>
   );
 }
 
@@ -526,17 +697,21 @@ function StaffModal({
         avatarUrl = upload.data.data.url as string;
       }
 
+      // CreateStaffAccountDto khong co status (mac dinh ACTIVE o BE).
+      // UpdateStaffAccountDto moi chap nhan status.
       const sharedBody = {
         storeId: form.storeId,
         fullName: form.fullName.trim(),
         phone: form.phone.trim() || undefined,
         role: form.role,
-        status: form.status,
         avatarUrl,
       };
 
       return staff
-        ? api.patch('/admin/staff/' + staff.id, sharedBody)
+        ? api.patch('/admin/staff/' + staff.id, {
+            ...sharedBody,
+            status: form.status,
+          })
         : api.post('/admin/staff', {
             ...sharedBody,
             email: form.email.trim().toLowerCase(),
@@ -561,8 +736,14 @@ function StaffModal({
     (staff ? !!form.email : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email));
 
   return (
+    <ModalPortal>
     <div className="dash-modal-overlay" onClick={onClose}>
-      <div className="dash-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+      <div
+        className="dash-modal dash-modal-staff"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
         <h2>{staff ? 'Cập nhật hồ sơ nhân viên' : 'Thêm nhân viên mới'}</h2>
         <p className="muted" style={{ marginTop: 6, marginBottom: 16, fontSize: 13 }}>
           {staff
@@ -570,11 +751,28 @@ function StaffModal({
             : 'Hệ thống tự sinh mật khẩu tạm bằng Argon2 và gửi trực tiếp tới email nhân viên.'}
         </p>
 
-        <div className="dash-form-grid">
-          <label>
+        <div className="staff-avatar-row">
+          <div className="staff-avatar-preview-wrap" aria-hidden={!avatarPreview}>
+            {avatarPreview ? (
+              <img
+                src={avatarPreview}
+                alt="Ảnh đại diện nhân viên"
+                className="staff-avatar-preview"
+              />
+            ) : (
+              <div className="staff-avatar-placeholder" aria-hidden="true">
+                <span className="staff-avatar-placeholder-icon">+</span>
+                <span className="staff-avatar-placeholder-text">Thêm ảnh</span>
+              </div>
+            )}
+          </div>
+          <label className="staff-avatar-field">
             Ảnh đại diện
+            <span className="staff-avatar-hint muted">
+              JPEG, PNG, WEBP hoặc GIF — xem trước bên trái để kiểm tra khung hình.
+            </span>
             <input
-              className="input"
+              className="input input-file"
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif"
               onChange={(event) => {
@@ -584,32 +782,9 @@ function StaffModal({
               }}
             />
           </label>
-          <div style={{ display: 'flex', alignItems: 'end' }}>
-            {avatarPreview ? (
-              <img
-                src={avatarPreview}
-                alt="Ảnh đại diện nhân viên"
-                style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0' }}
-              />
-            ) : (
-              <div
-                aria-hidden="true"
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: '50%',
-                  background: '#f1f5f9',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                }}
-              >
-                NV
-              </div>
-            )}
-          </div>
+        </div>
 
+        <div className="dash-form-grid">
           <label>
             Họ và tên
             <input className="input" value={form.fullName} onChange={(event) => set('fullName', event.target.value)} />
@@ -679,6 +854,7 @@ function StaffModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 

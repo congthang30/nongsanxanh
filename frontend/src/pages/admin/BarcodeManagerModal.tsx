@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '../../lib/api';
 import { useToastStore } from '../../lib/toast.store';
+import { ModalPortal } from '../../components/ModalPortal';
 
 interface Variant {
   id: string;
@@ -105,6 +106,7 @@ export function BarcodeManagerModal({
   const submitDisabled = !variantId || !form.barcode.trim() || form.barcode.trim().length < 4 || createMut.isPending;
 
   return (
+    <ModalPortal>
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 720 }}>
         <h2>Quản lý mã vạch</h2>
@@ -241,5 +243,6 @@ export function BarcodeManagerModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../lib/auth.store';
+import { PageTransition } from '../../components/PageTransition';
 import { DashboardSidebar } from './Sidebar';
 import { DashboardTopbar } from './Topbar';
 import { pickRoleConfig, RoleCode, RoleConfig } from '../menu';
@@ -67,7 +68,7 @@ export function DashboardLayout({ allowed }: Props) {
         />
 
         <main className="p-gutter flex-1 flex flex-col gap-xl">
-          <Outlet />
+          <PageTransition />
         </main>
 
         <footer className="flex justify-between items-center px-gutter py-md mt-auto w-full bg-transparent border-t border-outline-variant/10">

@@ -6,9 +6,10 @@ import { AiHttpService } from './ai-http.service';
 import { ChatMemoryStore } from './chat-memory.store';
 import { AiVectorIndexerService } from './ai-vector-indexer.service';
 
-const SYSTEM_PROMPT = `Ban la tro ly ban hang cua NongSan Xanh.
-Chi tra loi dua tren ngu canh va ket qua tool duoc cung cap. Khong bia dat gia, ton kho, khuyen mai hoac chinh sach.
-Tra loi ngan gon, ro rang, bang tieng Viet. Neu khong co du lieu, hay noi ro la chua tim thay thong tin.`;
+const SYSTEM_PROMPT = `Bạn là trợ lý bán hàng của Nông Sản Xanh.
+Chỉ trả lời dựa trên ngữ cảnh và kết quả tool được cung cấp. Không bịa giá, tồn kho, khuyến mãi hoặc chính sách.
+Khi người dùng hỏi sản phẩm "giống / tương tự / liên quan", hãy ưu tiên gợi ý theo độ tương đồng (embedding), không liệt kê toàn bộ catalog.
+Trả lời ngắn gọn, rõ ràng, bằng tiếng Việt có dấu. Nếu không có dữ liệu, nói rõ là chưa tìm thấy thông tin.`;
 
 interface VectorHit {
   objectType: string;
@@ -89,7 +90,7 @@ export class AiService {
     }
 
     answer ??=
-      'Hien toi chua tim thay thong tin phu hop. Ban co the hoi ve san pham, gia, ton kho, khuyen mai hoac don hang.';
+      'Hiện mình chưa tìm thấy thông tin phù hợp. Bạn có thể hỏi về sản phẩm, giá, tồn kho, khuyến mãi hoặc đơn hàng.';
 
     await this.memory.append(conversationId, ownerKey, 'assistant', answer);
     return { conversationId, answer, cards };
@@ -107,10 +108,22 @@ export class AiService {
     return this.indexer.reindexDomainObjects();
   }
 
-  private async searchVectorPointers(query: string): Promise<VectorHit[]> {
+  private async searchVectorPointers(
+    query: string,
+    options?: {
+      topK?: number;
+      scoreThreshold?: number;
+      objectType?: string;
+      excludeObjectId?: string;
+    },
+  ): Promise<VectorHit[]> {
     const [embedding] = await this.ai.embed([query], 'retrieval.query');
     if (!embedding) return [];
     const vector = this.vectorLiteral(embedding);
+    const topK = Math.max(1, options?.topK ?? this.topK);
+    const scoreThreshold = options?.scoreThreshold ?? this.scoreThreshold;
+    const objectType = options?.objectType;
+    const excludeObjectId = options?.excludeObjectId;
 
     try {
       return await this.prisma.$queryRaw<VectorHit[]>(Prisma.sql`
@@ -122,9 +135,11 @@ export class AiService {
           1 - ("embedding" <=> ${vector}::vector) AS "score"
         FROM "ai_vector_index"
         WHERE "status" = 'ACTIVE'
-          AND 1 - ("embedding" <=> ${vector}::vector) >= ${this.scoreThreshold}
+          AND 1 - ("embedding" <=> ${vector}::vector) >= ${scoreThreshold}
+          ${objectType ? Prisma.sql`AND "object_type" = ${objectType}` : Prisma.empty}
+          ${excludeObjectId ? Prisma.sql`AND "object_id" <> ${excludeObjectId}` : Prisma.empty}
         ORDER BY "embedding" <=> ${vector}::vector
-        LIMIT ${this.topK}
+        LIMIT ${topK}
       `);
     } catch (error) {
       this.logger.warn(`Vector search unavailable: ${(error as Error).message}`);
@@ -256,11 +271,19 @@ export class AiService {
 
   private async answerProductQuery(message: string): Promise<string | null> {
     const norm = this.normalize(message);
-    const listIntent =
-      /(liet ke|danh sach|nhung san pham|cac san pham|san pham (nao|gi|dang co)|co (nhung )?san pham|ban (nhung )?gi|co gi|menu|catalog)/.test(
+    // "san pham nao giong X" KHONG phai liet ke toan bo catalog
+    const similarIntent =
+      /giong|tuong tu|lien quan|goi y|thay the|giong nhu|giong voi|cung loai|cung kieu|goi y san pham|san pham (giong|tuong tu)/.test(
         norm,
       );
-    const priceIntent = /\bgia\b|bao nhieu tien|gia bao nhieu|gia ca/.test(norm);
+    const listIntent =
+      !similarIntent &&
+      /(liet ke|danh sach|menu|catalog|cac san pham dang (co|ban)|san pham dang co|co nhung san pham|ban nhung gi|co gi ban|co gi$)/.test(
+        norm,
+      );
+    const priceIntent = /\bgia\b|bao nhieu tien|gia bao nhieu|gia ca|bang gia/.test(
+      norm,
+    );
     const stockIntent =
       /con hang|con bao nhieu|ton kho|het hang|so luong|con khong/.test(norm);
     const shopIntent =
@@ -268,25 +291,38 @@ export class AiService {
         norm,
       );
 
-    if (!listIntent && !priceIntent && !stockIntent && !shopIntent) return null;
+    if (
+      !listIntent &&
+      !priceIntent &&
+      !stockIntent &&
+      !shopIntent &&
+      !similarIntent
+    ) {
+      return null;
+    }
+
     const products = await this.loadActiveProducts();
     if (products.length === 0) return null;
+
+    if (similarIntent) {
+      return this.answerSimilarProducts(message, products);
+    }
 
     if (listIntent && !priceIntent && !stockIntent) {
       const lines = products.map(
         (product) =>
           `- ${product.name}: ${this.vnd(product.price)}${product.unit ? `/${product.unit}` : ''}` +
-          (product.available != null ? ` (con ${product.available})` : ''),
+          (product.available != null ? ` (còn ${product.available})` : ''),
       );
-      return `Hien tai NongSan Xanh dang co ${products.length} san pham:\n${lines.join('\n')}`;
+      return `Hiện tại Nông Sản Xanh đang có ${products.length} sản phẩm:\n${lines.join('\n')}`;
     }
 
     const matched = this.matchProduct(message, products);
     if (priceIntent) {
       if (matched) {
-        return `Gia ${matched.name} la ${this.vnd(matched.price)}${matched.unit ? `/${matched.unit}` : ''}.`;
+        return `Giá ${matched.name} là ${this.vnd(matched.price)}${matched.unit ? `/${matched.unit}` : ''}.`;
       }
-      return `Bang gia cac san pham hien co:\n${products
+      return `Bảng giá các sản phẩm hiện có:\n${products
         .map(
           (product) =>
             `- ${product.name}: ${this.vnd(product.price)}${product.unit ? `/${product.unit}` : ''}`,
@@ -298,19 +334,88 @@ export class AiService {
       if (matched) {
         const available = matched.available ?? 0;
         return available > 0
-          ? `${matched.name} dang con ${available}${matched.unit ? ` ${matched.unit}` : ''}.`
-          : `${matched.name} hien da het hang.`;
+          ? `${matched.name} đang còn ${available}${matched.unit ? ` ${matched.unit}` : ''}.`
+          : `${matched.name} hiện đã hết hàng.`;
       }
       const inStock = products.filter((product) => (product.available ?? 0) > 0);
       return inStock.length
-        ? `Cac san pham con hang:\n${inStock.map((product) => `- ${product.name}: con ${product.available}`).join('\n')}`
-        : 'Hien tat ca san pham tam het hang.';
+        ? `Các sản phẩm còn hàng:\n${inStock.map((product) => `- ${product.name}: còn ${product.available}`).join('\n')}`
+        : 'Hiện tất cả sản phẩm tạm hết hàng.';
     }
 
     if (shopIntent && matched) {
-      return `${matched.name} co gia ${this.vnd(matched.price)}${matched.unit ? `/${matched.unit}` : ''}. Ton kho duoc tong hop tren cac cua hang dang hoat dong.`;
+      return `${matched.name} có giá ${this.vnd(matched.price)}${matched.unit ? `/${matched.unit}` : ''}. Tồn kho được tổng hợp trên các cửa hàng đang hoạt động.`;
     }
     return null;
+  }
+
+  /**
+   * Goi y SP giong nhau: uu tien relatedProductIds (neu nhan dien duoc SP goc),
+   * fallback vector search theo cau hoi.
+   */
+  private async answerSimilarProducts(
+    message: string,
+    products: Awaited<ReturnType<AiService['loadActiveProducts']>>,
+  ): Promise<string> {
+    const byId = new Map(products.map((p) => [p.id, p]));
+    const seed = this.matchProduct(message, products);
+    let orderedIds: string[] = [];
+
+    if (seed) {
+      try {
+        const hits = await this.indexer.relatedProductIds(seed.id, 12);
+        orderedIds = hits
+          .map((h) => h.objectId)
+          .filter((id) => id && id !== seed.id);
+      } catch (error) {
+        this.logger.warn(
+          `relatedProductIds failed: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    if (orderedIds.length === 0) {
+      const hits = await this.searchVectorPointers(message, {
+        objectType: 'PRODUCT',
+        topK: 8,
+        // giong nhau: cho phep nguong thap hon search tong
+        scoreThreshold: Math.min(this.scoreThreshold, 0.35),
+        excludeObjectId: seed?.id,
+      });
+      orderedIds = hits.map((h) => h.objectId);
+    }
+
+    const similar = orderedIds
+      .map((id) => byId.get(id))
+      .filter((p): p is NonNullable<typeof p> => !!p)
+      .filter((p) => (p.available ?? 0) > 0)
+      .slice(0, 4);
+
+    if (similar.length === 0) {
+      return seed
+        ? `Mình chưa tìm thấy sản phẩm nào giống "${seed.name}" (còn hàng) để gợi ý.`
+        : 'Mình chưa tìm thấy sản phẩm tương tự phù hợp. Bạn mô tả thêm (loại hàng, mục đích dùng) để mình gợi ý chính hơn.';
+    }
+
+    const lines = similar.map(
+      (product) =>
+        `- ${product.name}: ${this.vnd(product.price)}${product.unit ? `/${product.unit}` : ''}` +
+        (product.available != null ? ` (còn ${product.available})` : ''),
+    );
+
+    if (seed) {
+      return (
+        `Dựa trên độ tương đồng nội dung với "${seed.name}", mình gợi ý ${similar.length} sản phẩm liên quan (còn hàng):\n` +
+        `${lines.join('\n')}\n` +
+        `Bạn muốn xem giá/tồn chi tiết sản phẩm nào?`
+      );
+    }
+
+    return (
+      `Gợi ý ${similar.length} sản phẩm tương tự theo câu hỏi của bạn (tìm bằng embedding, còn hàng):\n` +
+      `${lines.join('\n')}\n` +
+      `Bạn muốn hỏi thêm về sản phẩm nào?`
+    );
   }
 
   private async loadActiveProducts() {

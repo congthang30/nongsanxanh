@@ -125,7 +125,11 @@ export class StoreManagerService {
   async listStaff(user: AuthUser, overrideStoreId?: string) {
     const storeId = await this.resolveStoreId(user, overrideStoreId);
     const staff = await this.prisma.storeStaff.findMany({
-      where: { storeId },
+      where: {
+        storeId,
+        // Quan ly xem danh sach doi ngu: khong hien chinh minh
+        userId: { not: user.id },
+      },
       include: { user: { include: { profile: true } } },
       orderBy: { joinedAt: 'asc' },
     });

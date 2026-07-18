@@ -96,7 +96,9 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
-      S3_ENDPOINT: ${S3_DOCKER_ENDPOINT:-http://host.docker.internal:9000}
+      # Trong Docker network: goi service minio truc tiep (Linux khong co host.docker.internal mac dinh).
+      # Override bang S3_DOCKER_ENDPOINT neu can. Browser van dung S3_PUBLIC_URL (localhost:9000).
+      S3_ENDPOINT: ${S3_DOCKER_ENDPOINT:-http://minio:9000}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000/agri-media}
       S3_BUCKET: ${S3_BUCKET:-agri-media}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
@@ -108,8 +110,16 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: "${SMTP_FROM:-Nông Sản Xanh <no-reply@agri.local>}"
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5173}
+      # VNPay sandbox (lay tu .env goc project)
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
+      VNPAY_PAY_URL: ${VNPAY_PAY_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:3000/api/v1/payments/vnpay/return}
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
+    # Linux Docker: map host.docker.internal -> host gateway (fallback neu S3 qua host).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "3000:3000"
     volumes:

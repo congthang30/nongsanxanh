@@ -54,6 +54,7 @@ export function DashboardTopbar({ roleConfig, onToggleSidebar }: Props) {
   const showProductSearch = !isAdminArea;
   const queryClient = useQueryClient();
   const activeBranchId = useBranchContextStore((state) => state.activeBranchId);
+  const activeBranchName = useBranchContextStore((state) => state.activeBranchName);
   const setActiveBranch = useBranchContextStore((state) => state.setActiveBranch);
 
   const storesQuery = useQuery({
@@ -67,9 +68,34 @@ export function DashboardTopbar({ roleConfig, onToggleSidebar }: Props) {
 
   const handleStoreChange = (storeId: string) => {
     const store = storesQuery.data?.find((item) => item.id === storeId);
-    setActiveBranch(store ? { id: store.id, name: store.name } : null);
-    queryClient.invalidateQueries();
+    setActiveBranch(
+      store
+        ? { id: store.id, name: store.code ? `${store.code} - ${store.name}` : store.name }
+        : null,
+    );
+    // Invalidate store-scoped dashboards without a full-cache thrash.
+    void queryClient.invalidateQueries({
+      predicate: (query) => {
+        const key = String(query.queryKey[0] ?? '');
+        return (
+          key.startsWith('admin-') ||
+          key.startsWith('sm-') ||
+          key.startsWith('warehouse-') ||
+          key.startsWith('pos-') ||
+          key.includes('staff') ||
+          key.includes('inventory') ||
+          key.includes('orders')
+        );
+      },
+    });
   };
+
+  const activeBranchLabel = activeBranchId
+    ? storesQuery.data?.find((item) => item.id === activeBranchId)
+    : null;
+  const activeBranchTitle = activeBranchLabel
+    ? `${activeBranchLabel.code ? activeBranchLabel.code + ' - ' : ''}${activeBranchLabel.name}`
+    : activeBranchName || 'Toàn hệ thống';
 
   const segments = location.pathname.split('/').filter(Boolean);
   const breadcrumbs = segments.map((segment, index) => ({
@@ -130,20 +156,22 @@ export function DashboardTopbar({ roleConfig, onToggleSidebar }: Props) {
 
         {showStoreSelector && (
           <label
-            className="hidden sm:flex items-center gap-2 bg-surface border border-outline-variant px-3 py-1.5 rounded-lg"
-            title="Chi nhánh áp dụng cho dữ liệu và nghiệp vụ đang xem"
+            className="hidden sm:flex items-center gap-2 bg-surface border border-outline-variant px-3 py-1.5 rounded-lg min-w-0 max-w-[min(100%,22rem)]"
+            title={`Chi nhánh áp dụng cho dữ liệu đang xem: ${activeBranchTitle}`}
           >
             <Store className="w-4 h-4 text-primary flex-none" />
-            <span className="text-xs text-on-surface-variant hidden xl:inline">Chi nhánh hiện tại</span>
+            <span className="text-xs text-on-surface-variant hidden xl:inline flex-none">Chi nhánh hiện tại</span>
             <select
               value={activeBranchId ?? ''}
               onChange={(event) => handleStoreChange(event.target.value)}
-              className="bg-transparent text-on-surface border-none cursor-pointer text-xs max-w-48"
+              className="bg-transparent text-on-surface border-none cursor-pointer text-xs min-w-[10rem] max-w-[18rem] w-full"
               style={{ border: 'none', outline: 'none', padding: '2px 22px 2px 2px' }}
+              title={activeBranchTitle}
+              aria-label="Chọn chi nhánh hiện tại"
             >
               <option value="">Toàn hệ thống</option>
               {storesQuery.data?.map((store) => (
-                <option key={store.id} value={store.id}>
+                <option key={store.id} value={store.id} title={`${store.code ? store.code + ' - ' : ''}${store.name}`}>
                   {store.code ? store.code + ' - ' : ''}
                   {store.name}
                 </option>

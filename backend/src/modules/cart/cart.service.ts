@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { StoreInventoryService } from '../inventory/inventory.service';
@@ -14,6 +15,7 @@ import {
   RevalidateCartDto,
   UpdateCartItemDto,
 } from './dto/cart.dto';
+import { CoPurchaseService } from '../recommendations/co-purchase.service';
 
 export interface CartItemView {
   id: string;
@@ -54,10 +56,23 @@ export class CartService {
     private readonly promotion: PromotionService,
     private readonly shippingQuote: ShippingQuoteService,
     private readonly resolver: StoreResolverService,
+    private readonly coPurchase: CoPurchaseService,
   ) {}
 
   private async getOrCreateCart(userId?: string, sessionId?: string) {
     if (userId) {
+      // Token cu / DB reseed: userId trong JWT co the khong con ton tai -> FK 500
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+      if (!user) {
+        throw new UnauthorizedException({
+          code: 'USER_NOT_FOUND',
+          message:
+            'Phiên đăng nhập không còn hợp lệ (tài khoản không tồn tại). Vui lòng đăng xuất và đăng nhập lại.',
+        });
+      }
       const existing = await this.prisma.cart.findFirst({
         where: { userId, status: 'ACTIVE' },
       });
@@ -75,13 +90,26 @@ export class CartService {
     }
     throw new BadRequestException({
       code: 'CART_IDENTITY_REQUIRED',
-      message: 'Can userId hoac sessionId',
+      message: 'Cần userId hoặc sessionId',
     });
   }
 
   async getCart(userId?: string, sessionId?: string): Promise<CartView> {
     const cart = await this.getOrCreateCart(userId, sessionId);
     return this.buildCartView(cart.id);
+  }
+
+  /** SP mua kem — doc cache co-purchase (precompute), khong quet orders. */
+  async getCrossSell(userId?: string, sessionId?: string, limit = 8) {
+    const cart = await this.getOrCreateCart(userId, sessionId);
+    const items = await this.prisma.cartItem.findMany({
+      where: { cartId: cart.id },
+      include: { variant: { select: { productId: true } } },
+    });
+    const productIds = [
+      ...new Set(items.map((item) => item.variant.productId).filter(Boolean)),
+    ];
+    return this.coPurchase.recommendForCart(productIds, limit);
   }
 
   async addItem(dto: AddCartItemDto, userId?: string, sessionId?: string) {

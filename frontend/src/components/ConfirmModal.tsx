@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
+import { ModalPortal } from './ModalPortal';
 import './confirm-modal.css';
 
 interface BaseProps {
@@ -69,6 +70,7 @@ export function ConfirmModal(props: Props) {
   };
 
   return (
+    <ModalPortal>
     <div
       className="cm-backdrop"
       onClick={onCancel}
@@ -118,6 +120,7 @@ export function ConfirmModal(props: Props) {
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 

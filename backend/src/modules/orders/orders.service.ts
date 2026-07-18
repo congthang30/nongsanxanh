@@ -358,7 +358,20 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: {
-        items: true,
+        items: {
+          include: {
+            reviews: {
+              where: { userId },
+              select: {
+                id: true,
+                rating: true,
+                comment: true,
+                createdAt: true,
+              },
+              take: 1,
+            },
+          },
+        },
         statusHistory: { orderBy: { createdAt: 'asc' } },
         payments: true,
         delivery: { include: { events: { orderBy: { createdAt: 'asc' } } } },
@@ -377,10 +390,31 @@ export class OrdersService {
     if (!order || order.userId !== userId) {
       throw new NotFoundException({
         code: 'ORDER_NOT_FOUND',
-        message: 'Khong tim thay don hang',
+        message: 'Không tìm thấy đơn hàng',
       });
     }
-    return order;
+
+    const paid =
+      order.paymentStatus === 'SUCCESS' ||
+      order.paymentStatus === 'PARTIALLY_REFUNDED';
+    const delivered =
+      order.status === 'DELIVERED' || order.status === 'COMPLETED';
+    const canReviewOrder =
+      order.status !== 'CANCELLED' && (paid || delivered);
+
+    return {
+      ...order,
+      canReview: canReviewOrder,
+      items: order.items.map((item) => {
+        const mine = item.reviews[0] ?? null;
+        const { reviews: _reviews, ...rest } = item;
+        return {
+          ...rest,
+          reviewed: !!mine,
+          myReview: mine,
+        };
+      }),
+    };
   }
 
   async cancelOrder(userId: string, id: string, reason?: string) {
