@@ -4,6 +4,7 @@ import { StoreInventoryService } from '../inventory/inventory.service';
 import { StoreScopeService } from '../store/store-scope.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
+import { PrismaService } from '../../infrastructure/database/prisma.service';
 
 /**
  * Service cho nhan vien kho cua cua hang. Tat ca thao tac scope theo store
@@ -15,15 +16,27 @@ export class WarehouseService {
     private readonly inventory: StoreInventoryService,
     private readonly scope: StoreScopeService,
     private readonly audit: AuditService,
+    private readonly prisma: PrismaService,
   ) {}
 
+  private async resolveStoreId(user: AuthUser) {
+    if (this.scope.isSystemAdmin(user.roles)) {
+      const store = await this.prisma.store.findFirst({
+        where: { status: 'ACTIVE' },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (store) return store.id;
+    }
+    return this.scope.requireUserStoreId(user.id);
+  }
+
   async listInventory(user: AuthUser, q?: string, lowStockOnly?: boolean) {
-    const storeId = await this.scope.requireUserStoreId(user.id);
+    const storeId = await this.resolveStoreId(user);
     return this.inventory.listInventory(storeId, { q, lowStockOnly });
   }
 
   async listLowStock(user: AuthUser) {
-    const storeId = await this.scope.requireUserStoreId(user.id);
+    const storeId = await this.resolveStoreId(user);
     return this.inventory.listInventory(storeId, { lowStockOnly: true });
   }
 
@@ -31,7 +44,7 @@ export class WarehouseService {
     user: AuthUser,
     filter: { variantId?: string; type?: string; from?: string; to?: string },
   ) {
-    const storeId = await this.scope.requireUserStoreId(user.id);
+    const storeId = await this.resolveStoreId(user);
     return this.inventory.listTransactions(storeId, {
       variantId: filter.variantId,
       type: filter.type ? (filter.type as InventoryTxType) : undefined,
@@ -46,7 +59,7 @@ export class WarehouseService {
     quantity: number,
     reason?: string,
   ) {
-    const storeId = await this.scope.requireUserStoreId(user.id);
+    const storeId = await this.resolveStoreId(user);
     const result = await this.inventory.importStock(
       storeId,
       variantId,
@@ -71,7 +84,7 @@ export class WarehouseService {
     newQuantity: number,
     reason?: string,
   ) {
-    const storeId = await this.scope.requireUserStoreId(user.id);
+    const storeId = await this.resolveStoreId(user);
     const result = await this.inventory.adjustStock(
       storeId,
       variantId,
@@ -98,7 +111,7 @@ export class WarehouseService {
     reason: string,
     kind: 'EXPORT' | 'LOSS',
   ) {
-    const storeId = await this.scope.requireUserStoreId(user.id);
+    const storeId = await this.resolveStoreId(user);
     const result = await this.inventory.exportStock(
       storeId,
       variantId,

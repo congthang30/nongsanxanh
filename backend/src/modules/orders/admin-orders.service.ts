@@ -219,9 +219,9 @@ export class AdminOrdersService {
     return this.getOrderAdmin(orderId);
   }
 
-  listReturns(status?: string) {
+  listReturns(status?: string, storeId?: string) {
     return this.prisma.returnRequest.findMany({
-      where: status ? { status } : undefined,
+      where: { ...(status ? { status } : {}), ...(storeId ? { order: { storeId } } : {}) },
       orderBy: { createdAt: 'desc' },
       include: {
         items: { include: { orderItem: true } },

@@ -57,9 +57,9 @@ export default function AdminReportsPage() {
     <>
       <PageHeader title="Báo cáo" subtitle="Doanh thu và hiệu suất cửa hàng (30 ngày)" />
       <div className="dash-stat-grid">
-        <StatCard icon="" label="Doanh thu 30 ngày" value={revenue?.totalRevenue ?? 0} format={formatVnd} color="#16a34a" />
-        <StatCard icon="" label="Số đơn hoàn tất" value={revenue?.orderCount ?? 0} color="#0891b2" />
-        <StatCard icon="" label="Giá trị TB/đơn" value={revenue?.aov ?? 0} format={formatVnd} color="#7c3aed" />
+        <StatCard icon="TrendingUp" label="Doanh thu 30 ngày" value={revenue?.totalRevenue ?? 0} format={formatVnd} color="#16a34a" />
+        <StatCard icon="CheckCircle" label="Số đơn hoàn tất" value={revenue?.orderCount ?? 0} color="#0891b2" />
+        <StatCard icon="DollarSign" label="Giá trị TB/đơn" value={revenue?.aov ?? 0} format={formatVnd} color="#7c3aed" />
       </div>
 
       <div className="dash-table-card" style={{ marginTop: 24, padding: 20 }}>

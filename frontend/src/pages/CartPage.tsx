@@ -1,24 +1,62 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { Plus, ShoppingBag } from 'lucide-react';
 import { useCartStore } from '../lib/cart.store';
 import { useAuthStore } from '../lib/auth.store';
 import { useToastStore } from '../lib/toast.store';
-import { getErrorMessage } from '../lib/api';
+import { api, getErrorMessage, getSessionId } from '../lib/api';
 import { formatVnd } from '../lib/format';
 import { EmptyState } from '../components/States';
 import './cart.css';
 
+interface CrossSellItem {
+  productId: string;
+  variantId: string;
+  name: string;
+  slug: string;
+  image: string | null;
+  unit: string | null;
+  fromPrice: number;
+  available: number;
+  reason: 'CO_PURCHASE' | 'FALLBACK_POPULAR' | 'FALLBACK_CATEGORY';
+  score: number;
+}
+
+interface CrossSellResponse {
+  items: CrossSellItem[];
+  source: 'co_purchase' | 'mixed' | 'fallback';
+  pairRows: number;
+}
+
 export default function CartPage() {
-  const { items, subtotal, hasIssues, fetch, update, remove, loading } =
+  const { items, subtotal, hasIssues, fetch, update, remove, add, loading } =
     useCartStore();
   const { user } = useAuthStore();
   const { push } = useToastStore();
   const navigate = useNavigate();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [addingVariantId, setAddingVariantId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch().catch(() => {});
   }, [fetch]);
+
+  const productKey = items
+    .map((i) => i.productId)
+    .sort()
+    .join(',');
+
+  const crossSellQuery = useQuery({
+    queryKey: ['cart-cross-sell', productKey],
+    enabled: items.length > 0,
+    queryFn: () =>
+      api
+        .get('/cart/recommendations/cross-sell', {
+          headers: { 'X-Session-Id': getSessionId() },
+        })
+        .then((r) => r.data.data as CrossSellResponse),
+  });
 
   const changeQty = async (itemId: string, quantity: number) => {
     if (quantity < 1) return;
@@ -43,6 +81,19 @@ export default function CartPage() {
     }
   };
 
+  const addCrossSell = async (item: CrossSellItem) => {
+    setAddingVariantId(item.variantId);
+    try {
+      await add(item.variantId, 1);
+      push(`Đã thêm ${item.name} vào giỏ`);
+      await crossSellQuery.refetch();
+    } catch (e) {
+      push(getErrorMessage(e), 'error');
+    } finally {
+      setAddingVariantId(null);
+    }
+  };
+
   if (loading && items.length === 0) {
     return (
       <div className="container section">
@@ -57,11 +108,17 @@ export default function CartPage() {
         <EmptyState
           title="Giỏ hàng trống"
           description="Hãy khám phá các nông sản tươi ngon của chúng tôi."
-          action={<Link to="/products" className="btn btn-primary">Mua sắm ngay</Link>}
+          action={
+            <Link to="/products" className="btn btn-primary">
+              Mua sắm ngay
+            </Link>
+          }
         />
       </div>
     );
   }
+
+  const suggestions = crossSellQuery.data?.items ?? [];
 
   return (
     <div className="container section">
@@ -73,7 +130,10 @@ export default function CartPage() {
             {items.map((it) => {
               const itemBusy = busyId === it.id;
               return (
-                <div key={it.id} className={`card cart-item ${!it.inStock ? 'cart-item-issue' : ''}`}>
+                <div
+                  key={it.id}
+                  className={`card cart-item ${!it.inStock ? 'cart-item-issue' : ''}`}
+                >
                   <div className="cart-item-img">
                     {it.image ? (
                       <img src={it.image} alt={it.name} />
@@ -86,9 +146,13 @@ export default function CartPage() {
                       {it.name}
                     </Link>
                     <span className="muted">{it.sku}</span>
-                    <span className="price">{formatVnd(it.unitPrice)}/{it.unit}</span>
+                    <span className="price">
+                      {formatVnd(it.unitPrice)}/{it.unit}
+                    </span>
                     {!it.inStock && (
-                      <span className="cart-item-warn">Chỉ còn {it.available} {it.unit}</span>
+                      <span className="cart-item-warn">
+                        Chỉ còn {it.available} {it.unit}
+                      </span>
                     )}
                   </div>
                   <div className="qty-stepper">
@@ -96,13 +160,17 @@ export default function CartPage() {
                       onClick={() => changeQty(it.id, Math.max(1, it.quantity - 1))}
                       disabled={itemBusy}
                       aria-label="Giảm số lượng"
-                    >-</button>
+                    >
+                      -
+                    </button>
                     <span>{it.quantity}</span>
                     <button
                       onClick={() => changeQty(it.id, it.quantity + 1)}
                       disabled={itemBusy}
                       aria-label="Tăng số lượng"
-                    >+</button>
+                    >
+                      +
+                    </button>
                   </div>
                   <div className="cart-item-total price">{formatVnd(it.lineTotal)}</div>
                   <button
@@ -150,11 +218,70 @@ export default function CartPage() {
             Tiếp tục mua sắm
           </Link>
           <p className="note-banner note-banner-info" style={{ marginTop: 14 }}>
-            Cửa hàng phụ trách sẽ được hệ thống chọn tự động theo địa chỉ giao
-            hàng và tồn kho.
+            Cửa hàng phụ trách sẽ được hệ thống chọn tự động theo địa chỉ giao hàng và tồn kho.
           </p>
         </aside>
       </div>
+
+      {/* Sản phẩm mua kèm — co-purchase cache */}
+      <section className="cart-cross-sell" aria-label="Sản phẩm mua kèm">
+        <div className="cart-cross-sell-head">
+          <div>
+            <h2 className="cart-cross-sell-title">
+              <ShoppingBag size={20} aria-hidden />
+              Sản phẩm mua kèm
+            </h2>
+            <p className="muted cart-cross-sell-desc">
+              Gợi ý thêm món hay được chọn cùng với sản phẩm trong giỏ của bạn.
+            </p>
+          </div>
+        </div>
+
+        {crossSellQuery.isLoading ? (
+          <div className="cart-cross-sell-grid">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="skeleton cart-cross-sell-skeleton" />
+            ))}
+          </div>
+        ) : suggestions.length === 0 ? (
+          <p className="muted">Chưa có gợi ý mua kèm phù hợp lúc này.</p>
+        ) : (
+          <div className="cart-cross-sell-grid">
+            {suggestions.slice(0, 4).map((item) => {
+              const busy = addingVariantId === item.variantId;
+              return (
+                <div key={item.productId} className="card cart-cross-sell-card">
+                  <Link to={`/products/${item.slug}`} className="cart-cross-sell-img">
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} />
+                    ) : (
+                      <div className="product-img-ph">NS</div>
+                    )}
+                  </Link>
+                  <div className="cart-cross-sell-body">
+                    <Link to={`/products/${item.slug}`} className="cart-cross-sell-name">
+                      {item.name}
+                    </Link>
+                    <span className="price">
+                      {formatVnd(item.fromPrice)}
+                      {item.unit ? `/${item.unit}` : ''}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm cart-cross-sell-add"
+                      disabled={busy}
+                      onClick={() => addCrossSell(item)}
+                    >
+                      <Plus size={14} aria-hidden />
+                      {busy ? 'Đang thêm...' : 'Thêm vào giỏ'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

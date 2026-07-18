@@ -38,12 +38,12 @@ export default function StoreManagerDashboard() {
         subtitle="Tổng quan hoạt động cửa hàng hôm nay"
       />
       <div className="dash-stat-grid">
-        <StatCard icon="" label="Đơn mới" value={c.new ?? 0} color="#0891b2" />
-        <StatCard icon="" label="Đang soạn" value={(c.confirmed ?? 0) + (c.picking ?? 0) + (c.packed ?? 0)} color="#ca8a04" />
-        <StatCard icon="" label="Đang giao" value={c.outForDelivery ?? 0} color="#7c3aed" />
-        <StatCard icon="" label="Đơn hôm nay" value={data?.ordersToday ?? 0} color="#16a34a" />
-        <StatCard icon="" label="Doanh thu hôm nay" value={data?.revenueToday ?? 0} format={formatVnd} color="#15803d" />
-        <StatCard icon="" label="Sản phẩm sắp hết" value={data?.lowStockCount ?? 0} color="#dc2626" />
+        <StatCard icon="ClipboardList" label="Đơn mới" value={c.new ?? 0} color="#0891b2" />
+        <StatCard icon="Package" label="Đang soạn" value={(c.confirmed ?? 0) + (c.picking ?? 0) + (c.packed ?? 0)} color="#ca8a04" />
+        <StatCard icon="Truck" label="Đang giao" value={c.outForDelivery ?? 0} color="#7c3aed" />
+        <StatCard icon="ShoppingBag" label="Đơn hôm nay" value={data?.ordersToday ?? 0} color="#16a34a" />
+        <StatCard icon="TrendingUp" label="Doanh thu hôm nay" value={data?.revenueToday ?? 0} format={formatVnd} color="#15803d" />
+        <StatCard icon="AlertTriangle" label="Sản phẩm sắp hết" value={data?.lowStockCount ?? 0} color="#dc2626" />
       </div>
 
       <div className="dash-quick-grid" style={{ marginTop: 24 }}>

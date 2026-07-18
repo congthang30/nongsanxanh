@@ -52,12 +52,12 @@ export default function POSReportsPage() {
       />
 
       <div className="dash-stat-grid">
-        <StatCard icon="" label="Doanh thu POS" value={data?.revenue ?? 0} format={formatVnd} color="#16a34a" />
-        <StatCard icon="" label="Số hóa đơn" value={data?.billCount ?? 0} color="#0891b2" />
-        <StatCard icon="" label="Giá trị TB/hóa đơn" value={data?.avgBillValue ?? 0} format={formatVnd} color="#7c3aed" />
-        <StatCard icon="" label="Tồn kho đã bán (POS)" value={data?.inventoryReducedUnits ?? 0} color="#ca8a04" />
-        <StatCard icon="" label="Hóa đơn hủy" value={data?.voidCount ?? 0} color="#dc2626" />
-        <StatCard icon="" label="Hóa đơn hoàn trả" value={data?.refundCount ?? 0} color="#dc2626" />
+        <StatCard icon="TrendingUp" label="Doanh thu POS" value={data?.revenue ?? 0} format={formatVnd} color="#16a34a" />
+        <StatCard icon="FileText" label="Số hóa đơn" value={data?.billCount ?? 0} color="#0891b2" />
+        <StatCard icon="DollarSign" label="Giá trị TB/hóa đơn" value={data?.avgBillValue ?? 0} format={formatVnd} color="#7c3aed" />
+        <StatCard icon="Package" label="Tồn kho đã bán (POS)" value={data?.inventoryReducedUnits ?? 0} color="#ca8a04" />
+        <StatCard icon="XCircle" label="Hóa đơn hủy" value={data?.voidCount ?? 0} color="#dc2626" />
+        <StatCard icon="Undo2" label="Hóa đơn hoàn trả" value={data?.refundCount ?? 0} color="#dc2626" />
       </div>
 
       <div className="dash-table-card" style={{ marginTop: 8, padding: 20, marginBottom: 20 }}>

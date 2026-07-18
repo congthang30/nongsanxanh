@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { BarcodeStatus, BarcodeType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import bwipjs from 'bwip-js';
+import QRCode from 'qrcode';
 import { StoreInventoryService } from '../inventory/inventory.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateBarcodeDto, UpdateBarcodeDto } from './dto/pos.dto';
@@ -202,6 +204,32 @@ export class BarcodeService {
       unit: b.variant.unit,
       createdAt: b.createdAt,
     }));
+  }
+
+  async renderCode(id: string, format: 'barcode' | 'qr'): Promise<Buffer> {
+    const record = await this.prisma.productBarcode.findUnique({ where: { id } });
+    if (!record) {
+      throw new NotFoundException({
+        code: 'BARCODE_NOT_FOUND',
+        message: 'Khong tim thay ma vach',
+      });
+    }
+    if (format === 'qr') {
+      return QRCode.toBuffer(record.barcode, {
+        type: 'png',
+        width: 320,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+      });
+    }
+    return bwipjs.toBuffer({
+      bcid: 'code128',
+      text: record.barcode,
+      scale: 3,
+      height: 14,
+      includetext: true,
+      textxalign: 'center',
+    });
   }
 
   async createBarcode(variantId: string, dto: CreateBarcodeDto, actorId: string) {

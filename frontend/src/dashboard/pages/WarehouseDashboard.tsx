@@ -27,9 +27,9 @@ export default function WarehouseDashboard() {
     <>
       <PageHeader title="Kho cửa hàng" subtitle="Soạn hàng và quản lý tồn kho" />
       <div className="dash-stat-grid">
-        <StatCard icon="" label="Chờ soạn" value={confirmed} color="#ca8a04" />
-        <StatCard icon="" label="Đang soạn" value={picking} color="#0891b2" />
-        <StatCard icon="" label="Sản phẩm sắp hết" value={lowStock?.length ?? 0} color="#dc2626" />
+        <StatCard icon="Clock" label="Chờ soạn" value={confirmed} color="#ca8a04" />
+        <StatCard icon="Box" label="Đang soạn" value={picking} color="#0891b2" />
+        <StatCard icon="AlertTriangle" label="Sản phẩm sắp hết" value={lowStock?.length ?? 0} color="#dc2626" />
       </div>
       <div className="dash-quick-grid" style={{ marginTop: 24 }}>
         <Link to="/warehouse/pick" className="dash-quick-card">

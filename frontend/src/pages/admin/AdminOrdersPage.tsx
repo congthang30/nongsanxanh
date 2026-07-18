@@ -7,6 +7,7 @@ import { PageHeader } from '../../dashboard/components/PageHeader';
 import { DataTable } from '../../dashboard/components/DataTable';
 import { StatusBadge } from '../../dashboard/components/StatusBadge';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { ModalPortal } from '../../components/ModalPortal';
 
 interface AdminOrder {
   id: string;
@@ -151,6 +152,7 @@ function ReassignModal({ order, stores, onClose, onDone }: {
     onError: (e) => push(getErrorMessage(e), 'error'),
   });
   return (
+    <ModalPortal>
     <div className="dash-modal-overlay" onClick={onClose}>
       <div className="dash-modal" onClick={(e) => e.stopPropagation()}>
         <h2>Chuyển đơn #{order.orderNumber}</h2>
@@ -165,5 +167,6 @@ function ReassignModal({ order, stores, onClose, onDone }: {
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

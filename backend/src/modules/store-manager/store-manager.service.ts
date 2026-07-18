@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { DeliveryStatus, OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
+import { DeliveryStatus, OrderStatus, PaymentMethod, PaymentStatus, StoreStaffStatus } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { StoreScopeService } from '../store/store-scope.service';
@@ -26,7 +26,10 @@ export class StoreManagerService {
     private readonly events: EventEmitter2,
   ) {}
 
-  private async resolveStoreId(user: AuthUser): Promise<string> {
+  private async resolveStoreId(user: AuthUser, overrideStoreId?: string): Promise<string> {
+    if (overrideStoreId && this.scope.isSystemAdmin(user.roles)) {
+      return overrideStoreId;
+    }
     // Manager: store ma user dang la STORE_MANAGER. Admin can pass nhung MVP dung store cua minh.
     const storeId = await this.scope.getUserStoreId(user.id);
     if (!storeId) {
@@ -45,8 +48,8 @@ export class StoreManagerService {
     return storeId;
   }
 
-  async getStore(user: AuthUser) {
-    const storeId = await this.resolveStoreId(user);
+  async getStore(user: AuthUser, overrideStoreId?: string) {
+    const storeId = await this.resolveStoreId(user, overrideStoreId);
     const store = await this.prisma.store.findUnique({
       where: { id: storeId },
       include: {
@@ -58,8 +61,8 @@ export class StoreManagerService {
     return store;
   }
 
-  async dashboard(user: AuthUser) {
-    const storeId = await this.resolveStoreId(user);
+  async dashboard(user: AuthUser, overrideStoreId?: string) {
+    const storeId = await this.resolveStoreId(user, overrideStoreId);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -119,10 +122,14 @@ export class StoreManagerService {
     };
   }
 
-  async listStaff(user: AuthUser) {
-    const storeId = await this.resolveStoreId(user);
+  async listStaff(user: AuthUser, overrideStoreId?: string) {
+    const storeId = await this.resolveStoreId(user, overrideStoreId);
     const staff = await this.prisma.storeStaff.findMany({
-      where: { storeId },
+      where: {
+        storeId,
+        // Quan ly xem danh sach doi ngu: khong hien chinh minh
+        userId: { not: user.id },
+      },
       include: { user: { include: { profile: true } } },
       orderBy: { joinedAt: 'asc' },
     });
@@ -138,13 +145,65 @@ export class StoreManagerService {
     }));
   }
 
-  async listInventory(user: AuthUser, q?: string, lowStockOnly?: boolean) {
-    const storeId = await this.resolveStoreId(user);
+  async updateStaffStatus(
+    user: AuthUser,
+    staffId: string,
+    status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED',
+    overrideStoreId?: string,
+  ) {
+    const storeId = await this.resolveStoreId(user, overrideStoreId);
+    if (!Object.values(StoreStaffStatus).includes(status as StoreStaffStatus)) {
+      throw new BadRequestException({
+        code: 'STAFF_STATUS_INVALID',
+        message: 'Trang thai nhan vien khong hop le',
+      });
+    }
+    const staff = await this.prisma.storeStaff.findFirst({
+      where: { id: staffId, storeId },
+    });
+    if (!staff) {
+      throw new NotFoundException({
+        code: 'STORE_STAFF_NOT_FOUND',
+        message: 'Khong tim thay nhan vien trong cua hang',
+      });
+    }
+    if (staff.role === 'STORE_MANAGER' || staff.userId === user.id) {
+      throw new BadRequestException({
+        code: 'MANAGER_STATUS_PROTECTED',
+        message: 'Quan ly khong the tu thay doi trang thai cua minh',
+      });
+    }
+
+    const updated = await this.prisma.storeStaff.update({
+      where: { id: staffId },
+      data: {
+        status: status as StoreStaffStatus,
+        leftAt:
+          status === StoreStaffStatus.ACTIVE
+            ? null
+            : status === StoreStaffStatus.INACTIVE
+              ? new Date()
+              : undefined,
+      },
+    });
+    await this.audit.log({
+      action: 'STORE_STAFF_STATUS_CHANGED',
+      actorId: user.id,
+      targetType: 'StoreStaff',
+      targetId: staffId,
+      storeId,
+      metadata: { status },
+    });
+    return updated;
+  }
+
+  async listInventory(user: AuthUser, q?: string, lowStockOnly?: boolean, overrideStoreId?: string) {
+    const storeId = await this.resolveStoreId(user, overrideStoreId);
     return this.inventory.listInventory(storeId, { q, lowStockOnly });
   }
 
-  async updateStoreStatus(user: AuthUser, status: string) {
-    const storeId = await this.resolveStoreId(user);
+  async updateStoreStatus(user: AuthUser, status: string, overrideStoreId?: string) {
+    const storeId = await this.resolveStoreId(user, overrideStoreId);
     const allowed = ['ACTIVE', 'PAUSED'];
     if (!allowed.includes(status)) {
       throw new NotFoundException({
@@ -158,8 +217,8 @@ export class StoreManagerService {
     });
   }
 
-  async reports(user: AuthUser) {
-    const storeId = await this.resolveStoreId(user);
+  async reports(user: AuthUser, overrideStoreId?: string) {
+    const storeId = await this.resolveStoreId(user, overrideStoreId);
     const last7 = new Date();
     last7.setDate(last7.getDate() - 7);
 

@@ -1,0 +1,50 @@
+/* Page enter / leave — used by PageTransition
+   IMPORTANT: do NOT use transform here. Transform/will-change:transform on an
+   ancestor makes position:fixed modals size to the content column instead of
+   the full viewport (forms appear "same width as the list" and clip fields). */
+.page-transition {
+  width: 100%;
+  min-width: 0;
+}
+
+.page-transition--enter {
+  animation: page-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.page-transition--exit {
+  animation: page-exit 0.16s cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+
+.page-transition--idle {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+  filter: none;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes page-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition--enter,
+  .page-transition--exit {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

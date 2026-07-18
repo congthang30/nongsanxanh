@@ -1,11 +1,9 @@
 interface Props {
   status: string;
-  /** Dùng bảng nhãn thanh toán thay vì nhãn đơn/giao. */
   kind?: 'order' | 'payment';
 }
 
 const MAP: Record<string, { label: string; cls: string }> = {
-  // Order lifecycle
   PENDING_PAYMENT: { label: 'Chờ thanh toán', cls: 'dash-badge-amber' },
   PLACED: { label: 'Đã đặt hàng', cls: 'dash-badge-blue' },
   STORE_CONFIRMED: { label: 'Đã xác nhận', cls: 'dash-badge-blue' },
@@ -19,25 +17,24 @@ const MAP: Record<string, { label: string; cls: string }> = {
   DELIVERY_FAILED: { label: 'Giao thất bại', cls: 'dash-badge-red' },
   RETURN_REQUESTED: { label: 'Yêu cầu trả', cls: 'dash-badge-amber' },
   RETURNED: { label: 'Đã trả', cls: 'dash-badge-red' },
-  // Delivery
   ASSIGNED: { label: 'Đã gán', cls: 'dash-badge-blue' },
   PICKED_FROM_STORE: { label: 'Đã lấy hàng', cls: 'dash-badge-blue' },
-  ARRIVED_AT_CUSTOMER: { label: 'Đến khách', cls: 'dash-badge-blue' },
+  ARRIVED_AT_CUSTOMER: { label: 'Đến khách hàng', cls: 'dash-badge-blue' },
   FAILED: { label: 'Thất bại', cls: 'dash-badge-red' },
-  // Store / inventory
   ACTIVE: { label: 'Hoạt động', cls: 'dash-badge-green' },
   PAUSED: { label: 'Tạm dừng', cls: 'dash-badge-amber' },
   CLOSED: { label: 'Đóng cửa', cls: 'dash-badge-slate' },
   SUSPENDED: { label: 'Tạm khóa', cls: 'dash-badge-red' },
-  INACTIVE: { label: 'Tắt', cls: 'dash-badge-slate' },
+  LOCKED: { label: 'Đã khóa', cls: 'dash-badge-red' },
+  INACTIVE: { label: 'Không hoạt động', cls: 'dash-badge-slate' },
+  PENDING: { label: 'Đang chờ', cls: 'dash-badge-amber' },
   OUT_OF_STOCK: { label: 'Hết hàng', cls: 'dash-badge-red' },
   LOW_STOCK: { label: 'Sắp hết', cls: 'dash-badge-amber' },
   IN_STOCK: { label: 'Còn hàng', cls: 'dash-badge-green' },
-  // Staff roles
   STORE_MANAGER: { label: 'Quản lý', cls: 'dash-badge-green' },
   STORE_STAFF: { label: 'Bán hàng', cls: 'dash-badge-blue' },
   WAREHOUSE_STAFF: { label: 'Kho', cls: 'dash-badge-amber' },
-  SHIPPER: { label: 'Shipper', cls: 'dash-badge-violet' },
+  SHIPPER: { label: 'Giao hàng', cls: 'dash-badge-violet' },
   SUPPORT: { label: 'Hỗ trợ', cls: 'dash-badge-blue' },
   ADMIN: { label: 'Admin', cls: 'dash-badge-red' },
   SUPER_ADMIN: { label: 'Super Admin', cls: 'dash-badge-red' },
@@ -56,6 +53,6 @@ const PAYMENT_MAP: Record<string, { label: string; cls: string }> = {
 
 export function StatusBadge({ status, kind = 'order' }: Props) {
   const table = kind === 'payment' ? PAYMENT_MAP : MAP;
-  const m = table[status] ?? { label: status, cls: 'dash-badge-slate' };
-  return <span className={`dash-badge ${m.cls}`}>{m.label}</span>;
+  const value = table[status] ?? { label: status, cls: 'dash-badge-slate' };
+  return <span className={'dash-badge ' + value.cls}>{value.label}</span>;
 }

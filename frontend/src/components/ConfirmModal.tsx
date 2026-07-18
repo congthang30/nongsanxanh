@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
+import { ModalPortal } from './ModalPortal';
 import './confirm-modal.css';
 
 interface BaseProps {
@@ -13,13 +14,11 @@ interface BaseProps {
 }
 
 interface ConfirmProps extends BaseProps {
-  /** Khong yeu cau nhap ly do */
   requireReason?: false;
   onConfirm: () => void;
 }
 
 interface ReasonProps extends BaseProps {
-  /** Yeu cau nguoi dung nhap ly do truoc khi confirm */
   requireReason: true;
   reasonLabel?: string;
   reasonPlaceholder?: string;
@@ -29,10 +28,6 @@ interface ReasonProps extends BaseProps {
 
 type Props = ConfirmProps | ReasonProps;
 
-/**
- * Modal xac nhan dung chung cho cac action nghiep vu (huy don, tu choi, giao that bai...).
- * Thay the prompt()/confirm() tho. Ho tro che do nhap ly do bat buoc.
- */
 export function ConfirmModal(props: Props) {
   const {
     open,
@@ -46,37 +41,36 @@ export function ConfirmModal(props: Props) {
   } = props;
   const [reason, setReason] = useState('');
 
-  // Reset reason khi mo lai
   useEffect(() => {
     if (open) setReason('');
   }, [open]);
 
-  // Dong bang phim Esc
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCancel();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, onCancel]);
 
   if (!open) return null;
 
   const requireReason = props.requireReason === true;
-  const minLen = requireReason ? props.minReasonLength ?? 3 : 0;
-  const reasonValid = !requireReason || reason.trim().length >= minLen;
+  const minLength = requireReason ? props.minReasonLength ?? 3 : 0;
+  const reasonValid = !requireReason || reason.trim().length >= minLength;
 
   const handleConfirm = () => {
     if (requireReason) {
       if (!reasonValid) return;
       props.onConfirm(reason.trim());
-    } else {
-      props.onConfirm();
+      return;
     }
+    props.onConfirm();
   };
 
   return (
+    <ModalPortal>
     <div
       className="cm-backdrop"
       onClick={onCancel}
@@ -84,28 +78,24 @@ export function ConfirmModal(props: Props) {
       aria-modal="true"
       aria-label={title}
     >
-      <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="cm-modal" onClick={(event) => event.stopPropagation()}>
         <h3 className="cm-title">{title}</h3>
         {message && <div className="cm-message">{message}</div>}
 
         {requireReason && (
           <div className="cm-field">
-            <label htmlFor="cm-reason">
-              {props.reasonLabel ?? 'Lý do'}
-            </label>
+            <label htmlFor="cm-reason">{props.reasonLabel ?? 'Lý do'}</label>
             <textarea
               id="cm-reason"
               className="cm-textarea"
               rows={3}
               placeholder={props.reasonPlaceholder ?? 'Nhập lý do...'}
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(event) => setReason(event.target.value)}
               autoFocus
             />
             {!reasonValid && reason.length > 0 && (
-              <span className="cm-error">
-                Vui lòng nhập ít nhất {minLen} ký tự
-              </span>
+              <span className="cm-error">Vui lòng nhập ít nhất {minLength} ký tự</span>
             )}
           </div>
         )}
@@ -121,7 +111,7 @@ export function ConfirmModal(props: Props) {
           </button>
           <button
             type="button"
-            className={`cm-btn ${danger ? 'cm-btn-danger' : 'cm-btn-primary'}`}
+            className={'cm-btn ' + (danger ? 'cm-btn-danger' : 'cm-btn-primary')}
             onClick={handleConfirm}
             disabled={loading || (requireReason && !reasonValid)}
           >
@@ -130,24 +120,18 @@ export function ConfirmModal(props: Props) {
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 
-/**
- * Hook tien ich quan ly 1 confirm modal voi payload generic.
- * Vi du:
- *   const dialog = useConfirm<string>();
- *   dialog.open(shipmentId);
- *   <ConfirmModal open={dialog.isOpen} ... onConfirm={() => doSomething(dialog.payload)} onCancel={dialog.close} />
- */
 export function useConfirm<T = void>() {
   const [isOpen, setIsOpen] = useState(false);
   const [payload, setPayload] = useState<T | undefined>(undefined);
   return {
     isOpen,
     payload,
-    open: (p?: T) => {
-      setPayload(p);
+    open: (value?: T) => {
+      setPayload(value);
       setIsOpen(true);
     },
     close: () => setIsOpen(false),

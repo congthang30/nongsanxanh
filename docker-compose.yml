@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
       POSTGRES_USER: agri
@@ -16,36 +16,146 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-service:
+    build:
+      context: ./ai-service
+      args:
+        INSTALL_LOCAL_MODEL: "false"
+    restart: unless-stopped
+    environment:
+      AI_EMBEDDING_PROVIDER: cloud
+      AI_CLOUD_EMBEDDING_MODEL: ${AI_CLOUD_EMBEDDING_MODEL:-jina-embeddings-v3}
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-1024}
+      JINA_API_KEY: ${JINA_API_KEY:-}
+      AI_GENERATION_PROVIDER: ${AI_GENERATION_PROVIDER:-none}
+      AI_CLOUD_GENERATION_MODEL: ${AI_CLOUD_GENERATION_MODEL:-gemini-2.5-flash}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-seed:
+    profiles: ["seed"]
+    build:
+      context: ./backend
+      target: builder
+    depends_on:
+      db:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://agri:agri_secret@db:5432/agri?schema=public
+      # Sau seed domain: goi AI embed va ghi pgvector (ai_vector_index)
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-1024}
+      SEED_EMBED_WAIT_MS: ${SEED_EMBED_WAIT_MS:-180000}
+      SEED_EMBED_TIMEOUT_MS: ${SEED_EMBED_TIMEOUT_MS:-180000}
+      # SEED_SKIP_EMBEDDINGS: "1"
+    volumes:
+      # Dev: seed script moi (seed-embeddings) khong can rebuild image
+      - ./backend/prisma:/app/prisma
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed"
+    restart: "no"
+
   backend:
     build:
       context: ./backend
+      target: dev
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       DATABASE_URL: postgresql://agri:agri_secret@db:5432/agri?schema=public
+      REDIS_URL: redis://redis:6379
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-1024}
+      # Neu seed chay luc AI chua embed duoc: backend boot se reindex khi vector PRODUCT = 0
+      AI_AUTO_REINDEX_ON_EMPTY: ${AI_AUTO_REINDEX_ON_EMPTY:-true}
+      CHAT_MEMORY_TTL_SECONDS: ${CHAT_MEMORY_TTL_SECONDS:-604800}
+      CHAT_MEMORY_MAX_MESSAGES: ${CHAT_MEMORY_MAX_MESSAGES:-100}
+      VECTOR_SEARCH_TOP_K: ${VECTOR_SEARCH_TOP_K:-5}
+      VECTOR_SCORE_THRESHOLD: ${VECTOR_SCORE_THRESHOLD:-0.62}
+      AI_VECTOR_SYNC_DEBOUNCE_MS: ${AI_VECTOR_SYNC_DEBOUNCE_MS:-10000}
+      AI_VECTOR_SYNC_ATTEMPTS: ${AI_VECTOR_SYNC_ATTEMPTS:-3}
+      AI_VECTOR_SYNC_CONCURRENCY: ${AI_VECTOR_SYNC_CONCURRENCY:-2}
+      AI_VECTOR_SYNC_REMOVE_ON_COMPLETE: ${AI_VECTOR_SYNC_REMOVE_ON_COMPLETE:-1000}
+      AI_VECTOR_SYNC_REMOVE_ON_FAIL: ${AI_VECTOR_SYNC_REMOVE_ON_FAIL:-5000}
+      AI_VECTOR_EXPIRY_SCAN_INTERVAL_MS: ${AI_VECTOR_EXPIRY_SCAN_INTERVAL_MS:-900000}
       PORT: "3000"
       # Cac bien sau nen override qua .env hoac secrets khi deploy thuc te
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Trong Docker network: goi service minio truc tiep (Linux khong co host.docker.internal mac dinh).
+      # Override bang S3_DOCKER_ENDPOINT neu can. Browser van dung S3_PUBLIC_URL (localhost:9000).
+      S3_ENDPOINT: ${S3_DOCKER_ENDPOINT:-http://minio:9000}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000/agri-media}
+      S3_BUCKET: ${S3_BUCKET:-agri-media}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
       SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: "${SMTP_FROM:-Nông Sản Xanh <no-reply@agri.local>}"
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5173}
+      # VNPay sandbox (lay tu .env goc project)
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
+      VNPAY_PAY_URL: ${VNPAY_PAY_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:3000/api/v1/payments/vnpay/return}
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    # Linux Docker: map host.docker.internal -> host gateway (fallback neu S3 qua host).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
 
   frontend:
     build:
       context: ./frontend
+      target: dev
     restart: unless-stopped
     depends_on:
       - backend
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
     ports:
-      - "5173:80"
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
 
 volumes:
   pgdata:
+  redisdata:
+  backend_node_modules:
+  frontend_node_modules:

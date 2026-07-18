@@ -1,20 +1,22 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import { formatVnd } from '../../lib/format';
 import { PageHeader } from '../../dashboard/components/PageHeader';
 import { DataTable } from '../../dashboard/components/DataTable';
 import { StatusBadge } from '../../dashboard/components/StatusBadge';
+import { StockMovementModal, type StockMovementMode } from '../../dashboard/components/StockMovementModal';
 
 interface StoreOpt { id: string; name: string; }
 interface InvRow {
-  id: string; sku: string; productName: string; unit: string;
+  id: string; variantId: string; sku: string; productName: string; unit: string;
   quantityOnHand: number; reservedQuantity: number; available: number;
   lowStockThreshold: number; status: string;
 }
 
 export default function AdminInventoryPage() {
+  const qc = useQueryClient();
   const [storeId, setStoreId] = useState('');
+  const [modal, setModal] = useState<{ row: InvRow; mode: StockMovementMode } | null>(null);
 
   const { data: stores } = useQuery({
     queryKey: ['admin-stores-opt'],
@@ -37,6 +39,7 @@ export default function AdminInventoryPage() {
         </select>
       </div>
       {storeId ? (
+        <>
         <DataTable<InvRow>
           rows={inventory ?? []}
           loading={isLoading}
@@ -49,8 +52,33 @@ export default function AdminInventoryPage() {
             { key: 'reserved', title: 'Đang giữ', align: 'right', render: (r) => r.reservedQuantity },
             { key: 'available', title: 'Khả dụng', align: 'right', render: (r) => <strong style={{ color: r.available <= r.lowStockThreshold ? '#dc2626' : '#16a34a' }}>{r.available}</strong> },
             { key: 'status', title: 'Trạng thái', render: (r) => <StatusBadge status={r.status} /> },
+            {
+              key: 'actions',
+              title: 'Thao tác',
+              render: (r) => (
+                <div className="dash-row-actions">
+                  <button className="dash-btn dash-btn-sm dash-btn-primary" onClick={() => setModal({ row: r, mode: 'import' })}>Nhập</button>
+                  <button className="dash-btn dash-btn-sm" disabled={r.available <= 0} onClick={() => setModal({ row: r, mode: 'export' })}>Xuất / hủy</button>
+                  <button className="dash-btn dash-btn-sm" onClick={() => setModal({ row: r, mode: 'adjust' })}>Kiểm kê</button>
+                </div>
+              ),
+            },
           ]}
         />
+          {modal && (
+            <StockMovementModal
+              row={modal.row}
+              mode={modal.mode}
+              endpointPrefix="/admin/inventory"
+              storeId={storeId}
+              onClose={() => setModal(null)}
+              onDone={() => {
+                setModal(null);
+                qc.invalidateQueries({ queryKey: ['admin-inventory', storeId] });
+              }}
+            />
+          )}
+        </>
       ) : (
         <div className="dash-table-card" style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
           Chọn cửa hàng để xem tồn kho.

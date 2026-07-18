@@ -31,4 +31,90 @@
 .empty-cart { text-align: center; padding: 64px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .empty-emoji { font-size: 64px; }
 
-@media (max-width: 900px) { .cart-layout { grid-template-columns: 1fr; } .cart-item { grid-template-columns: 64px 1fr auto; } .cart-item-total, .cart-remove { grid-column: 2 / -1; text-align: left; } }
+/* Cross-sell / mua kèm */
+.cart-cross-sell {
+  margin-top: 40px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line, #e6ece8);
+}
+.cart-cross-sell-head {
+  margin-bottom: 16px;
+}
+.cart-cross-sell-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-900, #0f1f17);
+}
+.cart-cross-sell-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 40rem;
+}
+.cart-cross-sell-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.cart-cross-sell-skeleton {
+  height: 260px;
+  border-radius: 12px;
+}
+.cart-cross-sell-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.cart-cross-sell-img {
+  display: block;
+  aspect-ratio: 4 / 3;
+  background: var(--surface-2, #f7faf8);
+  overflow: hidden;
+}
+.cart-cross-sell-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cart-cross-sell-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.cart-cross-sell-name {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.35;
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+.cart-cross-sell-name:hover {
+  color: var(--green-700, #15803d);
+}
+.cart-cross-sell-add {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .cart-cross-sell-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .cart-layout { grid-template-columns: 1fr; }
+  .cart-item { grid-template-columns: 64px 1fr auto; }
+  .cart-item-total, .cart-remove { grid-column: 2 / -1; text-align: left; }
+}
+@media (max-width: 480px) {
+  .cart-cross-sell-grid { grid-template-columns: 1fr; }
+}

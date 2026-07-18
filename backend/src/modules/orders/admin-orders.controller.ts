@@ -48,8 +48,8 @@ export class AdminOrdersController {
   }
 
   @Get('returns/list')
-  listReturns(@Query('status') status?: string) {
-    return this.adminOrders.listReturns(status);
+  listReturns(@Query('status') status?: string, @Query('storeId') storeId?: string) {
+    return this.adminOrders.listReturns(status, storeId);
   }
 
   /** P1-01: Admin duyet/tu choi yeu cau tra hang online (restock + refund pending). */

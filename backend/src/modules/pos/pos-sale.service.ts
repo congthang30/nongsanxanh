@@ -49,8 +49,8 @@ export class POSSaleService {
   // ---------------- Helpers ----------------
 
   /** Store cua cashier hien tai (chong IDOR: cashier chi ban tai store minh). */
-  private async cashierStoreId(user: AuthUser): Promise<string> {
-    return this.scope.requireUserStoreId(user.id);
+  private async cashierStoreId(user: AuthUser, requestedStoreId?: string): Promise<string> {
+    return this.scope.resolveOperationalStoreId(user, requestedStoreId);
   }
 
   /**
@@ -125,8 +125,8 @@ export class POSSaleService {
   // ---------------- Sale CRUD ----------------
 
   /** Mo hoa don draft moi tai store cua cashier. Tu dam bao co ca mo. */
-  async createSale(user: AuthUser, customerPhone?: string) {
-    const storeId = await this.cashierStoreId(user);
+  async createSale(user: AuthUser, customerPhone?: string, requestedStoreId?: string) {
+    const storeId = await this.cashierStoreId(user, requestedStoreId);
     const sale = await this.prisma.$transaction(async (tx) => {
       const shiftId = await this.shifts.ensureOpenShift(tx, user.id, storeId);
       let customerId: string | null = null;
@@ -316,8 +316,8 @@ export class POSSaleService {
   }
 
   /** Danh sach hoa don cua cashier trong ca hien tai (hoac gan day). */
-  async listHeldSales(user: AuthUser) {
-    const storeId = await this.cashierStoreId(user);
+  async listHeldSales(user: AuthUser, requestedStoreId?: string) {
+    const storeId = await this.cashierStoreId(user, requestedStoreId);
     const sales = await this.prisma.pOSSale.findMany({
       where: { storeId, cashierId: user.id, status: POSSaleStatus.HELD },
       orderBy: { updatedAt: 'desc' },

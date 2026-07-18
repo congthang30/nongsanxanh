@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp, Sparkles, Tags } from 'lucide-react';
 import { api } from '../lib/api';
 import { formatVnd } from '../lib/format';
 import { useCartStore } from '../lib/cart.store';
@@ -11,6 +12,7 @@ import './product-detail.css';
 interface Variant {
   id: string; sku: string; unit: string; price: number;
   compareAtPrice: number | null; available: number; storeCoverage?: number;
+  stores?: { id: string; name: string; available: number }[];
 }
 interface ProductDetail {
   id: string; name: string; description: string | null; originRegion: string | null;
@@ -26,20 +28,45 @@ interface Review {
   id: string; rating: number; comment: string | null; createdAt: string;
   user: { profile: { fullName: string } | null };
 }
+interface RelatedProduct {
+  id: string;
+  name: string;
+  slug: string;
+  image: string | null;
+  fromPrice: number | null;
+  unit: string | null;
+  ratingAvg: number;
+}
+interface RelatedProductsResponse {
+  byEmbedding: RelatedProduct[];
+  byCategory: RelatedProduct[];
+  preview: RelatedProduct[];
+}
 
 export default function ProductDetailPage() {
+  // Route: /products/:slug — param co the la slug hoac UUID (ProductCard link bang id)
   const { slug } = useParams();
+  const identifier = slug?.trim() ?? '';
   const { add } = useCartStore();
   const { push } = useToastStore();
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
   const [adding, setAdding] = useState(false);
+  const [showAllRelated, setShowAllRelated] = useState(false);
 
   // San pham la global cua he thong; ton kho hien thi la GOP toan he thong.
-  const { data: product, isLoading } = useQuery({
-    queryKey: ['product', slug],
-    queryFn: () => api.get(`/products/${slug}`).then((r) => r.data.data as ProductDetail),
+  const {
+    data: product,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['product', identifier],
+    enabled: !!identifier,
+    queryFn: () =>
+      api.get(`/products/${encodeURIComponent(identifier)}`).then((r) => r.data.data as ProductDetail),
   });
 
   const { data: reviews } = useQuery({
@@ -49,16 +76,54 @@ export default function ProductDetailPage() {
   });
 
   const { data: related } = useQuery({
-    queryKey: ['related', slug],
-    enabled: !!slug,
+    queryKey: ['related', identifier],
+    enabled: !!identifier,
     queryFn: () =>
-      api.get(`/products/${slug}/related`).then(
-        (r) => r.data.data as { id: string; name: string; slug: string; image: string | null; fromPrice: number | null; unit: string | null; ratingAvg: number }[],
-      ),
+      api
+        .get(`/products/${encodeURIComponent(identifier)}/related`)
+        .then((r) => r.data.data as RelatedProductsResponse),
   });
 
-  if (isLoading || !product) {
-    return <div className="container section"><div className="skeleton" style={{ height: 420 }} /></div>;
+  const relatedPreview = related?.preview ?? [];
+  const relatedEmbedding = related?.byEmbedding ?? [];
+  const relatedCategory = related?.byCategory ?? [];
+  const relatedTotal = useMemo(() => {
+    const ids = new Set<string>();
+    for (const p of relatedEmbedding) ids.add(p.id);
+    for (const p of relatedCategory) ids.add(p.id);
+    return ids.size;
+  }, [relatedEmbedding, relatedCategory]);
+  const hasMoreRelated = relatedTotal > relatedPreview.length;
+
+  if (isLoading) {
+    return (
+      <div className="container section">
+        <div className="skeleton" style={{ height: 420 }} />
+      </div>
+    );
+  }
+
+  if (isError || !product) {
+    return (
+      <div className="container section">
+        <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+          <h2 style={{ marginBottom: 8 }}>Không tải được sản phẩm</h2>
+          <p className="muted" style={{ marginBottom: 16 }}>
+            {isError ? getErrorMessage(error) : 'Không tìm thấy sản phẩm hoặc đường dẫn không hợp lệ.'}
+          </p>
+          <div className="flex gap center" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link className="btn btn-ghost" to="/products">
+              Về danh sách
+            </Link>
+            {isError && (
+              <button type="button" className="btn btn-primary" onClick={() => refetch()}>
+                Thử lại
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const variant = product.variants.find((v) => v.id === selectedVariant) ?? product.variants[0];
@@ -149,6 +214,36 @@ export default function ProductDetailPage() {
             )}
           </p>
 
+          {inStock && variant?.stores && variant.stores.length > 0 && (
+            <div style={{ marginTop: 12, marginBottom: 16 }}>
+              <span style={{ fontSize: 13, color: '#6d7b6c', fontWeight: 500, display: 'block', marginBottom: 6 }}>
+                Có sẵn tại các chi nhánh:
+              </span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {variant.stores.map((s) => (
+                  <span
+                    key={s.id}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '4px 10px',
+                      backgroundColor: '#f4f8f5',
+                      border: '1px solid #bccbb9',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      color: '#111c2c',
+                      fontWeight: 500,
+                    }}
+                  >
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#006e2f' }}></span>
+                    {s.name} (còn {s.available} {variant.unit})
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="qty-row">
             <div className="qty-stepper">
               <button onClick={() => setQty((q) => Math.max(1, q - 1))}>-</button>
@@ -198,27 +293,125 @@ export default function ProductDetailPage() {
         )}
       </section>
 
-      {related && related.length > 0 && (
-        <section className="reviews-section">
+      <section className="reviews-section related-section">
+        <div className="related-section-head">
           <h2>Sản phẩm liên quan</h2>
-          <div className="grid product-grid">
-            {related.map((p) => (
-              <Link key={p.id} to={`/products/${p.slug}`} className="card related-card">
-                <div className="related-img">
-                  {p.image ? <img src={p.image} alt={p.name} /> : <div className="product-img-ph" style={{ fontSize: 48 }}>NS</div>}
+          {relatedTotal > 0 && (
+            <span className="muted related-count">{relatedTotal} gợi ý</span>
+          )}
+        </div>
+
+        {relatedTotal === 0 ? (
+          <p className="muted">Hiện tại không có sản phẩm liên quan nào.</p>
+        ) : !showAllRelated ? (
+          <>
+            <div className="grid product-grid related-grid">
+              {relatedPreview.map((p) => (
+                <RelatedProductCard key={p.id} product={p} />
+              ))}
+            </div>
+            {hasMoreRelated && (
+              <div className="related-more-wrap">
+                <button
+                  type="button"
+                  className="btn btn-ghost related-more-btn"
+                  onClick={() => setShowAllRelated(true)}
+                >
+                  Xem thêm
+                  <ChevronDown size={16} aria-hidden />
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="related-group">
+              <div className="related-group-head">
+                <span className="related-group-icon" aria-hidden>
+                  <Sparkles size={18} />
+                </span>
+                <div>
+                  <h3 className="related-group-title">Gợi ý tương tự</h3>
+                  <p className="related-group-desc muted">
+                    Gợi ý thông minh dựa trên độ giống nội dung (tên, mô tả, xuất xứ…) so với sản phẩm
+                    bạn đang xem — không chỉ cùng nhóm hàng.
+                  </p>
                 </div>
-                <div className="related-body">
-                  <strong className="related-name">{p.name}</strong>
-                  <div className="flex between center">
-                    <span className="price">{p.fromPrice ? formatVnd(p.fromPrice) : '—'}</span>
-                    <span className="muted" style={{ fontSize: 13 }}>{p.ratingAvg > 0 ? p.ratingAvg.toFixed(1) : 'Mới'}</span>
-                  </div>
+              </div>
+              {relatedEmbedding.length > 0 ? (
+                <div className="grid product-grid related-grid">
+                  {relatedEmbedding.map((p) => (
+                    <RelatedProductCard key={p.id} product={p} />
+                  ))}
                 </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
+              ) : (
+                <p className="muted related-empty">Chưa có gợi ý tương tự cho sản phẩm này.</p>
+              )}
+            </div>
+
+            <div className="related-group">
+              <div className="related-group-head">
+                <span className="related-group-icon related-group-icon-cat" aria-hidden>
+                  <Tags size={18} />
+                </span>
+                <div>
+                  <h3 className="related-group-title">
+                    Cùng danh mục{product.category?.name ? `: ${product.category.name}` : ''}
+                  </h3>
+                  <p className="related-group-desc muted">
+                    Các sản phẩm khác thuộc cùng nhóm/danh mục, ưu tiên đánh giá cao và còn hàng.
+                  </p>
+                </div>
+              </div>
+              {relatedCategory.length > 0 ? (
+                <div className="grid product-grid related-grid">
+                  {relatedCategory.map((p) => (
+                    <RelatedProductCard key={p.id} product={p} />
+                  ))}
+                </div>
+              ) : (
+                <p className="muted related-empty">Không có sản phẩm khác trong cùng danh mục.</p>
+              )}
+            </div>
+
+            <div className="related-more-wrap">
+              <button
+                type="button"
+                className="btn btn-ghost related-more-btn"
+                onClick={() => setShowAllRelated(false)}
+              >
+                Thu gọn
+                <ChevronUp size={16} aria-hidden />
+              </button>
+            </div>
+          </>
+        )}
+      </section>
     </div>
+  );
+}
+
+function RelatedProductCard({ product: p }: { product: RelatedProduct }) {
+  return (
+    <Link to={`/products/${p.slug}`} className="card related-card">
+      <div className="related-img">
+        {p.image ? (
+          <img src={p.image} alt={p.name} />
+        ) : (
+          <div className="product-img-ph" style={{ fontSize: 48 }}>
+            NS
+          </div>
+        )}
+      </div>
+      <div className="related-body">
+        <strong className="related-name">{p.name}</strong>
+        <div className="flex between center">
+          <span className="price">{p.fromPrice ? formatVnd(p.fromPrice) : '—'}</span>
+          <span className="muted" style={{ fontSize: 13 }}>
+            {p.ratingAvg > 0 ? p.ratingAvg.toFixed(1) : 'Mới'}
+          </span>
+        </div>
+      </div>
+    </Link>
   );
 }
