@@ -78,8 +78,8 @@ function loadGoogleIdentityScript() {
 }
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('customer@nsx.local');
-  const [password, setPassword] = useState('Password123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
@@ -236,16 +236,7 @@ export default function LoginPage() {
           <p className="auth-switch">
             Chưa có tài khoản? <Link to="/register">Đăng ký ngay</Link>
           </p>
-          <div className="auth-demo">
-            <strong>Tài khoản demo:</strong><br />
-            Khách: <code>customer@nsx.local</code><br />
-            Admin: <code>admin@nsx.local</code><br />
-            Quản lý CH: <code>manager.q1@nsx.local</code><br />
-            NV bán hàng: <code>staff.q1.a@nsx.local</code><br />
-            NV kho: <code>kho.q1.a@nsx.local</code><br />
-            Shipper: <code>shipper.q1@nsx.local</code><br />
-            Mật khẩu: <code>Password123!</code>
-          </div>
+
         </div>
       </div>
     </div>
