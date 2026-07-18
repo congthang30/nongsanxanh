@@ -77,7 +77,7 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          VITE_API_BASE_URL: /api/v1
+          VITE_API_BASE_URL: https://nongsanxanh-api.thangnct.io.vn/api/v1
 
   # ─────────────────────────────────────────────────────────
   # Job 2: build-and-push — build Docker images → GHCR
@@ -133,7 +133,7 @@ jobs:
             ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
             ${{ env.FRONTEND_IMAGE }}:latest
           build-args: |
-            VITE_API_BASE_URL=/api/v1
+            VITE_API_BASE_URL=https://nongsanxanh-api.thangnct.io.vn/api/v1
           cache-from: type=gha,scope=frontend-prod
           cache-to: type=gha,scope=frontend-prod,mode=max
           labels: |
