@@ -108,14 +108,11 @@ services:
       # Cac bien sau nen override qua .env hoac secrets khi deploy thuc te
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-nongsanxanh}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
-      # Trong Docker network: goi service minio truc tiep (Linux khong co host.docker.internal mac dinh).
-      # Override bang S3_DOCKER_ENDPOINT neu can. Browser van dung S3_PUBLIC_URL (localhost:9000).
-      S3_ENDPOINT: ${S3_DOCKER_ENDPOINT:-http://minio:9000}
-      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000/agri-media}
-      S3_BUCKET: ${S3_BUCKET:-agri-media}
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
-      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_SECURE: ${SMTP_SECURE:-false}

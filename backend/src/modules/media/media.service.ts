@@ -1,36 +1,32 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { v2 as cloudinary, UploadApiErrorResponse, UploadApiResponse } from 'cloudinary';
 import { randomUUID } from 'crypto';
 
-const EXTENSIONS: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-  'image/gif': 'gif',
-};
+const SUPPORTED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]);
 
 @Injectable()
 export class MediaService {
-  private readonly client: S3Client;
-  private readonly bucket: string;
-  private readonly publicUrl: string;
+  private readonly folder: string;
+  private readonly isConfigured: boolean;
 
   constructor(config: ConfigService) {
-    const endpoint = config.get<string>('S3_ENDPOINT', 'http://localhost:9000');
-    this.bucket = config.get<string>('S3_BUCKET', 'agri-media');
-    this.publicUrl = config
-      .get<string>('S3_PUBLIC_URL', `${endpoint}/${this.bucket}`)
-      .replace(/\/$/, '');
-    this.client = new S3Client({
-      endpoint,
-      region: config.get<string>('S3_REGION', 'us-east-1'),
-      forcePathStyle: true,
-      credentials: {
-        accessKeyId: config.get<string>('S3_ACCESS_KEY', 'minioadmin'),
-        secretAccessKey: config.get<string>('S3_SECRET_KEY', 'minioadmin'),
-      },
-    });
+    const cloudName = config.get<string>('CLOUDINARY_CLOUD_NAME')?.trim();
+    const apiKey = config.get<string>('CLOUDINARY_API_KEY')?.trim();
+    const apiSecret = config.get<string>('CLOUDINARY_API_SECRET')?.trim();
+
+    this.folder = (config.get<string>('CLOUDINARY_FOLDER')?.trim() || 'nongsanxanh')
+      .replace(/^\/+|\/+$/g, '');
+    this.isConfigured = Boolean(cloudName && apiKey && apiSecret);
+
+    if (this.isConfigured) {
+      cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
+    }
   }
 
   async uploadProductImage(file?: Express.Multer.File) {
@@ -41,39 +37,60 @@ export class MediaService {
     return this.uploadImage(file, 'avatars', 'Vui long chon anh dai dien');
   }
 
-  private async uploadImage(file: Express.Multer.File | undefined, folder: string, requiredMessage: string) {
+  private async uploadImage(
+    file: Express.Multer.File | undefined,
+    folder: string,
+    requiredMessage: string,
+  ) {
     if (!file) {
-      throw new BadRequestException({
-        code: 'IMAGE_REQUIRED',
-        message: requiredMessage,
-      });
+      throw new BadRequestException({ code: 'IMAGE_REQUIRED', message: requiredMessage });
     }
-    const extension = EXTENSIONS[file.mimetype];
-    if (!extension) {
+    if (!SUPPORTED_IMAGE_TYPES.has(file.mimetype)) {
       throw new BadRequestException({
         code: 'IMAGE_TYPE_INVALID',
         message: 'Chi ho tro anh JPG, PNG, WebP hoac GIF',
       });
     }
+    if (!this.isConfigured) {
+      throw new ServiceUnavailableException({
+        code: 'CLOUDINARY_NOT_CONFIGURED',
+        message: 'Dich vu luu tru anh chua duoc cau hinh',
+      });
+    }
 
-    const now = new Date();
-    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-    const key = `${folder}/${now.getUTCFullYear()}/${month}/${randomUUID()}.${extension}`;
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-        CacheControl: 'public, max-age=31536000, immutable',
-      }),
-    );
+    try {
+      const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: 'image',
+            folder: `${this.folder}/${folder}`,
+            public_id: randomUUID(),
+            use_filename: false,
+            unique_filename: true,
+            overwrite: false,
+          },
+          (error: UploadApiErrorResponse | undefined, uploadResult: UploadApiResponse | undefined) => {
+            if (error || !uploadResult) {
+              reject(error ?? new Error('Cloudinary returned no upload result'));
+              return;
+            }
+            resolve(uploadResult);
+          },
+        );
+        stream.end(file.buffer);
+      });
 
-    return {
-      key,
-      url: `${this.publicUrl}/${key}`,
-      contentType: file.mimetype,
-      size: file.size,
-    };
+      return {
+        key: result.public_id,
+        url: result.secure_url,
+        contentType: file.mimetype,
+        size: result.bytes,
+      };
+    } catch {
+      throw new ServiceUnavailableException({
+        code: 'IMAGE_UPLOAD_FAILED',
+        message: 'Khong the tai anh len dich vu luu tru. Vui long thu lai',
+      });
+    }
   }
 }
