@@ -88,7 +88,7 @@ describe('AiService', () => {
 
     expect(indexer.relatedProductIds).toHaveBeenCalledWith('nuoc-mam-id', 12);
     expect(result.answer).toContain('Tuong ot Chin-Su');
-    expect(result.answer).toMatch(/tuong dong|lien quan|embedding/i);
+    expect(result.answer).toMatch(/tương đồng|liên quan|embedding/i);
     expect(result.answer).not.toMatch(/dang co 3 san pham/i);
     expect(ai.generate).not.toHaveBeenCalled();
   });

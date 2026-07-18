@@ -53,7 +53,13 @@ describe('StoreScopeService.resolveOperationalStoreId', () => {
   });
 
   it('keeps normal staff scoped to their active membership', async () => {
-    prisma.storeStaff.findFirst.mockResolvedValue({ storeId: 'staff-store' });
+    prisma.storeStaff.findFirst.mockImplementation(({ where }) =>
+      Promise.resolve(
+        where.storeId === undefined || where.storeId === 'staff-store'
+          ? { storeId: 'staff-store' }
+          : null,
+      ),
+    );
 
     await expect(
       service.resolveOperationalStoreId(
