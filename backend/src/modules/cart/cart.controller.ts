@@ -40,6 +40,15 @@ export class CartController {
     return this.cartService.getCart(user?.id, sessionId);
   }
 
+  /** San pham mua kem (co-purchase cache + fallback). */
+  @Get('recommendations/cross-sell')
+  crossSell(
+    @CurrentUser() user?: AuthUser,
+    @Headers('x-session-id') sessionId?: string,
+  ) {
+    return this.cartService.getCrossSell(user?.id, sessionId, 8);
+  }
+
   @Post('items')
   addItem(
     @Body() dto: AddCartItemDto,

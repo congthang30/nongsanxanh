@@ -1,21 +1,24 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { formatVnd } from '../../lib/format';
 import { PageHeader } from '../components/PageHeader';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
+import { StockMovementModal, type StockMovementMode } from '../components/StockMovementModal';
 
 interface InvRow {
-  id: string; sku: string; productName: string; unit: string;
+  id: string; variantId: string; sku: string; productName: string; unit: string;
   quantityOnHand: number; reservedQuantity: number; available: number;
   lowStockThreshold: number; isLowStock: boolean; status: string;
   basePrice: number; salePrice: number | null;
 }
 
 export default function StoreManagerInventory() {
+  const qc = useQueryClient();
   const [lowOnly, setLowOnly] = useState(false);
   const [q, setQ] = useState('');
+  const [modal, setModal] = useState<{ row: InvRow; mode: StockMovementMode } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['sm-inventory', lowOnly, q],
@@ -44,8 +47,30 @@ export default function StoreManagerInventory() {
           { key: 'reserved', title: 'Đang giữ', align: 'right', render: (r) => r.reservedQuantity },
           { key: 'available', title: 'Khả dụng', align: 'right', render: (r) => <strong style={{ color: r.isLowStock ? '#dc2626' : '#16a34a' }}>{r.available}</strong> },
           { key: 'status', title: 'Trạng thái', render: (r) => <StatusBadge status={r.status} /> },
+          {
+            key: 'actions',
+            title: 'Thao tác',
+            render: (r) => (
+              <div className="dash-row-actions">
+                <button className="dash-btn dash-btn-sm dash-btn-primary" onClick={() => setModal({ row: r, mode: 'import' })}>Nhập</button>
+                <button className="dash-btn dash-btn-sm" disabled={r.available <= 0} onClick={() => setModal({ row: r, mode: 'export' })}>Xuất / hủy</button>
+                <button className="dash-btn dash-btn-sm" onClick={() => setModal({ row: r, mode: 'adjust' })}>Kiểm kê</button>
+              </div>
+            ),
+          },
         ]}
       />
+      {modal && (
+        <StockMovementModal
+          row={modal.row}
+          mode={modal.mode}
+          onClose={() => setModal(null)}
+          onDone={() => {
+            setModal(null);
+            qc.invalidateQueries({ queryKey: ['sm-inventory'] });
+          }}
+        />
+      )}
     </>
   );
 }

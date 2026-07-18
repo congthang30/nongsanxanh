@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { ProductCard, ProductSummary } from '../components/ProductCard';
+import { ScrollReveal } from '../components/ScrollReveal';
 import './home.css';
 
 interface ProductListResponse {
@@ -17,8 +18,8 @@ interface Category {
 }
 
 const TRUST_CHIPS = [
-  'Tự kiểm tồn trước khi đặt',
-  'Giao từ cửa hàng phù hợp',
+  'Tự kiểm soát khi đặt',
+  'Giao từ cửa hàng gần nhất',
   'COD hoặc VNPay',
 ];
 
@@ -32,24 +33,33 @@ const FEATURES = [
   {
     title: 'Giao nhanh trong ngày',
     desc: 'Tuyến giao ưu tiên nội thành, hàng tươi đến tay bạn.',
-    path: 'M3 13l2-7h11l3 4h2v3M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0Zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z',
+    icon: 'local_shipping',
   },
   {
     title: 'Truy xuất nguồn gốc',
     desc: 'Rõ vùng trồng, nhà vườn và quy trình thu hoạch.',
-    path: 'M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4Zm-1 12-3-3 1.4-1.4L11 11.2l4.6-4.6L17 8l-6 6Z',
+    icon: 'verified',
   },
   {
     title: 'Tồn kho minh bạch',
     desc: 'Kiểm tồn theo địa chỉ giao trước khi đặt, tránh thiếu hàng.',
-    path: 'M4 4h16v4H4V4Zm0 6h16v10H4V10Zm4 3v4h8v-4H8Z',
+    icon: 'inventory_2',
   },
   {
     title: 'Thanh toán an toàn',
     desc: 'COD tận nhà hoặc VNPay, minh bạch và bảo mật.',
-    path: 'M2 6h20v12H2V6Zm0 4h20M6 15h4',
+    icon: 'payments',
   },
 ];
+
+const getCategoryIcon = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes('rau') || n.includes('củ')) return 'restaurant_menu';
+  if (n.includes('trái') || n.includes('quả') || n.includes('bơ') || n.includes('xoài')) return 'nutrition';
+  if (n.includes('gạo') || n.includes('hạt') || n.includes('bột')) return 'grain';
+  if (n.includes('thịt') || n.includes('trứng') || n.includes('cá') || n.includes('sữa')) return 'egg';
+  return 'eco';
+};
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -74,192 +84,283 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Hero */}
-      <section className="hero">
-        <div className="container hero-inner">
-          <div className="hero-copy fade-up">
-            <span className="hero-eyebrow">Chuỗi cửa hàng nông sản tươi</span>
-            <h1>
-              Nông sản tươi
-              <span className="hero-accent"> mỗi ngày</span>
-            </h1>
-            <p className="hero-sub">
-              Đặt rau củ, trái cây và đồ thiết yếu. Hệ thống tự chọn cửa hàng
-              phù hợp gần bạn có đủ hàng.
+      {/* Hero Section */}
+      <section className="relative pt-20 pb-32 overflow-hidden hero-bg">
+        <div className="max-w-container-max mx-auto px-6 md:px-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <ScrollReveal variant="left" className="z-10 text-left" once>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full mb-8 shadow-sm border border-secondary-container/50">
+              <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                verified
+              </span>
+              <span className="font-label-bold text-xs tracking-wide">CHUỖI CỬA HÀNG NÔNG SẢN TƯƠI</span>
+            </div>
+
+            <h2 className="font-display-lg text-5xl lg:text-6xl font-bold mb-6 text-on-surface leading-tight tracking-tight">
+              Nông sản tươi <br />
+              <span className="text-gradient-green">mỗi ngày</span>
+            </h2>
+            <p className="font-body-lg text-lg text-on-surface-variant mb-10 max-w-lg leading-relaxed">
+              Đặt rau củ, trái cây và đồ thiết yếu. Hệ thống tự chọn cửa hàng phù hợp gần bạn nhất để đảm
+              bảo độ tươi ngon vượt trội.
             </p>
 
-            <form className="hero-search" onSubmit={handleSearch}>
-              <span className="hero-search-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="m20 20-3.5-3.5" />
-                </svg>
-              </span>
-              <input
-                type="search"
-                className="hero-search-input"
-                placeholder="Tìm rau củ, trái cây, gạo ST25..."
-                value={searchQ}
-                onChange={(e) => setSearchQ(e.target.value)}
-                aria-label="Tìm kiếm sản phẩm"
-              />
-              <button type="submit" className="btn btn-primary hero-search-btn">
-                Tìm
-              </button>
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 mb-10 max-w-xl">
+              <div className="flex-1 flex items-center bg-white shadow-premium px-6 py-4 rounded-full border border-outline-variant/50 focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 transition-all duration-300">
+                <span className="material-symbols-outlined text-outline mr-3">search</span>
+                <input
+                  className="flex-1 bg-transparent border-none focus:ring-0 font-body-md text-on-surface placeholder:text-outline focus:outline-none"
+                  placeholder="Tìm rau củ, trái cây, gạo ST25..."
+                  type="text"
+                  value={searchQ}
+                  onChange={(e) => setSearchQ(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="hidden sm:block px-6 py-2 bg-primary text-white rounded-full font-label-bold hover:bg-primary-container transition-colors shadow-sm"
+                >
+                  Tìm kiếm
+                </button>
+              </div>
             </form>
 
-            <div className="hero-cta-row">
-              <Link to="/products" className="btn btn-primary">Mua ngay</Link>
-              <Link to="/orders" className="btn btn-ghost">Xem đơn hàng</Link>
-            </div>
-
-            <ul className="hero-trust">
-              {TRUST_CHIPS.map((chip) => (
-                <li key={chip} className="hero-trust-chip">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
-                  {chip}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="hero-visual fade-up">
-            <img
-              className="hero-img"
-              src="/hero-produce.png"
-              alt="Rau củ, trái cây và đồ thiết yếu tươi"
-              loading="eager"
-            />
-            <div className="hero-img-badge">
-              <span className="hero-img-badge-dot" />
-              Giao trong ngày
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Categories */}
-      <section className="section home-categories">
-        <div className="container">
-          <div className="section-intro">
-            <div>
-              <span className="section-label">Danh mục</span>
-              <h2>Mua theo loại nông sản</h2>
-              <p className="muted">Chọn danh mục phù hợp, hệ thống giao từ cửa hàng gần bạn.</p>
-            </div>
-            <Link to="/products" className="btn btn-ghost btn-sm hide-mobile">
-              Xem tất cả
-            </Link>
-          </div>
-
-          <div className="cat-grid">
-            {(categories ?? []).map((cat) => (
+            <div className="flex flex-wrap gap-4 items-center">
               <Link
-                key={cat.id}
-                to={`/products?categoryId=${cat.id}`}
-                className="cat-card fade-up"
+                to="/products"
+                className="px-8 py-3.5 bg-primary text-white rounded-full font-label-bold text-base hover:bg-primary-container shadow-premium hover:shadow-premium-hover hover:-translate-y-0.5 transition-all duration-300 text-center"
               >
-                <span className="cat-badge" aria-hidden="true">{cat.name.charAt(0)}</span>
-                <div className="cat-body">
-                  <strong>{cat.name}</strong>
-                </div>
-                <span className="cat-arrow" aria-hidden="true">→</span>
+                Mua ngay
               </Link>
-            ))}
-            {!categories &&
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="cat-card skeleton" style={{ height: 76 }} />
+              <Link
+                to="/orders"
+                className="px-8 py-3.5 bg-white border border-outline-variant text-on-surface rounded-full font-label-bold text-base hover:border-primary hover:text-primary shadow-sm hover:shadow-premium transition-all duration-300 text-center"
+              >
+                Xem đơn hàng
+              </Link>
+            </div>
+
+            <div className="mt-12 flex flex-wrap gap-x-8 gap-y-4 text-on-surface-variant border-t border-outline-variant/50 pt-8 max-w-xl">
+              {TRUST_CHIPS.map((chip) => (
+                <div key={chip} className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+                  <span className="font-medium text-sm">{chip}</span>
+                </div>
               ))}
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal variant="right" delay={120} className="relative lg:ml-auto w-full max-w-lg" once>
+            <div className="rounded-3xl overflow-hidden shadow-soft border border-white/20 transform lg:-rotate-2 hover:rotate-0 transition-transform duration-700 ease-out">
+              <img
+                className="w-full h-auto object-cover"
+                alt="A lush and vibrant top-down flat-lay photograph of fresh vegetables and fruits"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCi8ThdWSJk0XPgNM6oHpC2ECGDaAaPXvABBUiHK4rd4UgnSX7YvZHVDF1uvqS_OnaI07ullQ2VpqN-YJ-NuXW692TIG2_W9cwEZENE7Tm7shAs1YmhqiYiUqHGgHyIB6YUhJ3OOqqt6TnvsWtCx_N4QkDIt3BIacX7S3ppVQZ5DNuU735apRhsHEADBzPzxr_H9711l1TsI-OdYqecxoopwUl0H9CucDFakPttfZg45bfKqCrDLhdkpA"
+              />
+              <div className="absolute bottom-6 left-6 bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-full shadow-premium border border-white/50 flex items-center gap-3">
+                <div className="w-2.5 h-2.5 bg-primary rounded-full animate-pulse"></div>
+                <span className="font-label-bold text-on-surface text-sm">Giao trong ngày</span>
+              </div>
+            </div>
+            <div className="absolute -z-10 -top-10 -right-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
+            <div className="absolute -z-10 -bottom-10 -left-10 w-48 h-48 bg-primary/5 rounded-full blur-2xl"></div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* Categories Section */}
+      <section className="py-24 bg-white border-y border-outline-variant/30">
+        <div className="max-w-container-max mx-auto px-6 md:px-10">
+          <ScrollReveal variant="up" className="flex flex-col md:flex-row md:justify-between md:items-end gap-6 mb-12">
+            <div className="text-left">
+              <span className="font-label-bold text-primary uppercase tracking-widest text-xs font-semibold">
+                Danh mục
+              </span>
+              <h3 className="font-display-lg text-3xl font-bold mt-3 text-on-surface tracking-tight">
+                Mua theo loại nông sản
+              </h3>
+              <p className="text-on-surface-variant font-body-md mt-3 text-base max-w-2xl">
+                Chọn danh mục phù hợp, hệ thống giao từ cửa hàng gần bạn.
+              </p>
+            </div>
+            <Link
+              to="/products"
+              className="group flex items-center gap-2 px-5 py-2.5 bg-surface-container-low border border-transparent rounded-full text-on-surface font-label-bold hover:bg-white hover:border-outline-variant hover:shadow-sm transition-all duration-300 w-fit"
+            >
+              Xem tất cả
+              <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">
+                arrow_forward
+              </span>
+            </Link>
+          </ScrollReveal>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {categories ? (
+              categories.map((cat, index) => (
+                <ScrollReveal key={cat.id} variant="scale" delay={index * 70}>
+                  <Link
+                    to={`/products?categoryId=${cat.id}`}
+                    className="group bg-surface-container-low/50 p-6 rounded-2xl border border-outline-variant/50 hover:bg-white hover:shadow-premium hover:border-primary/20 transition-all duration-300 flex justify-between items-center h-full"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 bg-secondary-container flex items-center justify-center rounded-xl text-primary group-hover:scale-110 transition-transform duration-300">
+                        <span
+                          className="material-symbols-outlined text-[28px]"
+                          style={{ fontVariationSettings: "'FILL' 1" }}
+                        >
+                          {getCategoryIcon(cat.name)}
+                        </span>
+                      </div>
+                      <span className="font-headline-md text-lg font-semibold text-on-surface">{cat.name}</span>
+                    </div>
+                    <span className="material-symbols-outlined text-outline group-hover:text-primary group-hover:translate-x-1 transition-all">
+                      chevron_right
+                    </span>
+                  </Link>
+                </ScrollReveal>
+              ))
+            ) : (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="animate-pulse bg-surface-container-low p-6 rounded-2xl border border-outline-variant/50 h-[88px]"
+                />
+              ))
+            )}
           </div>
         </div>
       </section>
 
-      {/* Featured products */}
-      <section className="section home-featured" id="featured">
-        <div className="container">
-          <div className="section-intro">
+      {/* Featured Products */}
+      <section className="py-24 bg-background">
+        <div className="max-w-container-max mx-auto px-6 md:px-10">
+          <ScrollReveal variant="up" className="flex flex-col md:flex-row md:justify-between md:items-end gap-6 mb-12">
             <div>
-              <span className="section-label">Nổi bật</span>
-              <h2>Sản phẩm được yêu thích</h2>
-              <p className="muted">Tươi ngon, chọn lọc mỗi ngày từ các cửa hàng trong hệ thống.</p>
+              <span className="font-label-bold text-primary uppercase tracking-widest text-xs font-semibold">
+                Nổi bật
+              </span>
+              <h3 className="font-display-lg text-3xl font-bold mt-3 text-on-surface tracking-tight">
+                Sản phẩm được yêu thích
+              </h3>
+              <p className="text-on-surface-variant font-body-md mt-3 text-base">
+                Tươi ngon, chọn lọc mỗi ngày từ các cửa hàng trong hệ thống.
+              </p>
             </div>
-            <Link to="/products" className="btn btn-primary btn-sm">
+            <Link
+              to="/products"
+              className="bg-primary text-white px-6 py-2.5 rounded-full font-label-bold hover:bg-primary-container shadow-premium hover:shadow-premium-hover transition-all duration-300 w-fit text-center"
+            >
               Xem tất cả
             </Link>
-          </div>
+          </ScrollReveal>
 
           {isLoading ? (
-            <div className="grid product-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="skeleton" style={{ height: 300, borderRadius: 16 }} />
+                <div
+                  key={i}
+                  className="animate-pulse bg-white rounded-3xl h-[420px] border border-outline-variant/60"
+                />
               ))}
             </div>
           ) : (
-            <div className="grid product-grid">
-              {data?.data.map((p) => <ProductCard key={p.id} product={p} />)}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {data?.data.map((p, index) => (
+                <ScrollReveal key={p.id} variant="up" delay={(index % 4) * 80}>
+                  <ProductCard product={p} />
+                </ScrollReveal>
+              ))}
             </div>
           )}
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="section home-steps">
-        <div className="container">
-          <div className="section-intro center-block">
-            <span className="section-label">Quy trình</span>
-            <h2>Mua nông sản chỉ 3 bước</h2>
-            <p className="muted">Bạn chỉ cần chọn hàng và nhập địa chỉ, phần còn lại để hệ thống lo.</p>
-          </div>
+      {/* How it works Section */}
+      <section className="py-24 bg-white border-t border-outline-variant/30">
+        <div className="max-w-container-max mx-auto px-6 md:px-10">
+          <ScrollReveal variant="up" className="text-center max-w-xl mx-auto mb-16">
+            <span className="font-label-bold text-primary uppercase tracking-widest text-xs font-semibold">
+              Quy trình
+            </span>
+            <h3 className="font-display-lg text-3xl font-bold mt-3 text-on-surface tracking-tight">
+              Mua nông sản chỉ 3 bước
+            </h3>
+            <p className="text-on-surface-variant font-body-md mt-3 text-base">
+              Bạn chỉ cần chọn hàng và nhập địa chỉ, phần còn lại để hệ thống lo.
+            </p>
+          </ScrollReveal>
 
-          <div className="steps-grid">
-            {STEPS.map((step, i) => (
-              <div key={step.num} className="step-card fade-up" style={{ animationDelay: `${i * 0.1}s` }}>
-                <span className="step-num">{step.num}</span>
-                <h3>{step.title}</h3>
-                <p className="muted">{step.desc}</p>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {STEPS.map((step, index) => (
+              <ScrollReveal key={step.num} variant="up" delay={index * 100}>
+                <div className="bg-background/40 p-8 rounded-3xl border border-outline-variant/50 relative overflow-hidden group hover:bg-white hover:shadow-premium hover:border-primary/20 transition-all duration-300 h-full">
+                  <div className="text-gradient-green text-5xl font-black mb-6 opacity-30 group-hover:opacity-100 transition-opacity duration-300">
+                    {step.num}
+                  </div>
+                  <h4 className="font-headline-md text-xl font-bold text-on-surface mb-3">{step.title}</h4>
+                  <p className="text-on-surface-variant text-sm leading-relaxed">{step.desc}</p>
+                </div>
+              </ScrollReveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="section home-features">
-        <div className="container">
-          <div className="features-grid">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="feature-card">
-                <span className="feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d={f.path} />
-                  </svg>
+      {/* Features Section */}
+      <section className="py-20 bg-background border-t border-outline-variant/30">
+        <div className="max-w-container-max mx-auto px-6 md:px-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {FEATURES.map((f, index) => (
+              <ScrollReveal key={f.title} variant="scale" delay={index * 80}>
+                <div className="bg-white p-6 rounded-2xl border border-outline-variant/50 flex gap-4 items-start shadow-sm hover:shadow-premium transition-all duration-300 h-full">
+                  <div className="w-10 h-10 bg-secondary-container text-primary flex items-center justify-center rounded-xl flex-shrink-0">
+                    <span className="material-symbols-outlined text-[20px]">{f.icon}</span>
+                  </div>
+                  <div>
+                    <h5 className="font-headline-md text-base font-bold text-on-surface mb-1">{f.title}</h5>
+                    <p className="text-on-surface-variant text-xs leading-relaxed">{f.desc}</p>
+                  </div>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 bg-white border-t border-outline-variant/30">
+        <div className="max-w-container-max mx-auto px-6 md:px-10">
+          <ScrollReveal variant="scale">
+            <div className="bg-gradient-to-r from-primary to-primary-container rounded-[2.5rem] p-12 md:p-20 text-white relative overflow-hidden shadow-premium">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+              <div className="absolute bottom-0 left-0 w-82 h-82 bg-white/5 rounded-full blur-2xl -ml-20 -mb-20"></div>
+
+              <div className="relative z-10 max-w-2xl">
+                <span className="font-label-bold text-xs uppercase tracking-widest bg-white/20 text-white px-4 py-1.5 rounded-full inline-block mb-6">
+                  Bắt đầu ngay
                 </span>
-                <div>
-                  <strong>{f.title}</strong>
-                  <p className="muted">{f.desc}</p>
+                <h3 className="font-display-lg text-4xl md:text-5xl font-bold mb-6 leading-tight">
+                  Sẵn sàng ăn sạch, sống khỏe?
+                </h3>
+                <p className="text-white/80 font-body-lg text-base md:text-lg mb-10 leading-relaxed">
+                  Khám phá hàng trăm nông sản tươi ngon, chọn lọc và giao nhanh từ hệ thống cửa hàng nông sản
+                  gần bạn nhất.
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  <Link
+                    to="/products"
+                    className="px-8 py-3.5 bg-white text-primary rounded-full font-label-bold text-base hover:bg-secondary-container hover:-translate-y-0.5 transition-all duration-300 text-center shadow-md"
+                  >
+                    Mua sắm ngay
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="px-8 py-3.5 bg-transparent border border-white/40 text-white rounded-full font-label-bold text-base hover:bg-white/10 hover:-translate-y-0.5 transition-all duration-300 text-center"
+                  >
+                    Tạo tài khoản
+                  </Link>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="home-cta">
-        <div className="container">
-          <div className="cta-inner">
-            <div className="cta-copy">
-              <span className="section-label section-label-light">Bắt đầu ngay</span>
-              <h2>Sẵn sàng ăn sạch, sống khỏe?</h2>
-              <p>Khám phá hàng trăm nông sản tươi, giao nhanh từ cửa hàng phù hợp với bạn.</p>
-              <div className="flex gap">
-                <Link to="/products" className="btn btn-primary">Mua sắm ngay</Link>
-                <Link to="/register" className="btn btn-ghost cta-ghost">Tạo tài khoản</Link>
-              </div>
             </div>
-          </div>
+          </ScrollReveal>
         </div>
       </section>
     </>

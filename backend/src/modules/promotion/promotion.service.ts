@@ -7,6 +7,8 @@ export interface CouponResult {
     code: string;
     scope: string;
     storeId: string | null;
+    usageLimit: number | null;
+    usageCount: number;
   } | null;
   discount: number;
 }
@@ -103,6 +105,8 @@ export class PromotionService {
         code: coupon.code,
         scope: coupon.scope,
         storeId: coupon.storeId,
+        usageLimit: coupon.usageLimit,
+        usageCount: coupon.usageCount,
       },
       discount,
     };

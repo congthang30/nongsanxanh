@@ -29,10 +29,10 @@ export default function ShipperDashboard() {
     <>
       <PageHeader title="Shipper" subtitle="Đơn giao được gán trực tiếp từ cửa hàng của bạn" />
       <div className="dash-stat-grid">
-        <StatCard icon="" label="Đơn chờ lấy" value={assigned} color="#ca8a04" />
-        <StatCard icon="" label="Đang giao" value={delivering} color="#0891b2" />
-        <StatCard icon="" label="Đã giao (lịch sử)" value={deliveredToday} color="#16a34a" />
-        <StatCard icon="" label="COD cần thu" value={codTotal} format={formatVnd} color="#7c3aed" />
+        <StatCard icon="Inbox" label="Đơn chờ lấy" value={assigned} color="#ca8a04" />
+        <StatCard icon="Truck" label="Đang giao" value={delivering} color="#0891b2" />
+        <StatCard icon="CheckCircle" label="Đã giao (lịch sử)" value={deliveredToday} color="#16a34a" />
+        <StatCard icon="DollarSign" label="COD cần thu" value={codTotal} format={formatVnd} color="#7c3aed" />
       </div>
       <div className="dash-quick-grid" style={{ marginTop: 24 }}>
         <Link to="/shipper/active" className="dash-quick-card">

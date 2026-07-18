@@ -53,10 +53,17 @@ export default function PaymentReturnPage() {
               </svg>
             </div>
             <h2 style={{ color: 'var(--green-600)' }}>Thanh toán thành công</h2>
-            <p className="muted">Đơn hàng đang được cửa hàng chuẩn bị.</p>
+            <p className="muted">
+              Đơn hàng đang được cửa hàng chuẩn bị. Bạn có thể đánh giá sản phẩm ngay trong chi tiết
+              đơn hàng.
+            </p>
             <div className="payment-actions">
-              <Link to={orderLink} className="btn btn-primary">Xem đơn hàng</Link>
-              <Link to="/products" className="btn btn-ghost">Tiếp tục mua hàng</Link>
+              <Link to={orderLink} className="btn btn-primary">
+                Xem đơn & đánh giá
+              </Link>
+              <Link to="/products" className="btn btn-ghost">
+                Tiếp tục mua hàng
+              </Link>
             </div>
           </>
         )}

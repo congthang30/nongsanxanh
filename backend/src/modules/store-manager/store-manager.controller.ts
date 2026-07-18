@@ -31,28 +31,33 @@ export class StoreManagerController {
   ) {}
 
   @Get('dashboard')
-  dashboard(@CurrentUser() user: AuthUser) {
-    return this.manager.dashboard(user);
+  dashboard(@CurrentUser() user: AuthUser, @Query('storeId') storeId?: string) {
+    return this.manager.dashboard(user, storeId);
   }
 
   @Get('store')
-  store(@CurrentUser() user: AuthUser) {
-    return this.manager.getStore(user);
+  store(@CurrentUser() user: AuthUser, @Query('storeId') storeId?: string) {
+    return this.manager.getStore(user, storeId);
   }
 
   @Patch('store/status')
   updateStatus(
     @CurrentUser() user: AuthUser,
     @Body() body: { status: string },
+    @Query('storeId') storeId?: string,
   ) {
-    return this.manager.updateStoreStatus(user, body.status);
+    return this.manager.updateStoreStatus(user, body.status, storeId);
   }
 
   // ---- Orders (full lifecycle control) ----
 
   @Get('orders')
-  orders(@CurrentUser() user: AuthUser, @Query('status') status?: string) {
-    return this.fulfillment.listStoreOrders(user, status);
+  orders(
+    @CurrentUser() user: AuthUser,
+    @Query('status') status?: string,
+    @Query('storeId') storeId?: string,
+  ) {
+    return this.fulfillment.listStoreOrders(user, status, storeId);
   }
 
   @Get('orders/:id')
@@ -110,8 +115,18 @@ export class StoreManagerController {
   // ---- Staff ----
 
   @Get('staff')
-  staff(@CurrentUser() user: AuthUser) {
-    return this.manager.listStaff(user);
+  staff(@CurrentUser() user: AuthUser, @Query('storeId') storeId?: string) {
+    return this.manager.listStaff(user, storeId);
+  }
+
+  @Patch('staff/:staffId/status')
+  updateStaffStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('staffId') staffId: string,
+    @Body() body: { status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' },
+    @Query('storeId') storeId?: string,
+  ) {
+    return this.manager.updateStaffStatus(user, staffId, body.status, storeId);
   }
 
   // ---- Inventory ----
@@ -121,14 +136,15 @@ export class StoreManagerController {
     @CurrentUser() user: AuthUser,
     @Query('q') q?: string,
     @Query('lowStock') lowStock?: string,
+    @Query('storeId') storeId?: string,
   ) {
-    return this.manager.listInventory(user, q, lowStock === 'true');
+    return this.manager.listInventory(user, q, lowStock === 'true', storeId);
   }
 
   // ---- Reports ----
 
   @Get('reports')
-  reports(@CurrentUser() user: AuthUser) {
-    return this.manager.reports(user);
+  reports(@CurrentUser() user: AuthUser, @Query('storeId') storeId?: string) {
+    return this.manager.reports(user, storeId);
   }
 }

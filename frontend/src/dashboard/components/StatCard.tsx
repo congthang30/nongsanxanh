@@ -1,3 +1,40 @@
+import * as React from 'react';
+import {
+  ClipboardList,
+  Package,
+  Truck,
+  ShoppingBag,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle,
+  DollarSign,
+  Clock,
+  Box,
+  Inbox,
+  FileText,
+  XCircle,
+  Undo2,
+  HelpCircle
+} from 'lucide-react';
+
+const iconMap: Record<string, React.ComponentType<any>> = {
+  ClipboardList,
+  Package,
+  Truck,
+  ShoppingBag,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle,
+  DollarSign,
+  Clock,
+  Box,
+  Inbox,
+  FileText,
+  XCircle,
+  Undo2,
+  HelpCircle
+};
+
 interface Props {
   icon: string;
   label: string;
@@ -18,12 +55,17 @@ export function StatCard({
 }: Props) {
   const display =
     typeof value === 'number' && format ? format(value) : String(value);
+
+  const IconComponent = iconMap[icon] || HelpCircle;
+
   return (
     <div
       className="dash-stat"
       style={{ ['--dash-stat-color' as any]: color }}
     >
-      <div className="dash-stat-icon">{icon}</div>
+      <div className="dash-stat-icon">
+        <IconComponent className="w-6 h-6 flex-shrink-0" />
+      </div>
       <div className="dash-stat-body">
         <div className="dash-stat-value">{display}</div>
         <div className="dash-stat-label">{label}</div>

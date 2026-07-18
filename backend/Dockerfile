@@ -1,5 +1,5 @@
-# ---- Build stage ----
-FROM node:20-bookworm-slim AS builder
+# ---- Dependency stage ----
+FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 
 # argon2 can dependencies build native
@@ -8,11 +8,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY prisma ./prisma
 RUN npx prisma generate
 
+# ---- Dev stage (hot reload) ----
+FROM deps AS dev
+ENV NODE_ENV=development
+EXPOSE 3000
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma generate && npm run start:dev"]
+
+# ---- Build stage ----
+FROM deps AS builder
 COPY . .
 RUN npm run build
 
@@ -25,7 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-RUN npm install --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy build output + Prisma client da generate + schema/migrations
 COPY --from=builder /app/dist ./dist

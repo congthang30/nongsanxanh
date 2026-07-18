@@ -27,9 +27,10 @@ export class CashierShiftService {
   ) {}
 
   /** Ca OPEN hien tai cua cashier (neu co). */
-  async getCurrent(user: AuthUser) {
+  async getCurrent(user: AuthUser, requestedStoreId?: string) {
+    const storeId = await this.scope.resolveOperationalStoreId(user, requestedStoreId);
     const shift = await this.prisma.cashierShift.findFirst({
-      where: { cashierId: user.id, status: CashierShiftStatus.OPEN },
+      where: { cashierId: user.id, storeId, status: CashierShiftStatus.OPEN },
       orderBy: { openedAt: 'desc' },
       include: { store: { select: { id: true, name: true, code: true } } },
     });
@@ -38,10 +39,10 @@ export class CashierShiftService {
   }
 
   /** Mo ca moi. Yeu cau cashier thuoc mot store. Chan neu da co ca OPEN. */
-  async openShift(user: AuthUser, openingCash: number, note?: string) {
-    const storeId = await this.scope.requireUserStoreId(user.id);
+  async openShift(user: AuthUser, openingCash: number, note?: string, requestedStoreId?: string) {
+    const storeId = await this.scope.resolveOperationalStoreId(user, requestedStoreId);
     const existing = await this.prisma.cashierShift.findFirst({
-      where: { cashierId: user.id, status: CashierShiftStatus.OPEN },
+      where: { cashierId: user.id, storeId, status: CashierShiftStatus.OPEN },
     });
     if (existing) {
       throw new ConflictException({
@@ -70,9 +71,10 @@ export class CashierShiftService {
   }
 
   /** Dong ca: nhap counted cash, tinh chenh lech. Chan neu con sale DRAFT/HELD. */
-  async closeShift(user: AuthUser, countedCash: number, note?: string) {
+  async closeShift(user: AuthUser, countedCash: number, note?: string, requestedStoreId?: string) {
+    const storeId = await this.scope.resolveOperationalStoreId(user, requestedStoreId);
     const shift = await this.prisma.cashierShift.findFirst({
-      where: { cashierId: user.id, status: CashierShiftStatus.OPEN },
+      where: { cashierId: user.id, storeId, status: CashierShiftStatus.OPEN },
       orderBy: { openedAt: 'desc' },
     });
     if (!shift) {
@@ -128,7 +130,7 @@ export class CashierShiftService {
     storeId: string,
   ): Promise<string> {
     const existing = await tx.cashierShift.findFirst({
-      where: { cashierId, status: CashierShiftStatus.OPEN },
+      where: { cashierId, storeId, status: CashierShiftStatus.OPEN },
       orderBy: { openedAt: 'desc' },
     });
     if (existing) return existing.id;

@@ -26,6 +26,11 @@ export class ReviewsController {
     @Param('orderId') orderId: string,
     @Body() dto: CreateReviewDto,
   ) {
-    return this.reviewsService.create(user.id, orderId, dto);
+    return this.reviewsService.create(
+      user.id,
+      user.roles ?? [],
+      orderId,
+      dto,
+    );
   }
 }

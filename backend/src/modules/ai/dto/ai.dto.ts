@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  AI_VECTOR_OBJECT_TYPES,
+  AiVectorObjectType,
+} from '../ai-vector-sync.types';
 
 export class ChatDto {
   @ApiProperty()
@@ -13,24 +17,13 @@ export class ChatDto {
   conversationId?: string;
 }
 
-export class IngestDocDto {
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  title: string;
+export class VectorSyncDto {
+  @ApiProperty({ enum: AI_VECTOR_OBJECT_TYPES })
+  @IsIn(AI_VECTOR_OBJECT_TYPES)
+  objectType: AiVectorObjectType;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  content: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  sourceType?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  sourceRef?: string;
+  objectId: string;
 }

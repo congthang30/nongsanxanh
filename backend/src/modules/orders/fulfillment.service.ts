@@ -29,10 +29,15 @@ export class FulfillmentService {
   ) {}
 
   /** Danh sach don cua cua hang (theo scope user). */
-  async listStoreOrders(user: AuthUser, status?: string) {
-    const storeId = this.scope.isSystemAdmin(user.roles)
-      ? undefined
-      : await this.scope.requireUserStoreId(user.id);
+  async listStoreOrders(user: AuthUser, status?: string, overrideStoreId?: string) {
+    let storeId: string | undefined;
+    if (overrideStoreId && this.scope.isSystemAdmin(user.roles)) {
+      storeId = overrideStoreId;
+    } else {
+      storeId = this.scope.isSystemAdmin(user.roles)
+        ? undefined
+        : await this.scope.requireUserStoreId(user.id);
+    }
     return this.prisma.order.findMany({
       where: {
         ...(storeId ? { storeId } : {}),

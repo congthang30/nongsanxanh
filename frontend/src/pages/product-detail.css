@@ -29,6 +29,20 @@
 .reviews-section h2 { margin-bottom: 20px; }
 .review-card { padding: 18px; }
 
+.related-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.related-section-head h2 { margin: 0; }
+.related-count { font-size: 14px; }
+.related-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
 .related-card { padding: 0; overflow: hidden; transition: transform 0.2s ease, box-shadow 0.2s ease; }
 .related-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg, 0 12px 30px rgba(15,23,42,0.12)); }
 .related-img { aspect-ratio: 4 / 3; background: var(--surface-2); overflow: hidden; display: grid; place-items: center; }
@@ -36,4 +50,67 @@
 .related-body { padding: 14px; }
 .related-name { display: block; margin-bottom: 8px; font-size: 15px; line-height: 1.4; }
 
-@media (max-width: 768px) { .detail-grid { grid-template-columns: 1fr; gap: 24px; } }
+.related-more-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+.related-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.related-group {
+  margin-top: 28px;
+  padding: 20px;
+  border: 1px solid var(--line, #e6ece8);
+  border-radius: var(--radius, 16px);
+  background: var(--surface, #fff);
+}
+.related-group + .related-group { margin-top: 16px; }
+.related-group-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.related-group-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--green-700, #15803d);
+}
+.related-group-icon-cat {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+}
+.related-group-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink-900, #0f1f17);
+}
+.related-group-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 52rem;
+}
+.related-empty { margin: 0; font-size: 14px; }
+
+@media (max-width: 1024px) {
+  .related-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 768px) {
+  .detail-grid { grid-template-columns: 1fr; gap: 24px; }
+  .related-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .related-grid { grid-template-columns: 1fr; }
+}

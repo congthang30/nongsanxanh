@@ -629,37 +629,191 @@
 .dash-quick-card strong { font-size: 15px; }
 .dash-quick-card .muted { font-size: 13px; }
 
-/* Modal */
+/* Modal — always full viewport (prefer portal to body; still size vs vw/vh) */
 .dash-modal-overlay {
   position: fixed;
   inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  width: 100dvw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  margin: 0;
   background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
-  padding: 20px;
+  z-index: 10000;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .dash-modal {
   background: #fff;
   border-radius: 16px;
   padding: 24px;
-  width: 480px;
-  max-width: 100%;
-  max-height: 90vh;
+  width: min(560px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: min(90vh, 900px);
+  overflow-x: hidden;
   overflow-y: auto;
   box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+  box-sizing: border-box;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
-.dash-modal-lg { width: 640px; }
+.dash-modal-lg {
+  width: min(720px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+}
+/* Modal thêm / sửa / xem nhân viên — rộng hơn form mặc định */
+.dash-modal-staff {
+  width: min(860px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  padding: 28px 32px;
+}
 .dash-modal h2 { margin-bottom: 4px; }
 .dash-modal h4 { margin-bottom: 8px; font-size: 14px; }
 
-.dash-form-grid {
+/* Bảng: click identity để xem chi tiết */
+.staff-identity-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+.staff-identity-btn:hover {
+  background: #f8fafc;
+}
+.staff-identity-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+/* Modal xem thông tin nhân viên + ảnh lớn */
+.staff-view-hero {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #f8fafc 55%, #eff6ff 100%);
+  border: 1px solid #e2e8f0;
+}
+.staff-view-avatar {
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12), 0 0 0 1px #e2e8f0;
+  flex-shrink: 0;
+  background: #fff;
+}
+.staff-view-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: 700;
+  color: #166534;
+  background: #dcfce7;
+}
+.staff-view-hero-meta {
+  min-width: 0;
+  flex: 1;
+}
+.staff-view-name {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+}
+.staff-view-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.staff-view-role-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #ecfdf5;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+.staff-view-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 14px 20px;
+  margin: 0;
+}
+.staff-view-grid > div {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+}
+.staff-view-grid dt {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.staff-view-grid dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-word;
+}
+@media (max-width: 640px) {
+  .staff-view-hero {
+    flex-direction: column;
+    text-align: center;
+  }
+  .staff-view-badges {
+    justify-content: center;
+  }
+  .staff-view-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dash-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   margin-top: 12px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.dash-form-grid > * {
+  min-width: 0;
+  max-width: 100%;
 }
 .dash-form-grid label {
   display: flex;
@@ -668,8 +822,162 @@
   font-size: 13px;
   font-weight: 600;
   color: #334155;
+  min-width: 0;
 }
-.dash-form-grid label .input { font-weight: 400; }
+.dash-form-grid label .input {
+  font-weight: 400;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Staff avatar picker — large preview so user clearly sees add/crop area */
+.staff-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 12px;
+  margin-bottom: 4px;
+  padding: 16px;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+.staff-avatar-preview-wrap {
+  flex: 0 0 auto;
+  width: 148px;
+  height: 148px;
+}
+.staff-avatar-preview {
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12), 0 0 0 1.5px #e2e8f0;
+  display: block;
+  background: #fff;
+}
+.staff-avatar-placeholder {
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2.5px dashed #86efac;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #166534;
+  box-shadow: 0 2px 10px rgba(22, 101, 52, 0.06);
+}
+.staff-avatar-placeholder-icon {
+  font-size: 36px;
+  font-weight: 500;
+  line-height: 1;
+  color: #22c55e;
+}
+.staff-avatar-placeholder-text {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.staff-avatar-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+.staff-avatar-hint {
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0;
+}
+.staff-avatar-field .input-file {
+  font-weight: 400;
+  min-height: 3rem;
+  font-size: 14px;
+  padding: 12px 14px;
+}
+
+/* File picker inside modals: no harsh default outline on focus/click */
+.dash-form-grid input.input[type='file'],
+.dash-form-grid .input-file,
+.staff-avatar-field .input-file {
+  outline: none;
+}
+.dash-form-grid input.input[type='file']:focus,
+.dash-form-grid input.input[type='file']:focus-visible,
+.dash-form-grid .input-file:focus,
+.dash-form-grid .input-file:focus-visible,
+.staff-avatar-field .input-file:focus,
+.staff-avatar-field .input-file:focus-visible {
+  outline: none;
+  outline: 2px solid transparent;
+  border-color: var(--green-400, #4ade80);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+}
+.dash-form-grid input.input[type='file']::file-selector-button:focus,
+.dash-form-grid input.input[type='file']::file-selector-button:focus-visible,
+.dash-form-grid .input-file::file-selector-button:focus,
+.dash-form-grid .input-file::file-selector-button:focus-visible,
+.dash-form-grid input.input[type='file']::-webkit-file-upload-button:focus,
+.dash-form-grid input.input[type='file']::-webkit-file-upload-button:focus-visible,
+.staff-avatar-field .input-file::file-selector-button:focus,
+.staff-avatar-field .input-file::file-selector-button:focus-visible,
+.staff-avatar-field .input-file::-webkit-file-upload-button:focus,
+.staff-avatar-field .input-file::-webkit-file-upload-button:focus-visible {
+  outline: none;
+  border-color: var(--green-400, #4ade80);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+@media (max-width: 640px) {
+  .staff-avatar-row {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  .staff-avatar-preview-wrap {
+    margin: 0 auto;
+  }
+  .staff-avatar-field {
+    align-items: stretch;
+  }
+}
+
+/* Filter bar selects in admin pages — full glyph height, no Y-clip */
+.dash-filter-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
+}
+.dash-filter-bar select.input,
+.dash-filter-bar .input[type='search'],
+.dash-filter-bar input.input {
+  height: auto;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+}
+.dash-filter-bar select.input {
+  flex: 1 1 16rem;
+  min-width: min(100%, 16rem);
+  max-width: 28rem;
+  width: auto;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+  line-height: 1.45;
+  overflow: visible;
+}
 
 /* Shipper job card */
 .ship-job-grid {
