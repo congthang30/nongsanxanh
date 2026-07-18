@@ -4,11 +4,11 @@
 
 services:
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
       POSTGRES_USER: agri
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agri_secret}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: agri
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -20,7 +20,7 @@ services:
     # Không expose port ra ngoài trong production
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4-alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
@@ -31,6 +31,24 @@ services:
       timeout: 5s
       retries: 5
 
+  ai-service:
+    image: ${AI_IMAGE}:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      AI_EMBEDDING_PROVIDER: ${AI_EMBEDDING_PROVIDER:-cloud}
+      AI_CLOUD_EMBEDDING_MODEL: ${AI_CLOUD_EMBEDDING_MODEL:-jina-embeddings-v3}
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-1024}
+      JINA_API_KEY: ${JINA_API_KEY:?JINA_API_KEY is required}
+      AI_GENERATION_PROVIDER: ${AI_GENERATION_PROVIDER:-none}
+      AI_CLOUD_GENERATION_MODEL: ${AI_CLOUD_GENERATION_MODEL:-gemini-2.5-flash}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   backend:
     image: ${BACKEND_IMAGE}:${IMAGE_TAG:-latest}
     restart: unless-stopped
@@ -39,16 +57,29 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ai-service:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: "3000"
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-1024}
+      AI_AUTO_REINDEX_ON_EMPTY: ${AI_AUTO_REINDEX_ON_EMPTY:-true}
+      CHAT_MEMORY_TTL_SECONDS: ${CHAT_MEMORY_TTL_SECONDS:-604800}
+      CHAT_MEMORY_MAX_MESSAGES: ${CHAT_MEMORY_MAX_MESSAGES:-100}
+      VECTOR_SEARCH_TOP_K: ${VECTOR_SEARCH_TOP_K:-5}
+      VECTOR_SCORE_THRESHOLD: ${VECTOR_SCORE_THRESHOLD:-0.62}
+      AI_VECTOR_SYNC_DEBOUNCE_MS: ${AI_VECTOR_SYNC_DEBOUNCE_MS:-10000}
+      AI_VECTOR_SYNC_ATTEMPTS: ${AI_VECTOR_SYNC_ATTEMPTS:-3}
+      AI_VECTOR_SYNC_CONCURRENCY: ${AI_VECTOR_SYNC_CONCURRENCY:-2}
+      AI_VECTOR_EXPIRY_SCAN_INTERVAL_MS: ${AI_VECTOR_EXPIRY_SCAN_INTERVAL_MS:-900000}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:?CLOUDINARY_CLOUD_NAME is required}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:?CLOUDINARY_API_KEY is required}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:?CLOUDINARY_API_SECRET is required}
       CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-nongsanxanh}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_USER: ${SMTP_USER}
@@ -57,10 +88,10 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       VNPAY_TMN_CODE: ${VNPAY_TMN_CODE}
       VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET}
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/v1/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:3000/api/v1/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

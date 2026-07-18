@@ -19,6 +19,7 @@ env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/nongsanxanh-backend
   FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/nongsanxanh-frontend
+  AI_IMAGE: ghcr.io/${{ github.repository_owner }}/nongsanxanh-ai
 
 jobs:
   # ─────────────────────────────────────────────────────────
@@ -139,6 +140,23 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
+      # ── Build & Push AI service (cloud embedding image) ───
+      - name: Build & push AI service
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ai-service
+          push: true
+          build-args: |
+            INSTALL_LOCAL_MODEL=false
+          tags: |
+            ${{ env.AI_IMAGE }}:${{ github.sha }}
+            ${{ env.AI_IMAGE }}:latest
+          cache-from: type=gha,scope=ai-prod
+          cache-to: type=gha,scope=ai-prod,mode=max
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
   # ─────────────────────────────────────────────────────────
   # Job 3: deploy — SSH vào VPS, pull + up
   # ─────────────────────────────────────────────────────────
@@ -168,36 +186,13 @@ jobs:
           echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           ssh-keyscan -H -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
-      # ── Tạo file .env production ─────────────────────────
-      - name: Write production .env
-        run: |
-          cat > /tmp/prod.env << 'EOF'
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
-          REDIS_URL=${{ secrets.REDIS_URL }}
-          JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
-          JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
-          S3_ENDPOINT=${{ secrets.S3_ENDPOINT }}
-          S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}
-          S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}
-          SMTP_HOST=${{ secrets.SMTP_HOST }}
-          SMTP_USER=${{ secrets.SMTP_USER }}
-          SMTP_PASS=${{ secrets.SMTP_PASS }}
-          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          VNPAY_TMN_CODE=${{ secrets.VNPAY_TMN_CODE }}
-          VNPAY_HASH_SECRET=${{ secrets.VNPAY_HASH_SECRET }}
-          BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
-          FRONTEND_IMAGE=${{ env.FRONTEND_IMAGE }}
-          IMAGE_TAG=${{ github.sha }}
-          EOF
 
-      # ── Rsync compose file + .env lên VPS ────────────────
-      - name: Rsync files to VPS
+      # ── Chỉ đồng bộ Compose; .env được quản lý trực tiếp trên VPS ──
+      - name: Rsync Compose file to VPS
         run: |
           rsync -avz --no-perms \
             -e "ssh -p ${{ secrets.VPS_PORT }} -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
             docker-compose.production.yml \
-            /tmp/prod.env \
             ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:${{ secrets.VPS_DEPLOY_PATH }}/
 
       # ── Pull images + bring up ────────────────────────────
@@ -211,15 +206,18 @@ jobs:
             set -euo pipefail
             cd ${{ secrets.VPS_DEPLOY_PATH }}
 
-            # Áp dụng env từ file vừa rsync
-            cp prod.env .env
+            # .env chứa secrets production và được quản lý trực tiếp trên VPS
+            test -s .env || { echo "Missing production .env in $PWD"; exit 1; }
+            chmod 600 .env
+            docker compose -f docker-compose.production.yml config --quiet
 
             # Đăng nhập GHCR trên VPS
             echo "${{ secrets.GHCR_TOKEN }}" | \
               docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
-            # Pull images mới và khởi động
+            # Pull images mới và khởi động hạ tầng/AI trước backend
             docker compose -f docker-compose.production.yml pull
+            docker compose -f docker-compose.production.yml up -d db redis ai-service
             docker compose -f docker-compose.production.yml up -d --remove-orphans
 
             # Dọn images cũ không còn dùng

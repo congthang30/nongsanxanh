@@ -109,3 +109,13 @@ jobs:
           build-args: VITE_API_BASE_URL=/api/v1
           cache-from: type=gha,scope=frontend-smoke
           cache-to: type=gha,scope=frontend-smoke,mode=max
+
+      - name: Build AI service image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ai-service
+          push: false
+          tags: agri-ai:smoke
+          build-args: INSTALL_LOCAL_MODEL=false
+          cache-from: type=gha,scope=ai-smoke
+          cache-to: type=gha,scope=ai-smoke,mode=max
