@@ -58,8 +58,19 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      ai-service:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://agri:agri_secret@db:5432/agri?schema=public
+      # Sau seed domain: goi AI embed va ghi pgvector (ai_vector_index)
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-1024}
+      SEED_EMBED_WAIT_MS: ${SEED_EMBED_WAIT_MS:-180000}
+      SEED_EMBED_TIMEOUT_MS: ${SEED_EMBED_TIMEOUT_MS:-180000}
+      # SEED_SKIP_EMBEDDINGS: "1"
+    volumes:
+      # Dev: seed script moi (seed-embeddings) khong can rebuild image
+      - ./backend/prisma:/app/prisma
     command: sh -c "npx prisma migrate deploy && npx prisma db seed"
     restart: "no"
 
@@ -81,6 +92,8 @@ services:
       REDIS_URL: redis://redis:6379
       AI_SERVICE_URL: http://ai-service:8000
       AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-1024}
+      # Neu seed chay luc AI chua embed duoc: backend boot se reindex khi vector PRODUCT = 0
+      AI_AUTO_REINDEX_ON_EMPTY: ${AI_AUTO_REINDEX_ON_EMPTY:-true}
       CHAT_MEMORY_TTL_SECONDS: ${CHAT_MEMORY_TTL_SECONDS:-604800}
       CHAT_MEMORY_MAX_MESSAGES: ${CHAT_MEMORY_MAX_MESSAGES:-100}
       VECTOR_SEARCH_TOP_K: ${VECTOR_SEARCH_TOP_K:-5}

@@ -9,6 +9,7 @@ import { AiVectorSyncService } from './ai-vector-sync.service';
 import { AiVectorSyncWorker } from './ai-vector-sync.worker';
 import { AiVectorSyncListener } from './ai-vector-sync.listener';
 import { AiVectorExpiryScheduler } from './ai-vector-expiry.scheduler';
+import { AiVectorBootstrapService } from './ai-vector-bootstrap.service';
 
 @Module({
   imports: [ConfigModule],
@@ -22,6 +23,7 @@ import { AiVectorExpiryScheduler } from './ai-vector-expiry.scheduler';
     AiVectorSyncWorker,
     AiVectorSyncListener,
     AiVectorExpiryScheduler,
+    AiVectorBootstrapService,
   ],
   exports: [AiService, AiVectorIndexerService, AiVectorSyncService],
 })

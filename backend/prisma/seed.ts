@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import { PrismaClient, ProductStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { seedEmbeddings } from './seed-embeddings';
 
 const prisma = new PrismaClient();
 
@@ -715,6 +716,9 @@ async function main() {
     });
   }
 
+  // Tu dong embed seed data -> pgvector (ai_vector_index). Can AI_SERVICE_URL.
+  await seedEmbeddings(prisma);
+
   console.log('\nSeed done. Tất cả mật khẩu: Password123!');
   console.log('  Admin:     admin@nsx.local');
   console.log('  Support:   support@nsx.local');
@@ -726,6 +730,7 @@ async function main() {
     console.log(`        kho=${s.warehouseEmails.join(', ')}`);
   }
   console.log('  Coupons: NSXMUAHE (platform 10%), Q1GIAM10 (store Quận 1)');
+  console.log('  Vectors:  auto-embedded into ai_vector_index (pgvector) if AI was ready');
 }
 
 main()
