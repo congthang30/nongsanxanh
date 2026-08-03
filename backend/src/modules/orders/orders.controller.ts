@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Headers,
-  Param,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import {
@@ -21,12 +14,8 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
-  create(
-    @CurrentUser() user: AuthUser,
-    @Body() dto: CreateOrderDto,
-    @Headers('x-session-id') sessionId?: string,
-  ) {
-    return this.ordersService.createOrder(user.id, dto, sessionId);
+  create(@CurrentUser() user: AuthUser, @Body() dto: CreateOrderDto) {
+    return this.ordersService.createOrder(user.id, dto);
   }
 
   @Get()

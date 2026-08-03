@@ -27,11 +27,12 @@ export default function POSReturnsPage() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-surface border-b border-outline-variant h-16 flex items-center px-lg justify-between shadow-sm">
         <div className="flex items-center gap-4">
           <button 
+            id="pos-returns-back-to-management-button"
             className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors font-label-bold text-label-bold font-semibold outline-none"
-            onClick={() => navigate('/pos')}
+            onClick={() => navigate('/store-manager/dashboard')}
           >
             <span className="material-symbols-outlined">arrow_back</span>
-            Về POS
+            Về trang quản lý
           </button>
         </div>
         <h1 className="font-headline-md text-headline-md text-primary font-bold absolute left-1/2 transform -translate-x-1/2">
@@ -74,10 +75,15 @@ export default function POSReturnsPage() {
               <span className="material-symbols-outlined">help</span>
               Trợ giúp
             </div>
-            <Link className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg mx-2 my-1 font-label-bold text-label-bold transition-all hover:bg-primary-container/20 font-semibold" to="/store">
+            <button
+              id="pos-returns-exit-terminal-button"
+              type="button"
+              className="w-[calc(100%-1rem)] flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg mx-2 my-1 font-label-bold text-label-bold transition-all hover:bg-primary-container/20 font-semibold text-left"
+              onClick={() => navigate('/store-manager/dashboard')}
+            >
               <span className="material-symbols-outlined">logout</span>
               Thoát quầy
-            </Link>
+            </button>
             <div className="mt-4 px-2">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-primary font-bold border border-outline-variant">

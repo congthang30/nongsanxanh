@@ -79,11 +79,6 @@ const STORE_MANAGER_GROUPS: MenuGroup[] = [
 
 const STORE_STAFF_GROUPS: MenuGroup[] = [
   {
-    items: [
-      { to: '/store/orders', label: 'Đơn hàng cửa hàng', icon: 'ShoppingCart', exact: true },
-    ],
-  },
-  {
     title: 'Bán hàng tại quầy',
     items: [{ to: '/pos', label: 'Màn hình thu ngân', icon: 'Calculator' }],
   },
@@ -155,7 +150,7 @@ export const ROLE_CONFIGS: Record<RoleCode, RoleConfig> = {
   STORE_STAFF: {
     code: 'STORE_STAFF',
     label: 'Nhân viên bán hàng',
-    homePath: '/store/orders',
+    homePath: '/pos',
     badgeColor: '#0d9488',
     groups: STORE_STAFF_GROUPS,
   },
@@ -186,7 +181,6 @@ export function pickRoleConfig(roles: string[], pathname?: string): RoleConfig |
   const isAdmin = roles.includes('ADMIN') || roles.includes('SUPER_ADMIN');
   if (isAdmin && pathname) {
     if (pathname.startsWith('/store-manager')) return ROLE_CONFIGS.STORE_MANAGER;
-    if (pathname.startsWith('/store/')) return ROLE_CONFIGS.STORE_STAFF;
     if (pathname.startsWith('/warehouse')) return ROLE_CONFIGS.WAREHOUSE_STAFF;
     if (pathname.startsWith('/shipper')) return ROLE_CONFIGS.SHIPPER;
     if (pathname.startsWith('/staff')) return ROLE_CONFIGS.SUPPORT;

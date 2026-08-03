@@ -39,8 +39,8 @@ export default function StoreManagerDashboard() {
       />
       <div className="dash-stat-grid">
         <StatCard icon="ClipboardList" label="Đơn mới" value={c.new ?? 0} color="#0891b2" />
-        <StatCard icon="Package" label="Đang soạn" value={(c.confirmed ?? 0) + (c.picking ?? 0) + (c.packed ?? 0)} color="#ca8a04" />
-        <StatCard icon="Truck" label="Đang giao" value={c.outForDelivery ?? 0} color="#7c3aed" />
+        <StatCard icon="Package" label="Kho đang xử lý" value={(c.new ?? 0) + (c.confirmed ?? 0) + (c.picking ?? 0)} color="#ca8a04" />
+        <StatCard icon="Truck" label="Chờ lấy & đang giao" value={(c.readyForDelivery ?? 0) + (c.outForDelivery ?? 0)} color="#7c3aed" />
         <StatCard icon="ShoppingBag" label="Đơn hôm nay" value={data?.ordersToday ?? 0} color="#16a34a" />
         <StatCard icon="TrendingUp" label="Doanh thu hôm nay" value={data?.revenueToday ?? 0} format={formatVnd} color="#15803d" />
         <StatCard icon="AlertTriangle" label="Sản phẩm sắp hết" value={data?.lowStockCount ?? 0} color="#dc2626" />
@@ -48,8 +48,8 @@ export default function StoreManagerDashboard() {
 
       <div className="dash-quick-grid" style={{ marginTop: 24 }}>
         <Link to="/store-manager/orders" className="dash-quick-card">
-          <strong>Đơn hàng</strong>
-          <span className="muted">Xác nhận, theo dõi và điều phối đơn</span>
+          <strong>Giám sát đơn hàng</strong>
+          <span className="muted">Theo dõi tiến độ và xử lý đơn giao thất bại</span>
         </Link>
         <Link to="/store-manager/inventory" className="dash-quick-card">
           <strong>Tồn kho</strong>

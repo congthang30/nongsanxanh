@@ -5,8 +5,8 @@ interface Props {
 
 const MAP: Record<string, { label: string; cls: string }> = {
   PENDING_PAYMENT: { label: 'Chờ thanh toán', cls: 'dash-badge-amber' },
-  PLACED: { label: 'Đã đặt hàng', cls: 'dash-badge-blue' },
-  STORE_CONFIRMED: { label: 'Đã xác nhận', cls: 'dash-badge-blue' },
+  PLACED: { label: 'Chờ kho xác nhận', cls: 'dash-badge-blue' },
+  STORE_CONFIRMED: { label: 'Kho đã xác nhận', cls: 'dash-badge-blue' },
   PICKING: { label: 'Đang soạn', cls: 'dash-badge-amber' },
   PACKED: { label: 'Đã đóng gói', cls: 'dash-badge-amber' },
   READY_FOR_DELIVERY: { label: 'Sẵn sàng giao', cls: 'dash-badge-amber' },
@@ -46,6 +46,7 @@ const PAYMENT_MAP: Record<string, { label: string; cls: string }> = {
   SUCCESS: { label: 'Đã thanh toán', cls: 'dash-badge-green' },
   PAID: { label: 'Đã thanh toán', cls: 'dash-badge-green' },
   FAILED: { label: 'Thất bại', cls: 'dash-badge-red' },
+  REFUND_PENDING: { label: 'Chờ hoàn tiền', cls: 'dash-badge-amber' },
   REFUNDED: { label: 'Đã hoàn tiền', cls: 'dash-badge-slate' },
   PARTIALLY_REFUNDED: { label: 'Hoàn một phần', cls: 'dash-badge-amber' },
   CANCELLED: { label: 'Đã hủy', cls: 'dash-badge-slate' },

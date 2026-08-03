@@ -49,7 +49,7 @@ export class OrdersService {
     private readonly events: EventEmitter2,
   ) {}
 
-  async createOrder(userId: string, dto: CreateOrderDto, sessionId?: string) {
+  async createOrder(userId: string, dto: CreateOrderDto) {
     const address = await this.prisma.address.findFirst({
       where: { id: dto.addressId, userId },
     });
@@ -68,11 +68,7 @@ export class OrdersService {
     }
 
     const cart = await this.prisma.cart.findFirst({
-      where: {
-        status: 'ACTIVE',
-        OR: [{ userId }, ...(sessionId ? [{ sessionId }] : [])],
-      },
-      orderBy: { updatedAt: 'desc' },
+      where: { userId, status: 'ACTIVE' },
       include: {
         items: { include: { variant: { include: { product: true } } } },
       },
@@ -459,27 +455,101 @@ export class OrdersService {
 
   // ---------------- Payment callbacks (VNPay) ----------------
 
-  /** Thanh toan online thanh cong: PENDING_PAYMENT -> PLACED. */
-  async markPaid(orderId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) return;
-    await this.prisma.$transaction(async (tx) => {
+  /**
+   * Thanh toan online thanh cong. Khoa order de serialize voi thao tac kho huy don:
+   * - PENDING_PAYMENT -> PLACED va payment SUCCESS;
+   * - neu kho da huy -> payment REFUND_PENDING va tao Refund.
+   */
+  async markPaid(orderId: string, paymentId?: string): Promise<PaymentStatus> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<
+        { status: OrderStatus; store_id: string; grand_total: number; order_number: string }[]
+      >(Prisma.sql`
+        SELECT status, store_id, grand_total, order_number
+        FROM orders
+        WHERE id = ${orderId}
+        FOR UPDATE
+      `);
+      const order = locked[0];
+      if (!order) return { status: PaymentStatus.FAILED, placed: false };
+
+      if (order.status === OrderStatus.CANCELLED) {
+        const payment = paymentId
+          ? await tx.payment.findUnique({ where: { id: paymentId } })
+          : await tx.payment.findFirst({
+              where: { orderId },
+              orderBy: { createdAt: 'desc' },
+            });
+        if (!payment) return { status: PaymentStatus.FAILED, placed: false };
+        const existingRefund = await tx.refund.findFirst({
+          where: { paymentId: payment.id, status: 'PENDING' },
+        });
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: { status: PaymentStatus.REFUND_PENDING, paidAt: new Date() },
+        });
+        if (!existingRefund) {
+          await tx.refund.create({
+            data: {
+              paymentId: payment.id,
+              orderId,
+              amount: order.grand_total,
+              status: 'PENDING',
+              reason: 'Thanh toan thanh cong cho don da huy - can hoan tien',
+            },
+          });
+        }
+        await tx.order.update({
+          where: { id: orderId },
+          data: { paymentStatus: PaymentStatus.REFUND_PENDING },
+        });
+        await tx.auditLog.create({
+          data: {
+            action: 'PAYMENT_ON_CANCELLED_ORDER',
+            actorId: null,
+            targetType: 'Order',
+            targetId: orderId,
+            storeId: order.store_id,
+            metadata: {
+              orderNumber: order.order_number,
+              amount: order.grand_total,
+            },
+          },
+        });
+        return { status: PaymentStatus.REFUND_PENDING, placed: false };
+      }
+
+      if (order.status !== OrderStatus.PENDING_PAYMENT) {
+        return { status: PaymentStatus.SUCCESS, placed: false };
+      }
+      if (paymentId) {
+        await tx.payment.update({
+          where: { id: paymentId },
+          data: { status: PaymentStatus.SUCCESS, paidAt: new Date() },
+        });
+      }
       await tx.order.update({
         where: { id: orderId },
-        data: { paymentStatus: PaymentStatus.SUCCESS },
+        data: {
+          paymentStatus: PaymentStatus.SUCCESS,
+          status: OrderStatus.PLACED,
+        },
       });
-      if (canTransition(order.status, OrderStatus.PLACED)) {
-        await this.transitionInTx(
-          tx,
+      await tx.orderStatusHistory.create({
+        data: {
           orderId,
-          order.status,
-          OrderStatus.PLACED,
-          'system',
-          'Thanh toan online thanh cong',
-        );
-      }
+          fromStatus: OrderStatus.PENDING_PAYMENT,
+          toStatus: OrderStatus.PLACED,
+          actorId: null,
+          reason: 'Thanh toan online thanh cong',
+        },
+      });
+      return { status: PaymentStatus.SUCCESS, placed: true };
     });
-    this.events.emit('order.placed', { orderId, storeId: order.storeId });
+    if (result.placed) {
+      this.events.emit('order.placed', { orderId });
+    }
+    return result.status;
   }
 
   /** Thanh toan online that bai: release ton + huy don. */
@@ -606,7 +676,16 @@ export class OrdersService {
         message: `Khong the chuyen tu ${from} sang ${to}`,
       });
     }
-    await tx.order.update({ where: { id: orderId }, data: { status: to } });
+    const updated = await tx.order.updateMany({
+      where: { id: orderId, status: from },
+      data: { status: to },
+    });
+    if (updated.count !== 1) {
+      throw new BadRequestException({
+        code: 'ORDER_STATUS_CHANGED',
+        message: 'Trang thai don da thay doi, vui long tai lai va thu lai',
+      });
+    }
     await tx.orderStatusHistory.create({
       data: { orderId, fromStatus: from, toStatus: to, actorId, reason },
     });

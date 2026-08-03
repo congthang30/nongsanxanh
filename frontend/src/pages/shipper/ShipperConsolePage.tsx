@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
 import { api, getErrorMessage } from '../../lib/api';
 import { useToastStore } from '../../lib/toast.store';
 import { formatVnd, DELIVERY_STATUS_LABEL } from '../../lib/format';
@@ -21,11 +22,13 @@ interface Job {
 const NEXT_ACTION: Record<string, { label: string; path: string }[]> = {
   ASSIGNED: [{ label: 'Đã lấy hàng', path: 'picked-from-store' }],
   PICKED_FROM_STORE: [{ label: 'Bắt đầu giao', path: 'out-for-delivery' }],
-  OUT_FOR_DELIVERY: [
-    { label: 'Đã đến nơi', path: 'arrived' },
-    { label: 'Giao thành công', path: 'delivered' },
-  ],
+  OUT_FOR_DELIVERY: [{ label: 'Đã đến nơi', path: 'arrived' }],
   ARRIVED_AT_CUSTOMER: [{ label: 'Giao thành công', path: 'delivered' }],
+};
+
+const STATUS_BY_SCOPE: Record<'active' | 'history', string[]> = {
+  active: ['ASSIGNED', 'PICKED_FROM_STORE', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_CUSTOMER'],
+  history: ['DELIVERED', 'FAILED'],
 };
 
 export default function ShipperConsolePage({ scope }: { scope: 'active' | 'history' }) {
@@ -33,11 +36,43 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
   const { push } = useToastStore();
   const [failModal, setFailModal] = useState<Job | null>(null);
   const [codModal, setCodModal] = useState<Job | null>(null);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
 
   const { data: jobs, isLoading } = useQuery({
     queryKey: ['shipper-jobs', scope],
     queryFn: () => api.get('/shipper/jobs', { params: { scope } }).then((r) => r.data.data as Job[]),
   });
+
+  const filteredJobs = useMemo(() => {
+    const normalizedSearch = search.trim().toLocaleLowerCase('vi');
+    return (jobs ?? []).filter((job) => {
+      if (status && job.status !== status) return false;
+      if (paymentMethod && job.order.paymentMethod !== paymentMethod) return false;
+      if (!normalizedSearch) return true;
+
+      return [
+        job.order.orderNumber,
+        job.dropoffName,
+        job.dropoffPhone,
+        job.dropoffAddress,
+        job.store.name,
+        ...job.order.items.map((item) => item.productNameSnapshot),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase('vi')
+        .includes(normalizedSearch);
+    });
+  }, [jobs, paymentMethod, search, status]);
+
+  const hasFilters = Boolean(search.trim() || status || paymentMethod);
+  const clearFilters = () => {
+    setSearch('');
+    setStatus('');
+    setPaymentMethod('');
+  };
 
   const act = useMutation({
     mutationFn: ({ id, path, body }: { id: string; path: string; body?: object }) =>
@@ -74,8 +109,77 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
         title={scope === 'active' ? 'Đơn đang giao' : 'Lịch sử giao hàng'}
         subtitle={scope === 'active' ? 'Cập nhật trạng thái từng đơn' : 'Đơn đã hoàn tất / thất bại'}
       />
+
+      <div className="dash-table-card" style={{ padding: 12, marginBottom: 16 }}>
+        <div className="dash-filter-bar" style={{ marginTop: 0 }}>
+          <div style={{ position: 'relative', minWidth: 240, flex: '1 1 320px', maxWidth: 520 }}>
+            <Search
+              size={16}
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                left: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#64748b',
+              }}
+            />
+            <input
+              id={`shipper-orders-search-${scope}`}
+              className="input"
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Tìm mã đơn, khách hàng, SĐT, địa chỉ..."
+              aria-label="Tìm đơn giao hàng"
+              style={{ width: '100%', paddingLeft: 36 }}
+            />
+          </div>
+          <select
+            id={`shipper-orders-status-filter-${scope}`}
+            className="input"
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            aria-label="Lọc trạng thái giao hàng"
+            style={{ flex: '0 1 14rem', minWidth: '13rem', maxWidth: '18rem' }}
+          >
+            <option value="">Tất cả trạng thái</option>
+            {STATUS_BY_SCOPE[scope].map((value) => (
+              <option key={value} value={value}>
+                {DELIVERY_STATUS_LABEL[value] ?? value}
+              </option>
+            ))}
+          </select>
+          <select
+            id={`shipper-orders-payment-filter-${scope}`}
+            className="input"
+            value={paymentMethod}
+            onChange={(event) => setPaymentMethod(event.target.value)}
+            aria-label="Lọc phương thức thanh toán"
+            style={{ flex: '0 1 12rem', minWidth: '11rem', maxWidth: '15rem' }}
+          >
+            <option value="">Tất cả thanh toán</option>
+            <option value="COD">COD</option>
+            <option value="VNPAY">Đã thanh toán VNPay</option>
+          </select>
+          {hasFilters && (
+            <button
+              id={`shipper-orders-clear-filter-${scope}`}
+              type="button"
+              className="dash-btn dash-btn-sm"
+              onClick={clearFilters}
+            >
+              Xóa bộ lọc
+            </button>
+          )}
+        </div>
+        <p className="muted" style={{ margin: '10px 0 0', fontSize: 13 }} aria-live="polite">
+          Hiển thị {filteredJobs.length}/{jobs?.length ?? 0} đơn
+        </p>
+      </div>
+
       <div className="stack gap">
-        {(jobs ?? []).map((j) => (
+        {filteredJobs.map((j) => (
           <div key={j.id} className="dash-table-card" style={{ padding: 18 }}>
             <div className="between" style={{ marginBottom: 8 }}>
               <strong>#{j.order.orderNumber}</strong>
@@ -125,7 +229,7 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
                       <button key={a.path} className="dash-btn dash-btn-sm dash-btn-primary" disabled={act.isPending} onClick={() => act.mutate({ id: j.id, path: a.path })}>{a.label}</button>
                     ),
                   )}
-                  {['OUT_FOR_DELIVERY', 'ARRIVED_AT_CUSTOMER'].includes(j.status) && (
+                  {j.status === 'ARRIVED_AT_CUSTOMER' && (
                     <button className="dash-btn dash-btn-sm" disabled={act.isPending} onClick={() => setFailModal(j)}>Giao thất bại</button>
                   )}
                 </div>
@@ -136,9 +240,13 @@ export default function ShipperConsolePage({ scope }: { scope: 'active' | 'histo
             </div>
           </div>
         ))}
-        {!isLoading && (jobs ?? []).length === 0 && (
+        {!isLoading && filteredJobs.length === 0 && (
           <div className="dash-table-card" style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
-            {scope === 'active' ? 'Không có đơn cần giao.' : 'Chưa có lịch sử giao hàng.'}
+            {(jobs ?? []).length > 0
+              ? 'Không tìm thấy đơn phù hợp bộ lọc.'
+              : scope === 'active'
+                ? 'Không có đơn cần giao.'
+                : 'Chưa có lịch sử giao hàng.'}
           </div>
         )}
       </div>

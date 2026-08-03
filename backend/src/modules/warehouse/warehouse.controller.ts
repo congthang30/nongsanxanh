@@ -15,7 +15,13 @@ import {
   AuthUser,
   CurrentUser,
 } from '../../common/decorators/current-user.decorator';
-import { AdjustStockDto, ExportStockDto, ImportStockDto, MarkPackedDto } from './dto/warehouse.dto';
+import {
+  AdjustStockDto,
+  ExportStockDto,
+  ImportStockDto,
+  MarkPackedDto,
+  ReportShortageDto,
+} from './dto/warehouse.dto';
 
 /**
  * Warehouse Staff console - scope theo cua hang cua nhan vien.
@@ -38,14 +44,31 @@ export class WarehouseController {
     return this.fulfillment.listOrdersToPick(user);
   }
 
+  @Get('orders-processed')
+  processedOrders(@CurrentUser() user: AuthUser) {
+    return this.fulfillment.listProcessedWarehouseOrders(user);
+  }
+
   @Get('orders/:id')
   orderDetail(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.fulfillment.getStoreOrder(user, id);
   }
 
-  @Post('orders/:id/start-picking')
-  startPicking(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.fulfillment.startPicking(user, id);
+  @Post('orders/:id/confirm-and-start-picking')
+  confirmAndStartPicking(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    return this.fulfillment.confirmAndStartPicking(user, id);
+  }
+
+  @Post('orders/:id/report-shortage')
+  reportShortage(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: ReportShortageDto,
+  ) {
+    return this.fulfillment.reportShortage(user, id, dto.reason);
   }
 
   @Post('orders/:id/packed')

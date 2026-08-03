@@ -105,6 +105,14 @@ export function unwrap<T>(promise: Promise<{ data: { data: T } }>): Promise<T> {
 }
 
 export function getErrorMessage(error: unknown): string {
-  const value = error as { response?: { data?: { error?: { message?: string } } } };
-  return value?.response?.data?.error?.message ?? 'Đã có lỗi xảy ra';
+  const value = error as {
+    response?: {
+      status?: number;
+      data?: { error?: { message?: string } };
+    };
+  };
+  if ((value.response?.status ?? 0) >= 500) {
+    return 'Hệ thống đang gặp sự cố. Vui lòng thử lại sau.';
+  }
+  return value.response?.data?.error?.message ?? 'Đã có lỗi xảy ra';
 }

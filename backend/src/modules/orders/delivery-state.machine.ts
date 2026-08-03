@@ -10,11 +10,7 @@ import { DeliveryStatus } from '@prisma/client';
 export const DELIVERY_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus[]> = {
   ASSIGNED: [DeliveryStatus.PICKED_FROM_STORE],
   PICKED_FROM_STORE: [DeliveryStatus.OUT_FOR_DELIVERY],
-  OUT_FOR_DELIVERY: [
-    DeliveryStatus.ARRIVED_AT_CUSTOMER,
-    DeliveryStatus.DELIVERED,
-    DeliveryStatus.FAILED,
-  ],
+  OUT_FOR_DELIVERY: [DeliveryStatus.ARRIVED_AT_CUSTOMER],
   ARRIVED_AT_CUSTOMER: [DeliveryStatus.DELIVERED, DeliveryStatus.FAILED],
   DELIVERED: [],
   FAILED: [],

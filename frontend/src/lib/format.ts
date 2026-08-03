@@ -13,8 +13,8 @@ export const formatDateTime = (value: string | number | Date): string =>
 
 export const ORDER_STATUS_LABEL: Record<string, string> = {
   PENDING_PAYMENT: 'Chờ thanh toán',
-  PLACED: 'Đã đặt hàng',
-  STORE_CONFIRMED: 'Cửa hàng đã xác nhận',
+  PLACED: 'Chờ kho xác nhận',
+  STORE_CONFIRMED: 'Kho đã xác nhận',
   PICKING: 'Đang soạn hàng',
   PACKED: 'Đã đóng gói',
   READY_FOR_DELIVERY: 'Sẵn sàng giao',
@@ -54,17 +54,20 @@ export const DELIVERY_STATUS_LABEL: Record<string, string> = {
 
 /** Trạng thái thanh toán — ngôn ngữ hình ảnh tách riêng với trạng thái đơn. */
 export const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  INITIATED: 'Chưa thanh toán',
   PENDING: 'Chờ thanh toán',
   PROCESSING: 'Đang xử lý',
   SUCCESS: 'Đã thanh toán',
   PAID: 'Đã thanh toán',
   FAILED: 'Thanh toán thất bại',
+  REFUND_PENDING: 'Chờ hoàn tiền',
   REFUNDED: 'Đã hoàn tiền',
   PARTIALLY_REFUNDED: 'Hoàn tiền một phần',
   CANCELLED: 'Đã hủy',
 };
 
 export const PAYMENT_STATUS_BADGE: Record<string, string> = {
+  INITIATED: 'badge-amber',
   PENDING: 'badge-amber',
   PROCESSING: 'badge-blue',
   SUCCESS: 'badge-green',

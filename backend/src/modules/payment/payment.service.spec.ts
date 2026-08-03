@@ -10,6 +10,7 @@ describe('PaymentService.handleVnpayCallback', () => {
   let orders: any;
   let vnpay: any;
   let audit: any;
+  let inventory: any;
   let service: PaymentService;
 
   const baseOrder = {
@@ -46,15 +47,26 @@ describe('PaymentService.handleVnpayCallback', () => {
         create: jest.fn().mockResolvedValue({}),
       },
       refund: { create: jest.fn().mockResolvedValue({}) },
+      pOSSale: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      pOSSaleItem: { findMany: jest.fn().mockResolvedValue([]) },
+      pOSPayment: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'pos-pay-1' }),
+      },
+      $queryRaw: jest.fn().mockResolvedValue([]),
       $transaction: jest.fn(async (cb: any) => cb(prisma)),
     };
     orders = {
-      markPaid: jest.fn().mockResolvedValue(undefined),
+      markPaid: jest.fn().mockResolvedValue(PaymentStatus.SUCCESS),
       markPaymentFailed: jest.fn().mockResolvedValue(undefined),
     };
     vnpay = { verifySignature: jest.fn().mockReturnValue(true) };
     audit = { log: jest.fn().mockResolvedValue(undefined) };
-    service = new PaymentService(prisma, orders, vnpay, audit);
+    inventory = { commitPosSale: jest.fn().mockResolvedValue(undefined) };
+    service = new PaymentService(prisma, orders, vnpay, audit, inventory);
   });
 
   it('chu ky sai -> nem loi, khong xu ly', async () => {
@@ -109,10 +121,11 @@ describe('PaymentService.handleVnpayCallback', () => {
     expect(orders.markPaid).not.toHaveBeenCalled();
   });
 
-  it('thanh cong binh thuong -> markPaid + payment SUCCESS', async () => {
+  it('thanh cong binh thuong -> markPaid atomically + payment SUCCESS', async () => {
     const res = await service.handleVnpayCallback(goodQuery());
     expect(res.success).toBe(true);
-    expect(orders.markPaid).toHaveBeenCalledWith('order-1');
+    expect(res.status).toBe(PaymentStatus.SUCCESS);
+    expect(orders.markPaid).toHaveBeenCalledWith('order-1', 'pay-1');
   });
 
   it('that bai (code != 00) -> markPaymentFailed', async () => {
@@ -127,5 +140,85 @@ describe('PaymentService.handleVnpayCallback', () => {
     await service.handleVnpayCallback(goodQuery());
     const createArg = prisma.paymentTransaction.create.mock.calls[0][0];
     expect(createArg.data.callbackPayload.vnp_SecureHash).toBeUndefined();
+  });
+
+  describe('POS callback', () => {
+    const posQuery = () => ({
+      vnp_TxnRef: 'POS12345678',
+      vnp_ResponseCode: '00',
+      vnp_TransactionNo: 'POS-TXN-1',
+      vnp_Amount: String(18000 * 100),
+      vnp_SecureHash: 'sig',
+    });
+
+    beforeEach(() => {
+      prisma.pOSSale.findUnique.mockResolvedValue({
+        id: 'sale-1',
+        storeId: 'store-1',
+        cashierId: 'cashier-1',
+      });
+      prisma.$queryRaw.mockResolvedValue([
+        { status: 'DRAFT', payment_status: 'PENDING', grand_total: 18000 },
+      ]);
+      prisma.pOSSaleItem.findMany.mockResolvedValue([
+        {
+          variantId: 'variant-1',
+          quantity: 1,
+          lineTotal: 18000,
+          discountAmount: 0,
+        },
+      ]);
+    });
+
+    it('callback thanh cong chot sale va ton kho trong transaction', async () => {
+      const result = await service.handleVnpayCallback(posQuery());
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          success: true,
+          pos: true,
+          saleId: 'sale-1',
+          status: 'PAID',
+        }),
+      );
+      expect(inventory.commitPosSale).toHaveBeenCalledTimes(1);
+      expect(prisma.pOSPayment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            method: 'VNPAY',
+            amount: 18000,
+            reference: 'POS-TXN-1',
+          }),
+        }),
+      );
+      expect(prisma.pOSSale.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'PAID', paymentStatus: 'PAID' }),
+        }),
+      );
+    });
+
+    it('callback lap lai khong tru ton lan hai', async () => {
+      prisma.pOSPayment.findFirst.mockResolvedValue({ id: 'pos-pay-old' });
+
+      const result = await service.handleVnpayCallback(posQuery());
+
+      expect(result.idempotent).toBe(true);
+      expect(inventory.commitPosSale).not.toHaveBeenCalled();
+      expect(prisma.pOSSale.update).not.toHaveBeenCalled();
+    });
+
+    it('sai so tien thi khong chot sale va khong tru ton', async () => {
+      const query = posQuery();
+      query.vnp_Amount = '1';
+
+      const result = await service.handleVnpayCallback(query);
+
+      expect(result.amountMismatch).toBe(true);
+      expect(result.success).toBe(false);
+      expect(inventory.commitPosSale).not.toHaveBeenCalled();
+      expect(prisma.pOSPayment.create).not.toHaveBeenCalled();
+      expect(prisma.pOSSale.update).not.toHaveBeenCalled();
+    });
   });
 });

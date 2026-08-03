@@ -360,6 +360,12 @@ export class POSSaleService {
         message: 'Hoa don chua co san pham',
       });
     }
+    if (dto.payments.some((payment) => payment.method === POSPaymentMethod.VNPAY)) {
+      throw new BadRequestException({
+        code: 'VNPAY_CALLBACK_REQUIRED',
+        message: 'Thanh toan VNPay chi duoc xac nhan tu callback cua VNPay',
+      });
+    }
 
     const grandTotal = sale.items.reduce((s, it) => s + it.lineTotal, 0);
     const totalPaid = dto.payments.reduce((s, p) => s + p.amount, 0);

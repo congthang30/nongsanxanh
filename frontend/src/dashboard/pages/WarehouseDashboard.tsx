@@ -20,21 +20,23 @@ export default function WarehouseDashboard() {
     queryFn: () => api.get('/warehouse/low-stock').then((r) => r.data.data as InvRow[]),
   });
 
-  const confirmed = (toPick ?? []).filter((o) => o.status === 'STORE_CONFIRMED').length;
+  const waitingConfirmation = (toPick ?? []).filter((o) =>
+    ['PLACED', 'STORE_CONFIRMED'].includes(o.status),
+  ).length;
   const picking = (toPick ?? []).filter((o) => o.status === 'PICKING').length;
 
   return (
     <>
-      <PageHeader title="Kho cửa hàng" subtitle="Soạn hàng và quản lý tồn kho" />
+      <PageHeader title="Kho cửa hàng" subtitle="Xác nhận đơn, soạn hàng và quản lý tồn kho" />
       <div className="dash-stat-grid">
-        <StatCard icon="Clock" label="Chờ soạn" value={confirmed} color="#ca8a04" />
+        <StatCard icon="Clock" label="Chờ xác nhận" value={waitingConfirmation} color="#ca8a04" />
         <StatCard icon="Box" label="Đang soạn" value={picking} color="#0891b2" />
         <StatCard icon="AlertTriangle" label="Sản phẩm sắp hết" value={lowStock?.length ?? 0} color="#dc2626" />
       </div>
       <div className="dash-quick-grid" style={{ marginTop: 24 }}>
         <Link to="/warehouse/pick" className="dash-quick-card">
-          <strong>Soạn hàng</strong>
-          <span className="muted">Đơn đã xác nhận cần soạn và đóng gói</span>
+          <strong>Xác nhận &amp; soạn hàng</strong>
+          <span className="muted">Kiểm tra đơn mới, xác nhận hoặc báo thiếu hàng</span>
         </Link>
         <Link to="/warehouse/inventory" className="dash-quick-card">
           <strong>Tồn kho</strong>

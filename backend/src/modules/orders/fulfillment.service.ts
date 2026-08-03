@@ -1,10 +1,11 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { OrderStatus, Prisma, StoreStaffRole } from '@prisma/client';
+import {
+  DeliveryStatus,
+  OrderStatus,
+  PaymentStatus,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { StoreInventoryService } from '../inventory/inventory.service';
 import { StoreScopeService } from '../store/store-scope.service';
@@ -13,10 +14,12 @@ import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { canTransition } from './order-state.machine';
 
 /**
- * Xu ly vong doi don hang phia cua hang (store staff / warehouse / manager).
+ * Xu ly vong doi don hang phia kho / cua hang.
  * Moi thao tac kiem tra order.storeId == store cua user (chong IDOR).
  *
- * Luong: PLACED -> STORE_CONFIRMED -> PICKING -> PACKED -> READY_FOR_DELIVERY.
+ * Luong: PLACED (cho kho xac nhan) -> STORE_CONFIRMED -> PICKING -> PACKED
+ * -> READY_FOR_DELIVERY. Hai buoc xac nhan va bat dau soan duoc kho thuc hien
+ * trong mot transaction de don khong bi ket o trang thai trung gian.
  */
 @Injectable()
 export class FulfillmentService {
@@ -38,10 +41,20 @@ export class FulfillmentService {
         ? undefined
         : await this.scope.requireUserStoreId(user.id);
     }
+    let parsedStatus: OrderStatus | undefined;
+    if (status) {
+      if (!Object.values(OrderStatus).includes(status as OrderStatus)) {
+        throw new BadRequestException({
+          code: 'INVALID_ORDER_STATUS',
+          message: 'Trang thai don hang khong hop le',
+        });
+      }
+      parsedStatus = status as OrderStatus;
+    }
     return this.prisma.order.findMany({
       where: {
         ...(storeId ? { storeId } : {}),
-        ...(status ? { status: status as OrderStatus } : {}),
+        ...(parsedStatus ? { status: parsedStatus } : {}),
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -53,19 +66,54 @@ export class FulfillmentService {
     });
   }
 
-  /** Don cho soan hang (STORE_CONFIRMED) cua cua hang. */
+  /** Don cho kho xac nhan hoac dang soan cua cua hang. */
   async listOrdersToPick(user: AuthUser) {
     const storeId = await this.scope.requireUserStoreId(user.id);
     return this.prisma.order.findMany({
       where: {
         storeId,
-        status: { in: [OrderStatus.STORE_CONFIRMED, OrderStatus.PICKING] },
+        status: {
+          in: [
+            OrderStatus.PLACED,
+            OrderStatus.STORE_CONFIRMED,
+            OrderStatus.PICKING,
+          ],
+        },
       },
       orderBy: { createdAt: 'asc' },
       include: {
         items: true,
         user: { include: { profile: true } },
       },
+    });
+  }
+
+  /** Lich su don da roi hang doi xu ly cua kho. */
+  async listProcessedWarehouseOrders(user: AuthUser) {
+    const storeId = await this.scope.requireUserStoreId(user.id);
+    return this.prisma.order.findMany({
+      where: {
+        storeId,
+        status: {
+          in: [
+            OrderStatus.PACKED,
+            OrderStatus.READY_FOR_DELIVERY,
+            OrderStatus.OUT_FOR_DELIVERY,
+            OrderStatus.DELIVERED,
+            OrderStatus.COMPLETED,
+            OrderStatus.CANCELLED,
+            OrderStatus.DELIVERY_FAILED,
+            OrderStatus.RETURN_REQUESTED,
+            OrderStatus.RETURNED,
+          ],
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        items: true,
+        user: { include: { profile: true } },
+      },
+      take: 200,
     });
   }
 
@@ -79,32 +127,67 @@ export class FulfillmentService {
     });
   }
 
-  /** Store staff/manager xac nhan don: PLACED -> STORE_CONFIRMED. */
-  async confirmOrder(user: AuthUser, orderId: string) {
-    return this.transition(
-      user,
+  /**
+   * Kho xac nhan du hang va bat dau soan trong mot transaction:
+   * PLACED -> STORE_CONFIRMED -> PICKING.
+   * Chap nhan STORE_CONFIRMED de xu ly cac don cu dang o trang thai trung gian.
+   */
+  async confirmAndStartPicking(user: AuthUser, orderId: string) {
+    const order = (await this.scope.getOrderInScope(
+      user.id,
+      user.roles,
       orderId,
-      OrderStatus.PLACED,
-      OrderStatus.STORE_CONFIRMED,
-      'Cua hang xac nhan don',
-      'ORDER_CONFIRMED',
-    );
-  }
+    )) as { id: string; status: OrderStatus; storeId: string };
+    if (
+      order.status !== OrderStatus.PLACED &&
+      order.status !== OrderStatus.STORE_CONFIRMED
+    ) {
+      throw new BadRequestException({
+        code: 'INVALID_STATUS_TRANSITION',
+        message: `Don dang o trang thai ${order.status}, khong the xac nhan de soan`,
+      });
+    }
 
-  /** Bat dau soan hang: STORE_CONFIRMED -> PICKING. */
-  async startPicking(user: AuthUser, orderId: string) {
-    return this.transition(
-      user,
+    await this.prisma.$transaction(async (tx) => {
+      if (order.status === OrderStatus.PLACED) {
+        await this.transitionInTx(
+          tx,
+          orderId,
+          OrderStatus.PLACED,
+          OrderStatus.STORE_CONFIRMED,
+          user.id,
+          'Kho xac nhan du hang',
+        );
+      }
+      await this.transitionInTx(
+        tx,
+        orderId,
+        OrderStatus.STORE_CONFIRMED,
+        OrderStatus.PICKING,
+        user.id,
+        'Kho xac nhan va bat dau soan hang',
+      );
+      await this.audit.log(
+        {
+          action: 'WAREHOUSE_ORDER_CONFIRMED',
+          actorId: user.id,
+          targetType: 'Order',
+          targetId: orderId,
+          storeId: order.storeId,
+        },
+        tx,
+      );
+    });
+    this.events.emit('order.status_changed', {
       orderId,
-      OrderStatus.STORE_CONFIRMED,
-      OrderStatus.PICKING,
-      'Bat dau soan hang',
-      'ORDER_PICKING',
-    );
+      status: OrderStatus.PICKING,
+    });
+    return this.getStoreOrder(user, orderId);
   }
 
   /**
-   * Danh dau da dong goi: PICKING -> PACKED. Co the kem so luong da pick thuc te.
+   * Dong goi va ban giao shipper atomically:
+   * PICKING -> PACKED -> READY_FOR_DELIVERY.
    */
   async markPacked(
     user: AuthUser,
@@ -117,19 +200,51 @@ export class FulfillmentService {
       orderId,
       { items: true },
     );
-    if ((order as { status: OrderStatus }).status !== OrderStatus.PICKING) {
+    const scopedOrder = order as unknown as {
+      status: OrderStatus;
+      items: { id: string; quantity: Prisma.Decimal }[];
+    };
+    if (scopedOrder.status !== OrderStatus.PICKING) {
       throw new BadRequestException({
         code: 'INVALID_STATUS_TRANSITION',
         message: 'Chi don dang soan (PICKING) moi co the dong goi',
       });
     }
+    if (pickedItems) {
+      const quantityByItem = new Map(
+        scopedOrder.items.map((item) => [item.id, Number(item.quantity)]),
+      );
+      const seen = new Set<string>();
+      for (const picked of pickedItems) {
+        const orderedQuantity = quantityByItem.get(picked.orderItemId);
+        if (
+          orderedQuantity === undefined ||
+          seen.has(picked.orderItemId) ||
+          !Number.isFinite(picked.quantityPicked) ||
+          picked.quantityPicked <= 0 ||
+          picked.quantityPicked > orderedQuantity
+        ) {
+          throw new BadRequestException({
+            code: 'INVALID_PICKED_ITEM',
+            message: 'San pham hoac so luong soan khong thuoc don hang',
+          });
+        }
+        seen.add(picked.orderItemId);
+      }
+    }
     await this.prisma.$transaction(async (tx) => {
       if (pickedItems) {
         for (const p of pickedItems) {
-          await tx.orderItem.update({
-            where: { id: p.orderItemId },
+          const updated = await tx.orderItem.updateMany({
+            where: { id: p.orderItemId, orderId },
             data: { quantityPicked: p.quantityPicked },
           });
+          if (updated.count !== 1) {
+            throw new BadRequestException({
+              code: 'PICKED_ITEM_CHANGED',
+              message: 'San pham trong don da thay doi, vui long tai lai',
+            });
+          }
         }
       }
       await this.transitionInTx(
@@ -140,43 +255,77 @@ export class FulfillmentService {
         user.id,
         'Da dong goi',
       );
+      await this.transitionInTx(
+        tx,
+        orderId,
+        OrderStatus.PACKED,
+        OrderStatus.READY_FOR_DELIVERY,
+        user.id,
+        'Kho da dong goi, san sang giao shipper',
+      );
     });
     this.events.emit('order.packed', { orderId });
     return this.getStoreOrder(user, orderId);
   }
 
-  /** San sang giao: PACKED -> READY_FOR_DELIVERY (delivery da ASSIGNED san). */
-  async readyForDelivery(user: AuthUser, orderId: string) {
-    return this.transition(
+  /** Huy don tu phia quan ly/cua hang. */
+  async cancelByStore(user: AuthUser, orderId: string, reason: string) {
+    return this.cancelInScope(
       user,
       orderId,
-      OrderStatus.PACKED,
-      OrderStatus.READY_FOR_DELIVERY,
-      'San sang giao cho shipper',
-      'ORDER_READY',
+      reason,
+      [
+        OrderStatus.PLACED,
+        OrderStatus.STORE_CONFIRMED,
+        OrderStatus.PICKING,
+        OrderStatus.PACKED,
+        OrderStatus.READY_FOR_DELIVERY,
+      ],
+      'ORDER_CANCELLED',
+      'store',
     );
   }
 
-  /** Huy don tu phia cua hang (store staff voi ly do / manager / admin). */
-  async cancelByStore(user: AuthUser, orderId: string, reason: string) {
+  /** Kho bao thieu hang trong luc xac nhan/soan: huy don va nha ton da giu. */
+  async reportShortage(user: AuthUser, orderId: string, reason: string) {
+    return this.cancelInScope(
+      user,
+      orderId,
+      reason,
+      [OrderStatus.PLACED, OrderStatus.STORE_CONFIRMED, OrderStatus.PICKING],
+      'ORDER_SHORTAGE_REPORTED',
+      'warehouse_shortage',
+    );
+  }
+
+  private async cancelInScope(
+    user: AuthUser,
+    orderId: string,
+    reason: string,
+    cancellable: OrderStatus[],
+    auditAction: string,
+    source: 'store' | 'warehouse_shortage',
+  ) {
+    const normalizedReason = reason?.trim();
+    if (!normalizedReason || normalizedReason.length < 3 || normalizedReason.length > 500) {
+      throw new BadRequestException({
+        code: 'REASON_REQUIRED',
+        message: 'Vui long ghi ro ly do (tu 3 den 500 ky tu)',
+      });
+    }
     const order = (await this.scope.getOrderInScope(
       user.id,
       user.roles,
       orderId,
-    )) as { id: string; status: OrderStatus; storeId: string };
-    const cancellable: OrderStatus[] = [
-      OrderStatus.PLACED,
-      OrderStatus.STORE_CONFIRMED,
-      OrderStatus.PICKING,
-      OrderStatus.PACKED,
-      OrderStatus.READY_FOR_DELIVERY,
-    ];
+    )) as { id: string; status: OrderStatus; storeId: string; grandTotal: number };
     if (!cancellable.includes(order.status)) {
       throw new BadRequestException({
         code: 'ORDER_NOT_CANCELLABLE',
         message: 'Don khong the huy o trang thai hien tai',
       });
     }
+
+    let refundPending = false;
     await this.prisma.$transaction(async (tx) => {
       await this.inventory.releaseForOrder(tx, orderId, user.id);
       await this.transitionInTx(
@@ -185,21 +334,71 @@ export class FulfillmentService {
         order.status,
         OrderStatus.CANCELLED,
         user.id,
-        reason,
+        normalizedReason,
       );
-      await this.audit.log(
-        {
-          action: 'ORDER_CANCELLED',
+
+      await tx.delivery.updateMany({
+        where: { orderId, status: DeliveryStatus.ASSIGNED },
+        data: {
+          status: DeliveryStatus.FAILED,
+          failureReason: normalizedReason,
+        },
+      });
+      await tx.payment.updateMany({
+        where: {
+          orderId,
+          status: { in: [PaymentStatus.INITIATED, PaymentStatus.PENDING] },
+        },
+        data: { status: PaymentStatus.CANCELLED },
+      });
+
+      const paidPayment = await tx.payment.findFirst({
+        where: { orderId, status: PaymentStatus.SUCCESS },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (paidPayment) {
+        await tx.refund.create({
+          data: {
+            paymentId: paidPayment.id,
+            orderId,
+            amount: order.grandTotal,
+            status: 'PENDING',
+            reason: normalizedReason,
+          },
+        });
+        await tx.payment.update({
+          where: { id: paidPayment.id },
+          data: { status: PaymentStatus.REFUND_PENDING },
+        });
+        await tx.order.update({
+          where: { id: orderId },
+          data: { paymentStatus: PaymentStatus.REFUND_PENDING },
+        });
+        refundPending = true;
+      } else {
+        await tx.order.update({
+          where: { id: orderId },
+          data: { paymentStatus: PaymentStatus.CANCELLED },
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          action: auditAction,
           actorId: user.id,
           targetType: 'Order',
           targetId: orderId,
           storeId: order.storeId,
-          metadata: { reason, by: 'store' },
+          metadata: { reason: normalizedReason, source, refundPending },
         },
-        tx,
-      );
+      });
     });
-    this.events.emit('order.cancelled', { orderId });
+    this.events.emit('order.cancelled', {
+      orderId,
+      reason: normalizedReason,
+      source,
+      refundPending,
+    });
     return this.getStoreOrder(user, orderId);
   }
 
@@ -257,7 +456,16 @@ export class FulfillmentService {
         message: `Khong the chuyen tu ${from} sang ${to}`,
       });
     }
-    await tx.order.update({ where: { id: orderId }, data: { status: to } });
+    const updated = await tx.order.updateMany({
+      where: { id: orderId, status: from },
+      data: { status: to },
+    });
+    if (updated.count !== 1) {
+      throw new BadRequestException({
+        code: 'ORDER_STATUS_CHANGED',
+        message: 'Trang thai don da thay doi, vui long tai lai va thu lai',
+      });
+    }
     await tx.orderStatusHistory.create({
       data: { orderId, fromStatus: from, toStatus: to, actorId, reason },
     });

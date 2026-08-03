@@ -84,41 +84,48 @@ export class NotificationListener {
       body:
         order.paymentMethod === 'VNPAY'
           ? `Đơn ${order.orderNumber} đã được tạo và đang chờ thanh toán online.\nTổng tiền cần thanh toán: ${this.vnd(order.grandTotal)}.\nCửa hàng phụ trách: ${order.store.name}.`
-          : `Chúng tôi đã ghi nhận đơn ${order.orderNumber}.\nTổng tiền: ${this.vnd(order.grandTotal)}.\nCửa hàng phụ trách: ${order.store.name}. Nhân viên sẽ sớm xác nhận và chuẩn bị hàng cho bạn.`,
+          : `Chúng tôi đã ghi nhận đơn ${order.orderNumber}.\nTổng tiền: ${this.vnd(order.grandTotal)}.\nCửa hàng phụ trách: ${order.store.name}. Bộ phận kho sẽ kiểm tra hàng thực tế và sớm chuẩn bị đơn cho bạn.`,
       email: order.user.email,
       emailAction: this.orderAction(order.id),
       data: { orderId: order.id, orderNumber: order.orderNumber },
     });
   }
 
-  /** Don da PLACED (COD ngay, VNPay sau khi tra) -> bao staff cua hang co don moi. */
+  /** Don da PLACED (COD ngay, VNPay sau khi tra) -> bao kho co don moi. */
   @OnEvent('order.placed')
   async onOrderPlaced(payload: { orderId: string; storeId?: string }) {
     const order = await this.loadOrder(payload.orderId);
     if (!order) return;
     const staff = await this.storeStaffIds(order.storeId, [
       'STORE_MANAGER',
-      'STORE_STAFF',
+      'WAREHOUSE_STAFF',
     ]);
     if (staff.length > 0) {
       await this.notification.notifyUsers(staff, {
-        type: 'STORE_NEW_ORDER',
-        title: 'Có đơn mới cần xác nhận',
-        body: `Đơn ${order.orderNumber} vừa được hệ thống gán cho cửa hàng ${order.store.name}.\nVui lòng kiểm tra tồn kho, xác nhận đơn và chuyển sang bước chuẩn bị hàng.`,
+        type: 'WAREHOUSE_NEW_ORDER',
+        title: 'Có đơn mới chờ kho xác nhận',
+        body: `Đơn ${order.orderNumber} vừa được hệ thống gán cho cửa hàng ${order.store.name}.\nVui lòng kiểm tra hàng thực tế: nếu đủ hàng, xác nhận và bắt đầu soạn; nếu thiếu, báo rõ sản phẩm và số lượng thiếu.`,
         data: { orderId: order.id, storeId: order.storeId },
       });
     }
   }
 
   @OnEvent('order.cancelled')
-  async onCancelled(payload: { orderId: string }) {
+  async onCancelled(payload: {
+    orderId: string;
+    reason?: string;
+    source?: string;
+    refundPending?: boolean;
+  }) {
     const order = await this.loadOrder(payload.orderId);
     if (!order) return;
     await this.notification.notify({
       userId: order.userId,
       type: 'ORDER_CANCELLED',
-      title: 'Đơn hàng đã được hủy',
-      body: `Đơn ${order.orderNumber} đã được hủy.\nNếu bạn đã thanh toán online, hệ thống sẽ xử lý theo quy trình hoàn tiền/đối soát của cửa hàng.`,
+      title: payload.source === 'warehouse_shortage'
+        ? 'Đơn hàng đã hủy do thiếu hàng'
+        : 'Đơn hàng đã được hủy',
+      body: `Đơn ${order.orderNumber} đã được hủy.${payload.reason ? `\nLý do: ${payload.reason}.` : ''}${payload.refundPending ? '\nYêu cầu hoàn tiền đã được tạo và đang chờ xử lý.' : ''}`,
       email: order.user.email,
       emailAction: this.orderAction(order.id),
       data: { orderId: order.id },

@@ -7,7 +7,9 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
 
@@ -29,6 +31,18 @@ export class MarkPackedDto {
   @ValidateNested({ each: true })
   @Type(() => PickedItemDto)
   pickedItems?: PickedItemDto[];
+}
+
+export class ReportShortageDto {
+  @ApiProperty({
+    example: 'Thiếu 2 kg cà chua so với tồn kho hệ thống',
+    description: 'Sản phẩm và số lượng thực tế bị thiếu',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(3)
+  @MaxLength(500)
+  reason: string;
 }
 
 export class ImportStockDto {

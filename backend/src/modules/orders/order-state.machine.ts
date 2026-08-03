@@ -2,8 +2,9 @@ import { OrderStatus } from '@prisma/client';
 
 /**
  * State machine cho don hang trong mo hinh chuoi cua hang.
- * Vong doi: PENDING_PAYMENT -> PLACED -> STORE_CONFIRMED -> PICKING -> PACKED
- *   -> READY_FOR_DELIVERY -> OUT_FOR_DELIVERY -> DELIVERED -> COMPLETED
+ * Vong doi: PENDING_PAYMENT -> PLACED (cho kho xac nhan)
+ *   -> STORE_CONFIRMED -> PICKING -> PACKED -> READY_FOR_DELIVERY
+ *   -> OUT_FOR_DELIVERY -> DELIVERED -> COMPLETED
  */
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PENDING_PAYMENT: [

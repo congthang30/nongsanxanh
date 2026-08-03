@@ -39,25 +39,69 @@ export class ShipperService {
     private readonly events: EventEmitter2,
   ) {}
 
-  /** Don dang can giao / dang giao cua shipper. */
+  /**
+   * Chỉ hiển thị job khi trạng thái delivery và order đồng bộ.
+   * Delivery được gán sớm để giữ shipper/tuyến giao, nhưng chưa phải việc của
+   * shipper cho tới khi kho đóng gói xong và order = READY_FOR_DELIVERY.
+   */
   listJobs(shipperId: string, scope?: 'active' | 'history') {
-    const activeStatuses: DeliveryStatus[] = [
-      DeliveryStatus.ASSIGNED,
-      DeliveryStatus.PICKED_FROM_STORE,
-      DeliveryStatus.OUT_FOR_DELIVERY,
-      DeliveryStatus.ARRIVED_AT_CUSTOMER,
-    ];
-    const historyStatuses: DeliveryStatus[] = [
-      DeliveryStatus.DELIVERED,
-      DeliveryStatus.FAILED,
-    ];
+    const workflowFilter: Prisma.DeliveryWhereInput =
+      scope === 'history'
+        ? {
+            OR: [
+              {
+                status: DeliveryStatus.DELIVERED,
+                order: {
+                  status: {
+                    in: [
+                      OrderStatus.DELIVERED,
+                      OrderStatus.COMPLETED,
+                      OrderStatus.RETURN_REQUESTED,
+                      OrderStatus.RETURNED,
+                    ],
+                  },
+                },
+              },
+              {
+                status: DeliveryStatus.FAILED,
+                order: {
+                  status: {
+                    in: [
+                      OrderStatus.DELIVERY_FAILED,
+                      OrderStatus.CANCELLED,
+                      OrderStatus.RETURNED,
+                    ],
+                  },
+                },
+                events: { some: { status: DeliveryStatus.FAILED } },
+              },
+            ],
+          }
+        : {
+            OR: [
+              {
+                status: {
+                  in: [
+                    DeliveryStatus.ASSIGNED,
+                    DeliveryStatus.PICKED_FROM_STORE,
+                  ],
+                },
+                order: { status: OrderStatus.READY_FOR_DELIVERY },
+              },
+              {
+                status: {
+                  in: [
+                    DeliveryStatus.OUT_FOR_DELIVERY,
+                    DeliveryStatus.ARRIVED_AT_CUSTOMER,
+                  ],
+                },
+                order: { status: OrderStatus.OUT_FOR_DELIVERY },
+              },
+            ],
+          };
+
     return this.prisma.delivery.findMany({
-      where: {
-        shipperId,
-        status: {
-          in: scope === 'history' ? historyStatuses : activeStatuses,
-        },
-      },
+      where: { shipperId, ...workflowFilter },
       orderBy: { updatedAt: 'desc' },
       include: {
         order: {

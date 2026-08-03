@@ -300,12 +300,18 @@ async function main() {
     (await prisma.role.findMany()).map((r) => [r.code, r.id]),
   );
 
-  async function ensureUser(email: string, fullName: string, roleCode: string) {
+  async function ensureUser(
+    email: string,
+    fullName: string,
+    roleCode: string,
+    phone?: string,
+  ) {
     let user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       user = await prisma.user.create({
         data: {
           email,
+          phone,
           passwordHash,
           emailVerifiedAt: new Date(),
           profile: { create: { fullName } },
@@ -315,6 +321,7 @@ async function main() {
       await prisma.user.update({
         where: { id: user.id },
         data: {
+          phone,
           passwordHash,
           emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
           profile: {
@@ -439,27 +446,42 @@ async function main() {
   }
 
   console.log('Seeding stores + staff + inventory + service areas...');
-  for (const s of STORES) {
+  for (let storeIndex = 0; storeIndex < STORES.length; storeIndex++) {
+    const s = STORES[storeIndex];
+    const phoneFor = (role: number, member = 1) =>
+      `09${String(storeIndex + 1).padStart(2, '0')}${String(role).padStart(2, '0')}${String(member).padStart(4, '0')}`;
     const manager = await ensureUser(
       s.managerEmail,
       `Quản lý ${s.name}`,
       'STORE_MANAGER',
+      phoneFor(1),
     );
     const shipper = await ensureUser(
       s.shipperEmail,
       `Shipper ${s.name}`,
       'SHIPPER',
+      phoneFor(2),
     );
     const staffUsers: { id: string }[] = [];
     for (let i = 0; i < s.staffEmails.length; i++) {
       staffUsers.push(
-        await ensureUser(s.staffEmails[i], `NV bán hàng ${i + 1} ${s.code}`, 'STORE_STAFF'),
+        await ensureUser(
+          s.staffEmails[i],
+          `NV bán hàng ${i + 1} ${s.code}`,
+          'STORE_STAFF',
+          phoneFor(3, i + 1),
+        ),
       );
     }
     const warehouseUsers: { id: string }[] = [];
     for (let i = 0; i < s.warehouseEmails.length; i++) {
       warehouseUsers.push(
-        await ensureUser(s.warehouseEmails[i], `NV kho ${i + 1} ${s.code}`, 'WAREHOUSE_STAFF'),
+        await ensureUser(
+          s.warehouseEmails[i],
+          `NV kho ${i + 1} ${s.code}`,
+          'WAREHOUSE_STAFF',
+          phoneFor(4, i + 1),
+        ),
       );
     }
 
@@ -572,7 +594,7 @@ async function main() {
 
   console.log('Seeding customers + addresses...');
   for (const c of CUSTOMERS) {
-    const user = await ensureUser(c.email, c.fullName, 'CUSTOMER');
+    const user = await ensureUser(c.email, c.fullName, 'CUSTOMER', c.address.phone);
     const hasAddr = await prisma.address.findFirst({
       where: { userId: user.id },
     });

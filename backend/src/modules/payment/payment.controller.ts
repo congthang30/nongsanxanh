@@ -52,7 +52,7 @@ export class PaymentController {
   async vnpayReturn(
     @Query() query: Record<string, string>,
     @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
+    @Res() res: Response,
   ) {
     const result = await this.paymentService.handleVnpayCallback(query);
 
@@ -66,11 +66,16 @@ export class PaymentController {
         this.config.get<string>('CORS_ORIGIN') ||
         'http://localhost:5173'
       ).replace(/\/$/, '');
-      const qs = new URLSearchParams(query).toString();
-      return res.redirect(302, `${appUrl}/payment/vnpay/return?${qs}`);
+      const qs = new URLSearchParams(query);
+      if (result.pos) {
+        qs.set('vnpay', result.success && !result.refundPending ? 'success' : 'failed');
+        qs.set('saleId', result.saleId ?? '');
+        return res.redirect(302, `${appUrl}/pos?${qs.toString()}`);
+      }
+      return res.redirect(302, `${appUrl}/payment/vnpay/return?${qs.toString()}`);
     }
 
-    return result;
+    return res.json({ success: true, data: result });
   }
 
   /**
@@ -94,7 +99,7 @@ export class PaymentController {
       if (code === 'INVALID_SIGNATURE') {
         return { RspCode: '97', Message: 'Invalid signature' };
       }
-      if (code === 'ORDER_NOT_FOUND') {
+      if (code === 'ORDER_NOT_FOUND' || code === 'SALE_NOT_FOUND') {
         return { RspCode: '01', Message: 'Order not found' };
       }
       return { RspCode: '99', Message: 'Unknown error' };

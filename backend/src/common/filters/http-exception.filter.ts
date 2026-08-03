@@ -50,15 +50,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     if (status >= 500) {
+      const internalMessage =
+        exception instanceof Error ? exception.message : message;
       this.logger.error(
-        `[${correlationId}] ${req.method} ${req.url} -> ${status}: ${message}`,
+        `[${correlationId}] ${req.method} ${req.url} -> ${status}: ${internalMessage}`,
         exception instanceof Error ? exception.stack : undefined,
       );
+      code = 'INTERNAL_SERVER_ERROR';
+      message = 'Hệ thống đang gặp sự cố. Vui lòng thử lại sau.';
+      details = undefined;
     } else {
       this.logger.warn(
         `[${correlationId}] ${req.method} ${req.url} -> ${status}: ${message}`,
       );
     }
+
+    if (res.headersSent || res.writableEnded) return;
 
     res.status(status).json({
       success: false,

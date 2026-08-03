@@ -29,8 +29,8 @@ const ROLE_OPTIONS: {
   {
     code: 'STORE_STAFF',
     label: 'Nhân viên bán hàng',
-    description: 'Xử lý đơn tại cửa hàng và bán hàng tại quầy.',
-    path: '/store/orders',
+    description: 'Bán hàng và thu tiền trực tiếp tại quầy.',
+    path: '/pos',
     requiresStore: true,
   },
   {

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,6 +9,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { POSSaleStatus } from '@prisma/client';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ROLE } from '../../common/constants/roles.constant';
@@ -192,6 +194,16 @@ export class POSController {
     @Req() req: Request,
   ) {
     const sale = await this.sales.getSale(user, id);
+    if (
+      (sale.status !== POSSaleStatus.DRAFT && sale.status !== POSSaleStatus.HELD) ||
+      sale.items.length === 0 ||
+      sale.grandTotal <= 0
+    ) {
+      throw new BadRequestException({
+        code: 'SALE_NOT_PAYABLE',
+        message: 'Hoa don POS khong con o trang thai cho thanh toan',
+      });
+    }
     const ipAddr =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
       req.socket?.remoteAddress ||

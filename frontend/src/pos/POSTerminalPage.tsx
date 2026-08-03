@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../lib/auth.store';
 import { useToastStore } from '../lib/toast.store';
 import { formatVnd } from '../lib/format';
@@ -25,6 +25,8 @@ const QUICK_CASH = [50000, 100000, 200000, 500000];
 export default function POSTerminalPage() {
   const { user } = useAuthStore();
   const { push } = useToastStore();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [shift, setShift] = useState<CashierShift | null>(null);
   const [sale, setSale] = useState<POSSale | null>(null);
@@ -36,7 +38,6 @@ export default function POSTerminalPage() {
 
   const [method, setMethod] = useState<POSPaymentMethod>('CASH');
   const [cashGiven, setCashGiven] = useState('');
-  const [reference, setReference] = useState('');
   const [payError, setPayError] = useState('');
   const [paying, setPaying] = useState(false);
 
@@ -61,8 +62,17 @@ export default function POSTerminalPage() {
       try {
         const s = await posApi.currentShift();
         setShift(s);
-        const draft = await posApi.createSale();
+        const callbackSaleId = searchParams.get('saleId');
+        const draft = callbackSaleId
+          ? await posApi.getSale(callbackSaleId)
+          : await posApi.createSale();
         setSale(draft);
+        if (searchParams.get('vnpay') === 'success' && draft.status === 'PAID') {
+          push('VNPay đã xác nhận thanh toán thành công');
+          setReceipt(await posApi.receipt(draft.id));
+        } else if (searchParams.get('vnpay') === 'failed') {
+          setPayError('VNPay chưa xác nhận thanh toán. Vui lòng thử lại.');
+        }
         if (s) setShift(await posApi.currentShift());
         focusScan();
       } catch (e) {
@@ -83,7 +93,6 @@ export default function POSTerminalPage() {
       const draft = await posApi.createSale();
       setSale(draft);
       setCashGiven('');
-      setReference('');
       setPayError('');
       setScanError('');
       setScanOk('');
@@ -192,10 +201,18 @@ export default function POSTerminalPage() {
     }
     try {
       setPaying(true);
-      const payments =
-        method === 'CASH'
-          ? [{ method, amount: grandTotal, tendered: cashNum }]
-          : [{ method, amount: grandTotal, reference: reference || undefined }];
+      if (method === 'VNPAY') {
+        const latest = await posApi.getSale(sale.id);
+        setSale(latest);
+        if (latest.status !== 'PAID') {
+          setPayError('Chưa nhận xác nhận từ VNPay. Hóa đơn chưa được chốt.');
+          return;
+        }
+        push('VNPay đã xác nhận thanh toán thành công');
+        setReceipt(await posApi.receipt(latest.id));
+        return;
+      }
+      const payments = [{ method, amount: grandTotal, tendered: cashNum }];
       const paid = await posApi.pay(sale.id, payments);
       setSale(paid);
       push(`Thanh toán thành công${paid.changeAmount > 0 ? ` - Tiền thối ${formatVnd(paid.changeAmount)}` : ''}`);
@@ -305,6 +322,41 @@ export default function POSTerminalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [method, sale?.id, sale?.grandTotal, sale?.status, sale?.items.length]);
 
+  // Callback co the mo tren dien thoai/tab khac: terminal tu dong doi trang thai.
+  useEffect(() => {
+    if (
+      method !== 'VNPAY' ||
+      !sale ||
+      sale.status !== 'DRAFT' ||
+      sale.items.length === 0
+    ) return;
+
+    let stopped = false;
+    let checking = false;
+    const checkPayment = async () => {
+      if (checking) return;
+      checking = true;
+      try {
+        const latest = await posApi.getSale(sale.id);
+        if (!stopped && latest.status === 'PAID') {
+          setSale(latest);
+          setPayError('');
+          push('VNPay đã xác nhận thanh toán thành công');
+          setReceipt(await posApi.receipt(latest.id));
+        }
+      } catch {
+        // Loi mang tam thoi: giu polling, khong tu danh dau thanh toan.
+      } finally {
+        checking = false;
+      }
+    };
+    const timer = window.setInterval(checkPayment, 2000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [method, push, sale]);
+
   const isPaid = sale?.status === 'PAID';
   const isVoided = sale?.status === 'VOIDED';
   const editable = sale?.status === 'DRAFT' || sale?.status === 'HELD';
@@ -315,11 +367,12 @@ export default function POSTerminalPage() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-surface border-b border-outline-variant h-16 flex items-center px-lg justify-between shadow-sm">
         <div className="flex items-center gap-4">
           <Link 
+            id="pos-back-to-management-link"
             className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors font-label-bold text-label-bold font-semibold outline-none"
-            to="/store"
+            to="/store-manager/dashboard"
           >
             <span className="material-symbols-outlined">arrow_back</span>
-            Về trang khách
+            Về trang quản lý
           </Link>
         </div>
         <h1 className="font-headline-md text-headline-md text-primary font-bold absolute left-1/2 transform -translate-x-1/2">
@@ -362,10 +415,15 @@ export default function POSTerminalPage() {
               <span className="material-symbols-outlined">help</span>
               <span className="font-label-bold text-label-bold font-semibold">Trợ giúp</span>
             </div>
-            <Link to="/store" className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg mx-2 my-1 font-label-bold text-label-bold transition-all hover:bg-primary-container/20 font-semibold">
+            <button
+              id="pos-exit-terminal-button"
+              type="button"
+              className="w-[calc(100%-1rem)] flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg mx-2 my-1 font-label-bold text-label-bold transition-all hover:bg-primary-container/20 font-semibold text-left"
+              onClick={() => navigate('/store-manager/dashboard')}
+            >
               <span className="material-symbols-outlined text-on-surface-variant">logout</span>
               <span className="font-label-bold text-label-bold font-semibold">Thoát quầy</span>
-            </Link>
+            </button>
             <div className="mt-4 px-2">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-primary font-bold border border-outline-variant">
@@ -648,14 +706,8 @@ export default function POSTerminalPage() {
                       </div>
                     </div>
                   )}
-                  <div>
-                    <label className="block text-label-sm font-label-bold text-on-surface-variant mb-2 font-bold uppercase">Mã tham chiếu (tùy chọn)</label>
-                    <input
-                      className="w-full py-3 px-4 bg-white border-none rounded-lg text-sm focus:ring-2 focus:ring-primary shadow-inner outline-none"
-                      value={reference}
-                      placeholder="Mã giao dịch / nội dung chuyển khoản..."
-                      onChange={(e) => setReference(e.target.value)}
-                    />
+                  <div className="text-center text-xs text-on-surface-variant bg-white/70 border border-outline-variant rounded-lg px-3 py-2">
+                    Hóa đơn sẽ tự động hoàn tất sau khi VNPay xác nhận giao dịch.
                   </div>
                 </>
               )}
@@ -687,7 +739,7 @@ export default function POSTerminalPage() {
                     ) : (
                       <>
                         <span className="material-symbols-outlined text-[28px]">check_circle</span>
-                        THANH TOÁN (F12)
+                        {method === 'VNPAY' ? 'KIỂM TRA THANH TOÁN' : 'THANH TOÁN (F12)'}
                       </>
                     )}
                   </button>

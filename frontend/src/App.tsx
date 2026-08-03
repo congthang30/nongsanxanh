@@ -35,9 +35,6 @@ import StoreManagerInventory from './dashboard/pages/StoreManagerInventory';
 import StoreManagerStaff from './dashboard/pages/StoreManagerStaff';
 import StoreManagerReports from './dashboard/pages/StoreManagerReports';
 
-// Store staff
-import StoreStaffOrders from './dashboard/pages/StoreStaffOrders';
-
 // Warehouse
 import WarehouseDashboard from './dashboard/pages/WarehouseDashboard';
 import WarehousePick from './dashboard/pages/WarehousePick';
@@ -117,17 +114,8 @@ export default function App() {
           <Route path="/store-manager/pos-reports" element={<POSReportsPage />} />
         </Route>
 
-        {/* ============ STORE STAFF ============ */}
-        <Route
-          element={
-            <ProtectedRoute roles={['STORE_STAFF', 'STORE_MANAGER', ...ADMIN]}>
-              <DashboardLayout allowed={['STORE_STAFF', 'STORE_MANAGER', ...ADMIN] as never} />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/store" element={<Navigate to="/store/orders" replace />} />
-          <Route path="/store/orders" element={<StoreStaffOrders />} />
-        </Route>
+        {/* Legacy seller URLs now lead to the cashier terminal. */}
+        <Route path="/store/*" element={<Navigate to="/pos" replace />} />
 
         {/* ============ POS CASHIER TERMINAL (full-screen) ============ */}
         <Route

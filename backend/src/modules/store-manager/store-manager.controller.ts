@@ -49,7 +49,7 @@ export class StoreManagerController {
     return this.manager.updateStoreStatus(user, body.status, storeId);
   }
 
-  // ---- Orders (full lifecycle control) ----
+  // ---- Orders (oversight and exception handling) ----
 
   @Get('orders')
   orders(
@@ -63,16 +63,6 @@ export class StoreManagerController {
   @Get('orders/:id')
   orderDetail(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.fulfillment.getStoreOrder(user, id);
-  }
-
-  @Post('orders/:id/confirm')
-  confirm(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.fulfillment.confirmOrder(user, id);
-  }
-
-  @Post('orders/:id/ready-for-delivery')
-  ready(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.fulfillment.readyForDelivery(user, id);
   }
 
   @Post('orders/:id/cancel')

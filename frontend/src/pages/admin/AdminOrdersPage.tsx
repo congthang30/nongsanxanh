@@ -25,8 +25,8 @@ interface StoreOpt { id: string; name: string; code: string; status: string; }
 
 const TABS: { code: string; label: string }[] = [
   { code: 'ALL', label: 'Tất cả' },
-  { code: 'PLACED', label: 'Mới' },
-  { code: 'STORE_CONFIRMED', label: 'Đã xác nhận' },
+  { code: 'PLACED', label: 'Chờ kho xác nhận' },
+  { code: 'STORE_CONFIRMED', label: 'Kho đã xác nhận' },
   { code: 'OUT_FOR_DELIVERY', label: 'Đang giao' },
   { code: 'COMPLETED', label: 'Hoàn tất' },
   { code: 'DELIVERY_FAILED', label: 'Giao thất bại' },

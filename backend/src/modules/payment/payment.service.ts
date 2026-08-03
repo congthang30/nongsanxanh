@@ -4,9 +4,18 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus, PaymentStatus, Prisma } from '@prisma/client';
+import {
+  OrderStatus,
+  PaymentStatus,
+  POSPaymentMethod,
+  POSPaymentRecordStatus,
+  POSPaymentStatus,
+  POSSaleStatus,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { OrdersService } from '../orders/orders.service';
+import { StoreInventoryService } from '../inventory/inventory.service';
 import { AuditService } from '../audit/audit.service';
 import { VnpayService } from './vnpay.service';
 
@@ -15,7 +24,10 @@ export interface VnpayCallbackResult {
   code: string;
   orderNumber: string;
   success: boolean;
-  status: PaymentStatus;
+  status: PaymentStatus | POSPaymentStatus;
+  /** Callback cua hoa don tai quay. */
+  pos?: boolean;
+  saleId?: string;
   /** Da xu ly truoc do (idempotent replay). */
   idempotent?: boolean;
   /** So tien callback khong khop order -> tu choi. */
@@ -33,6 +45,7 @@ export class PaymentService {
     private readonly orders: OrdersService,
     private readonly vnpay: VnpayService,
     private readonly audit: AuditService,
+    private readonly inventory: StoreInventoryService,
   ) {}
 
   /** Tao payment VNPay va tra URL redirect. Tai su dung payment PENDING neu co. */
@@ -115,6 +128,10 @@ export class PaymentService {
     const responseCode = query['vnp_ResponseCode'];
     const transactionId = query['vnp_TransactionNo'];
     const amountRaw = query['vnp_Amount'];
+
+    if (orderNumber.startsWith('POS')) {
+      return this.handlePosVnpayCallback(query);
+    }
 
     const order = await this.prisma.order.findUnique({
       where: { orderNumber },
@@ -280,16 +297,15 @@ export class PaymentService {
         };
       }
 
-      await this.prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: PaymentStatus.SUCCESS, paidAt: new Date() },
-      });
-      await this.orders.markPaid(order.id);
+      const finalStatus = await this.orders.markPaid(order.id, payment.id);
       return {
         code: responseCode,
         orderNumber,
         success: true,
-        status: PaymentStatus.SUCCESS,
+        status: finalStatus,
+        ...(finalStatus === PaymentStatus.REFUND_PENDING
+          ? { refundPending: true }
+          : {}),
       };
     }
 
@@ -304,6 +320,215 @@ export class PaymentService {
       orderNumber,
       success: false,
       status: PaymentStatus.FAILED,
+    };
+  }
+
+  /**
+   * Chot hoa don POS tu callback VNPay. Khong dung endpoint /pos/.../pay vi callback
+   * la public/system actor; khoa sale trong transaction de chong return + IPN tru ton hai lan.
+   */
+  private async handlePosVnpayCallback(
+    query: Record<string, string>,
+  ): Promise<VnpayCallbackResult> {
+    const saleNumber = query['vnp_TxnRef'];
+    const responseCode = query['vnp_ResponseCode'];
+    const transactionId = query['vnp_TransactionNo'];
+    const reference = transactionId || `${responseCode}-${query['vnp_PayDate'] ?? 'unknown'}`;
+    const sale = await this.prisma.pOSSale.findUnique({
+      where: { saleNumber },
+      select: { id: true, storeId: true, cashierId: true },
+    });
+    if (!sale) {
+      throw new NotFoundException({
+        code: 'SALE_NOT_FOUND',
+        message: 'Khong tim thay hoa don POS',
+      });
+    }
+
+    if (responseCode !== '00') {
+      return {
+        code: responseCode,
+        orderNumber: saleNumber,
+        success: false,
+        status: POSPaymentStatus.FAILED,
+        pos: true,
+        saleId: sale.id,
+      };
+    }
+
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<
+        { status: POSSaleStatus; payment_status: POSPaymentStatus; grand_total: number }[]
+      >(Prisma.sql`
+        SELECT status, payment_status, grand_total
+        FROM pos_sales
+        WHERE id = ${sale.id}
+        FOR UPDATE
+      `);
+      const current = locked[0];
+      if (!current) {
+        throw new NotFoundException({
+          code: 'SALE_NOT_FOUND',
+          message: 'Khong tim thay hoa don POS',
+        });
+      }
+
+      const expectedAmount = Number(current.grand_total) * 100;
+      if (Number(query['vnp_Amount']) !== expectedAmount) {
+        return { kind: 'amount-mismatch' as const, expectedAmount };
+      }
+
+      const existingPayment = await tx.pOSPayment.findFirst({
+        where: {
+          saleId: sale.id,
+          method: POSPaymentMethod.VNPAY,
+          status: POSPaymentRecordStatus.SUCCESS,
+          reference,
+        },
+      });
+      if (existingPayment) return { kind: 'idempotent' as const };
+
+      if (
+        current.status !== POSSaleStatus.DRAFT &&
+        current.status !== POSSaleStatus.HELD
+      ) {
+        // Tien da vao sau khi hoa don duoc chot/huy bang luong khac: luu de
+        // doi soat/hoan tien, tuyet doi khong tru ton lan nua.
+        await tx.pOSPayment.create({
+          data: {
+            saleId: sale.id,
+            method: POSPaymentMethod.VNPAY,
+            amount: Number(current.grand_total),
+            status: POSPaymentRecordStatus.SUCCESS,
+            reference,
+            paidAt: new Date(),
+          },
+        });
+        await this.audit.log(
+          {
+            action: 'POS_DUPLICATE_PAYMENT_REQUIRES_REFUND',
+            actorId: null,
+            targetType: 'POSSale',
+            targetId: sale.id,
+            storeId: sale.storeId,
+            metadata: { saleNumber, transactionId, currentStatus: current.status },
+          },
+          tx,
+        );
+        return { kind: 'refund-pending' as const };
+      }
+
+      const items = await tx.pOSSaleItem.findMany({ where: { saleId: sale.id } });
+      if (items.length === 0) {
+        throw new BadRequestException({
+          code: 'EMPTY_SALE',
+          message: 'Hoa don POS chua co san pham',
+        });
+      }
+
+      const grandTotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
+      if (grandTotal * 100 !== expectedAmount) {
+        throw new BadRequestException({
+          code: 'POS_TOTAL_DESYNC',
+          message: 'Tong tien hoa don POS khong dong bo',
+        });
+      }
+
+      await this.inventory.commitPosSale(
+        tx,
+        sale.storeId,
+        items.map((item) => ({
+          variantId: item.variantId,
+          quantity: Number(item.quantity),
+        })),
+        saleNumber,
+        sale.cashierId,
+      );
+      await tx.pOSPayment.create({
+        data: {
+          saleId: sale.id,
+          method: POSPaymentMethod.VNPAY,
+          amount: grandTotal,
+          status: POSPaymentRecordStatus.SUCCESS,
+          reference,
+          paidAt: new Date(),
+        },
+      });
+      await tx.pOSSale.update({
+        where: { id: sale.id },
+        data: {
+          status: POSSaleStatus.PAID,
+          paymentStatus: POSPaymentStatus.PAID,
+          subtotal: items.reduce(
+            (sum, item) => sum + item.lineTotal + item.discountAmount,
+            0,
+          ),
+          discountTotal: items.reduce(
+            (sum, item) => sum + item.discountAmount,
+            0,
+          ),
+          grandTotal,
+          amountPaid: grandTotal,
+          changeAmount: 0,
+          paidAt: new Date(),
+        },
+      });
+      await this.audit.log(
+        {
+          action: 'POS_SALE_PAID',
+          actorId: null,
+          targetType: 'POSSale',
+          targetId: sale.id,
+          storeId: sale.storeId,
+          metadata: {
+            saleNumber,
+            grandTotal,
+            methods: [POSPaymentMethod.VNPAY],
+            transactionId,
+          },
+        },
+        tx,
+      );
+      return { kind: 'paid' as const };
+    });
+
+    if (outcome.kind === 'amount-mismatch') {
+      await this.audit.log({
+        action: 'POS_PAYMENT_AMOUNT_MISMATCH',
+        actorId: null,
+        targetType: 'POSSale',
+        targetId: sale.id,
+        storeId: sale.storeId,
+        metadata: {
+          saleNumber,
+          expectedAmount: outcome.expectedAmount,
+          receivedAmount: Number(query['vnp_Amount']),
+          transactionId,
+        },
+      });
+      return {
+        code: responseCode,
+        orderNumber: saleNumber,
+        success: false,
+        status: POSPaymentStatus.PENDING,
+        amountMismatch: true,
+        pos: true,
+        saleId: sale.id,
+      };
+    }
+
+    return {
+      code: responseCode,
+      orderNumber: saleNumber,
+      success: true,
+      status:
+        outcome.kind === 'refund-pending'
+          ? PaymentStatus.REFUND_PENDING
+          : POSPaymentStatus.PAID,
+      pos: true,
+      saleId: sale.id,
+      ...(outcome.kind === 'idempotent' ? { idempotent: true } : {}),
+      ...(outcome.kind === 'refund-pending' ? { refundPending: true } : {}),
     };
   }
 

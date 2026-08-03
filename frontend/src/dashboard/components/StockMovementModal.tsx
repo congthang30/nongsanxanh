@@ -39,6 +39,14 @@ export function StockMovementModal({
   const [reason, setReason] = useState('');
   const [exportKind, setExportKind] = useState<'EXPORT' | 'LOSS'>('EXPORT');
   const numericValue = Number(value);
+  const hasValue = value.trim() !== '';
+  const reasonRequired = mode === 'export';
+  const invalidQuantity =
+    !hasValue ||
+    !Number.isFinite(numericValue) ||
+    (mode === 'adjust' ? numericValue < 0 : numericValue <= 0) ||
+    (mode === 'export' && numericValue > row.available);
+  const invalidReason = reasonRequired && reason.trim().length < 3;
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -82,15 +90,7 @@ export function StockMovementModal({
     onError: (error) => push(getErrorMessage(error), 'error'),
   });
 
-  const reasonRequired = mode === 'export' || mode === 'adjust';
-  const invalidQuantity =
-    !Number.isFinite(numericValue) ||
-    (mode === 'adjust' ? numericValue < 0 : numericValue <= 0) ||
-    (mode === 'export' && numericValue > row.available);
-  const submitDisabled =
-    invalidQuantity ||
-    (reasonRequired && reason.trim().length < 3) ||
-    mutation.isPending;
+  const submitDisabled = invalidQuantity || invalidReason || mutation.isPending;
 
   const title =
     mode === 'import'
@@ -111,6 +111,7 @@ export function StockMovementModal({
         {mode === 'export' && (
           <div className="flex gap-sm" style={{ marginTop: 12 }}>
             <button
+              id={`stock-export-kind-${row.variantId}`}
               type="button"
               className={'dash-btn dash-btn-sm ' + (exportKind === 'EXPORT' ? 'dash-btn-primary' : '')}
               onClick={() => setExportKind('EXPORT')}
@@ -118,6 +119,7 @@ export function StockMovementModal({
               Xuất / chuyển đi
             </button>
             <button
+              id={`stock-loss-kind-${row.variantId}`}
               type="button"
               className={'dash-btn dash-btn-sm ' + (exportKind === 'LOSS' ? 'dash-btn-primary' : '')}
               onClick={() => setExportKind('LOSS')}
@@ -134,33 +136,55 @@ export function StockMovementModal({
               ? 'Số lượng tồn thực tế mới'
               : 'Số lượng xuất / đánh hỏng'}
           <input
+            id={`stock-movement-quantity-${row.variantId}`}
             className="input"
             type="number"
             min={mode === 'adjust' ? 0 : 0.001}
+            max={mode === 'export' ? row.available : undefined}
             step="0.001"
             value={value}
             onChange={(event) => setValue(event.target.value)}
             autoFocus
           />
+          {invalidQuantity && (
+            <span
+              className={hasValue ? undefined : 'muted'}
+              style={{ display: 'block', marginTop: 4, color: hasValue ? '#dc2626' : undefined, fontSize: 12 }}
+            >
+              {!hasValue
+                ? mode === 'adjust'
+                  ? 'Nhập số tồn thực tế sau kiểm kê (có thể bằng 0).'
+                  : 'Nhập số lượng lớn hơn 0.'
+                : mode === 'export' && numericValue > row.available
+                  ? `Chỉ có thể xuất/hủy tối đa ${row.available} ${row.unit}.`
+                  : mode === 'adjust'
+                    ? 'Tồn thực tế không được là số âm.'
+                    : 'Số lượng phải lớn hơn 0.'}
+            </span>
+          )}
         </label>
 
         <label style={{ display: 'block', marginTop: 10 }}>
           Lý do {reasonRequired && <span style={{ color: '#dc2626' }}>*</span>}
           <input
+            id={`stock-movement-reason-${row.variantId}`}
             className="input"
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder={reasonRequired ? 'VD: kiểm kê, điều chuyển, hết hạn...' : 'Tùy chọn'}
+            placeholder={reasonRequired ? 'Bắt buộc, tối thiểu 3 ký tự' : 'Tùy chọn'}
           />
+          {invalidReason && (
+            <span style={{ display: 'block', marginTop: 4, color: '#dc2626', fontSize: 12 }}>
+              Cần nhập lý do tối thiểu 3 ký tự để truy vết xuất/hủy kho.
+            </span>
+          )}
         </label>
 
-        {mode === 'export' && numericValue > row.available && (
-          <p style={{ color: '#dc2626', marginTop: 8 }}>Số lượng xuất vượt tồn khả dụng.</p>
-        )}
+
 
         <div className="flex gap-sm" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onClose}>Hủy</button>
-          <button className="btn btn-primary" disabled={submitDisabled} onClick={() => mutation.mutate()}>
+          <button id={`stock-movement-cancel-${row.variantId}`} type="button" className="btn btn-ghost" onClick={onClose}>Đóng</button>
+          <button id={`stock-movement-submit-${row.variantId}`} type="button" className="btn btn-primary" disabled={submitDisabled} onClick={() => mutation.mutate()}>
             {mutation.isPending ? 'Đang xử lý...' : 'Xác nhận'}
           </button>
         </div>

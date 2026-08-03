@@ -2,8 +2,8 @@ import { DeliveryStatus, OrderStatus } from '../../types';
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING_PAYMENT: 'Chờ thanh toán',
-  PLACED: 'Đã đặt hàng',
-  STORE_CONFIRMED: 'Cửa hàng đã xác nhận',
+  PLACED: 'Chờ kho xác nhận',
+  STORE_CONFIRMED: 'Kho đã xác nhận',
   PICKING: 'Đang soạn hàng',
   PACKED: 'Đã đóng gói',
   READY_FOR_DELIVERY: 'Sẵn sàng giao',
@@ -27,10 +27,12 @@ export const DELIVERY_STATUS_LABEL: Record<DeliveryStatus, string> = {
 
 /** Payment status. Backend tra ve chuoi enum; map sang nhan tieng Viet. */
 export const PAYMENT_STATUS_LABEL: Record<string, string> = {
-  INITIATED: 'Đã khởi tạo',
+  INITIATED: 'Chưa thanh toán',
   PENDING: 'Đang chờ',
   SUCCESS: 'Đã thanh toán',
   FAILED: 'Thất bại',
+  CANCELLED: 'Đã hủy',
+  REFUND_PENDING: 'Chờ hoàn tiền',
   REFUNDED: 'Đã hoàn tiền',
 };
 
@@ -58,7 +60,8 @@ export function deliveryStatusTone(s: DeliveryStatus): Tone {
 export function paymentStatusTone(status?: string | null): Tone {
   if (status === 'SUCCESS') return 'success';
   if (status === 'FAILED') return 'danger';
-  if (status === 'REFUNDED') return 'neutral';
+  if (status === 'REFUND_PENDING') return 'warning';
+  if (status === 'REFUNDED' || status === 'CANCELLED') return 'neutral';
   return 'warning';
 }
 

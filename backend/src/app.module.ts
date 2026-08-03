@@ -26,7 +26,6 @@ import { AiModule } from './modules/ai/ai.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { StoreModule } from './modules/store/store.module';
 import { StoreManagerModule } from './modules/store-manager/store-manager.module';
-import { StoreStaffModule } from './modules/store-staff/store-staff.module';
 import { POSModule } from './modules/pos/pos.module';
 import { MediaModule } from './modules/media/media.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -56,7 +55,6 @@ import { HealthModule } from './health/health.module';
     NotificationModule,
     AdminModule,
     StoreManagerModule,
-    StoreStaffModule,
     WarehouseModule,
     POSModule,
     MediaModule,
