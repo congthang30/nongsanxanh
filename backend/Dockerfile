@@ -11,13 +11,13 @@ COPY package*.json ./
 RUN npm ci
 
 COPY prisma ./prisma
-RUN npx prisma generate
+RUN npx prisma generate --generator client
 
 # ---- Dev stage (hot reload) ----
 FROM deps AS dev
 ENV NODE_ENV=development
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma generate && npm run start:dev"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma generate --generator client && npm run start:dev"]
 
 # ---- Build stage ----
 FROM deps AS builder
