@@ -41,6 +41,7 @@ const MAP: Record<string, { label: string; cls: string }> = {
 };
 
 const PAYMENT_MAP: Record<string, { label: string; cls: string }> = {
+  INITIATED: { label: 'Chưa thanh toán', cls: 'dash-badge-amber' },
   PENDING: { label: 'Chờ thanh toán', cls: 'dash-badge-amber' },
   PROCESSING: { label: 'Đang xử lý', cls: 'dash-badge-blue' },
   SUCCESS: { label: 'Đã thanh toán', cls: 'dash-badge-green' },
