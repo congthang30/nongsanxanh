@@ -104,13 +104,21 @@ export class CatalogService {
 
     // Ton kho GOP toan he thong cho variant dai dien (de hien con/het hang)
     const variantIds = items.map((p) => p.variants[0]?.id).filter(Boolean) as string[];
-    const availMap = query.storeId
-      ? await this.inventory.getAvailabilityMap(query.storeId, variantIds)
-      : await this.inventory.getAggregateAvailabilityMap(variantIds);
+    const [availMap, effectivePrices] = await Promise.all([
+      query.storeId
+        ? this.inventory.getAvailabilityMap(query.storeId, variantIds)
+        : this.inventory.getAggregateAvailabilityMap(variantIds),
+      query.storeId
+        ? this.inventory.getStorePrices(query.storeId, variantIds)
+        : this.inventory.getScheduledSalePrices(variantIds),
+    ]);
 
     const data = items.map((p) => {
       const v0 = p.variants[0];
-      const available = v0 ? availMap.get(v0.id) ?? 0 : 0;
+      const effectivePrice = v0
+        ? effectivePrices.get(v0.id) ?? v0.price
+        : null;
+      const available = v0 ? (availMap.get(v0.id) ?? 0) : 0;
       return {
         id: p.id,
         name: p.name,
@@ -122,7 +130,14 @@ export class CatalogService {
         category: p.category,
         image: p.images[0]?.url ?? null,
         imageUrl: p.images[0]?.url ?? null,
-        fromPrice: v0?.price ?? null,
+        fromPrice:
+          v0 && effectivePrice != null && effectivePrice < v0.price
+            ? v0.price
+            : effectivePrice,
+        salePrice:
+          v0 && effectivePrice != null && effectivePrice < v0.price
+            ? effectivePrice
+            : null,
         unit: v0?.unit ?? null,
         available,
       };
@@ -156,9 +171,14 @@ export class CatalogService {
     }
     // Ton theo chi nhanh neu co storeId; khong thi GOP toan he thong + so khu vuc con hang
     const variantIds = product.variants.map((v) => v.id);
-    const availMap = storeId
-      ? await this.inventory.getAvailabilityMap(storeId, variantIds)
-      : await this.inventory.getAggregateAvailabilityMap(variantIds);
+    const [availMap, scheduledPrices] = await Promise.all([
+      storeId
+        ? this.inventory.getAvailabilityMap(storeId, variantIds)
+        : this.inventory.getAggregateAvailabilityMap(variantIds),
+      storeId
+        ? this.inventory.getStorePrices(storeId, variantIds)
+        : this.inventory.getScheduledSalePrices(variantIds),
+    ]);
     const coverageMap = await this.inventory.getStoreCoverageMap(variantIds);
 
     // Lay thong tin chi tiet cac cua hang con san pham nay
@@ -203,12 +223,17 @@ export class CatalogService {
 
     return {
       ...product,
-      variants: product.variants.map((v) => ({
-        ...v,
-        available: availMap.get(v.id) ?? 0,
-        storeCoverage: coverageMap.get(v.id) ?? 0,
-        stores: variantStoresMap.get(v.id) ?? [],
-      })),
+      variants: product.variants.map((v) => {
+        const price = scheduledPrices.get(v.id) ?? v.price;
+        return {
+          ...v,
+          price,
+          compareAtPrice: price < v.price ? v.price : v.compareAtPrice,
+          available: availMap.get(v.id) ?? 0,
+          storeCoverage: coverageMap.get(v.id) ?? 0,
+          stores: variantStoresMap.get(v.id) ?? [],
+        };
+      }),
     };
   }
 
@@ -322,8 +347,10 @@ export class CatalogService {
     const variantIds = rows
       .map((r) => r.variants[0]?.id)
       .filter((id): id is string => !!id);
-    const availMap =
-      await this.inventory.getAggregateAvailabilityMap(variantIds);
+    const [availMap, scheduledPrices] = await Promise.all([
+      this.inventory.getAggregateAvailabilityMap(variantIds),
+      this.inventory.getScheduledSalePrices(variantIds),
+    ]);
 
     const toCard = (p: (typeof rows)[number]): RelatedProductCard => ({
       id: p.id,
@@ -331,7 +358,9 @@ export class CatalogService {
       slug: p.slug,
       ratingAvg: p.ratingAvg,
       image: p.images[0]?.url ?? null,
-      fromPrice: p.variants[0]?.price ?? null,
+      fromPrice: p.variants[0]
+        ? scheduledPrices.get(p.variants[0].id) ?? p.variants[0].price
+        : null,
       unit: p.variants[0]?.unit ?? null,
     });
 

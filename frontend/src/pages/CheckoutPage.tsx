@@ -38,7 +38,7 @@ interface Quote {
 interface Prediction { placeId: string; description: string; }
 
 export default function CheckoutPage() {
-  const { items, subtotal, hasIssues, fetch } = useCartStore();
+  const { items, subtotal, hasIssues, fetch, update } = useCartStore();
   const { push } = useToastStore();
   const navigate = useNavigate();
 
@@ -62,6 +62,7 @@ export default function CheckoutPage() {
   const [addressDetail, setAddressDetail] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const suppressRef = useRef(false);
+  const syncingCartRef = useRef(false);
 
   const { data: addresses, refetch: refetchAddr } = useQuery({
     queryKey: ['addresses'],
@@ -75,6 +76,10 @@ export default function CheckoutPage() {
     }
   }, [addresses, addressId]);
 
+  const cartSignature = items
+    .map((item) => `${item.id}:${item.quantity}:${item.batchId ?? ''}`)
+    .join('|');
+
   // Quote: backend tự resolve cửa hàng phù hợp theo địa chỉ + tồn kho.
   // Frontend chỉ hiển thị kết quả, không gửi storeId/giá.
   useEffect(() => {
@@ -82,10 +87,19 @@ export default function CheckoutPage() {
     setQuoting(true);
     api
       .post('/cart/checkout/quote', { addressId, paymentMethod, couponCode: appliedCoupon || undefined })
-      .then((r) => setQuote(r.data.data as Quote))
+      .then(async (r) => {
+        setQuote(r.data.data as Quote);
+        if (!syncingCartRef.current) {
+          syncingCartRef.current = true;
+          await fetch().catch(() => {});
+        }
+      })
       .catch(() => setQuote(null))
-      .finally(() => setQuoting(false));
-  }, [items.length, addressId, appliedCoupon, paymentMethod]);
+      .finally(() => {
+        syncingCartRef.current = false;
+        setQuoting(false);
+      });
+  }, [cartSignature, addressId, appliedCoupon, paymentMethod, fetch]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -147,6 +161,15 @@ export default function CheckoutPage() {
     }
   };
 
+  const selectBatch = async (itemId: string, quantity: number, batchId: string | null) => {
+    try {
+      await update(itemId, quantity, batchId);
+      push(batchId ? 'Đã chọn lô hàng' : 'Đã chuyển về xuất kho FEFO');
+    } catch (error) {
+      push(getErrorMessage(error), 'error');
+    }
+  };
+
   const applyCoupon = () => {
     setAppliedCoupon(couponCode.trim().toUpperCase());
   };
@@ -175,6 +198,7 @@ export default function CheckoutPage() {
       navigate(`/orders/${order.id}`);
     } catch (e) {
       push(getErrorMessage(e), 'error');
+      await fetch().catch(() => {});
       setPlacing(false);
     }
   };
@@ -355,9 +379,33 @@ export default function CheckoutPage() {
           <h3>Đơn hàng ({items.length})</h3>
           <div className="stack gap-sm checkout-items">
             {items.map((it) => (
-              <div key={it.id} className="between checkout-line">
-                <span>{it.name} <span className="muted">×{it.quantity}</span></span>
-                <span>{formatVnd(it.lineTotal)}</span>
+              <div key={it.id} className="checkout-line checkout-batch-line">
+                <div className="between">
+                  <span>{it.name} <span className="muted">×{it.quantity}</span></span>
+                  <span>{formatVnd(it.lineTotal)}</span>
+                </div>
+                {quote?.serviceable && it.batchOptions.length > 0 && (
+                  <label className="checkout-batch-picker" htmlFor={`checkout-batch-${it.id}`}>
+                    <span>Lô hàng / hạn sử dụng</span>
+                    <select
+                      id={`checkout-batch-${it.id}`}
+                      className="input"
+                      value={it.batchId ?? ''}
+                      disabled={quoting}
+                      onChange={(event) =>
+                        selectBatch(it.id, it.quantity, event.target.value || null)
+                      }
+                    >
+                      <option value="">Tự động FEFO · lô hết hạn sớm nhất</option>
+                      {it.batchOptions.map((batch) => (
+                        <option key={batch.id} value={batch.id}>
+                          {batch.batchCode} · HSD {new Date(batch.expiryDate).toLocaleDateString('vi-VN')}
+                          {' · '}{formatVnd(batch.unitPrice)} · còn {batch.available}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
               </div>
             ))}
           </div>

@@ -106,10 +106,11 @@ export class StoreService {
       },
     });
 
-    const availability = await this.inventory.getAvailabilityMap(
-      storeId,
-      inventories.map((inventory) => inventory.variantId),
-    );
+    const variantIds = inventories.map((inventory) => inventory.variantId);
+    const [availability, effectivePrices] = await Promise.all([
+      this.inventory.getAvailabilityMap(storeId, variantIds),
+      this.inventory.getStorePrices(storeId, variantIds),
+    ]);
 
     // Gom theo product, chi giu variant con lo ban duoc
     type Row = (typeof inventories)[number];
@@ -156,14 +157,13 @@ export class StoreService {
 
     const data = entries.map(({ product, rows }) => {
       // variant re nhat con hang
-      const cheapest = rows.reduce((min, r) => {
-        const price = r.salePrice ?? r.priceOverride ?? r.variant.price;
-        const minPrice =
-          min.salePrice ?? min.priceOverride ?? min.variant.price;
-        return price < minPrice ? r : min;
-      });
-      const price =
-        cheapest.salePrice ?? cheapest.priceOverride ?? cheapest.variant.price;
+      const cheapest = rows.reduce((min, row) =>
+        (effectivePrices.get(row.variantId) ?? row.variant.price) <
+        (effectivePrices.get(min.variantId) ?? min.variant.price)
+          ? row
+          : min,
+      );
+      const price = effectivePrices.get(cheapest.variantId) ?? cheapest.variant.price;
       const available = availability.get(cheapest.variantId) ?? 0;
       return {
         id: product.id,
@@ -174,8 +174,8 @@ export class StoreService {
         ratingCount: product.ratingCount,
         category: product.category,
         image: product.images[0]?.url ?? null,
-        fromPrice: price,
-        salePrice: cheapest.salePrice,
+        fromPrice: price < cheapest.variant.price ? cheapest.variant.price : price,
+        salePrice: price < cheapest.variant.price ? price : null,
         unit: cheapest.variant.unit,
         available,
         storeId,
@@ -237,15 +237,18 @@ export class StoreService {
       images: product.images,
       attributes: product.attributes,
       store,
-      variants: product.variants.map((v) => ({
-        id: v.id,
-        sku: v.sku,
-        unit: v.unit,
-        unitValue: v.unitValue,
-        price: priceMap.get(v.id) ?? v.price,
-        compareAtPrice: v.compareAtPrice,
-        available: availMap.get(v.id) ?? 0,
-      })),
+      variants: product.variants.map((v) => {
+        const price = priceMap.get(v.id) ?? v.price;
+        return {
+          id: v.id,
+          sku: v.sku,
+          unit: v.unit,
+          unitValue: v.unitValue,
+          price,
+          compareAtPrice: price < v.price ? v.price : v.compareAtPrice,
+          available: availMap.get(v.id) ?? 0,
+        };
+      }),
     };
   }
 

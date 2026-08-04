@@ -32,6 +32,14 @@ export class UpdateCartItemDto {
   @IsNumber()
   @Min(0.001)
   quantity: number;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Lô khách chọn; null để dùng FEFO tự động',
+  })
+  @IsOptional()
+  @IsString()
+  batchId?: string | null;
 }
 
 export class RevalidateCartDto {

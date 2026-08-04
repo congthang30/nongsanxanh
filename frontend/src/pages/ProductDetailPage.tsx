@@ -185,6 +185,12 @@ export default function ProductDetailPage() {
           <div className="detail-price">
             {variant ? formatVnd(variant.price) : '—'}
             <span className="muted detail-unit">/{variant?.unit}</span>
+            {variant?.compareAtPrice != null && variant.compareAtPrice > variant.price && (
+              <span className="detail-price-sale-meta">
+                <del>{formatVnd(variant.compareAtPrice)}</del>
+                <em>Giảm {Math.round((1 - variant.price / variant.compareAtPrice) * 100)}%</em>
+              </span>
+            )}
           </div>
 
           <div style={{ margin: '12px 0' }}>

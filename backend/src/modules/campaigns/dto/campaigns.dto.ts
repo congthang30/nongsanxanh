@@ -2,11 +2,13 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsDateString,
   IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  ArrayMinSize,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -15,6 +17,11 @@ class CampaignItemInput {
   @ApiProperty()
   @IsString()
   variantId: string;
+
+  @ApiPropertyOptional({ description: 'Lô tồn kho cụ thể; bỏ trống để áp dụng toàn phiên bản' })
+  @IsOptional()
+  @IsString()
+  batchId?: string;
 
   @ApiProperty()
   @Type(() => Number)
@@ -26,6 +33,7 @@ class CampaignItemInput {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(1)
   quantityLimit?: number;
 }
 
@@ -41,15 +49,16 @@ export class CreateCampaignDto {
   slug: string;
 
   @ApiProperty()
-  @IsString()
+  @IsDateString()
   startsAt: string;
 
   @ApiProperty()
-  @IsString()
+  @IsDateString()
   endsAt: string;
 
   @ApiProperty({ type: [CampaignItemInput] })
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => CampaignItemInput)
   items: CampaignItemInput[];

@@ -25,7 +25,8 @@ api.interceptors.request.use((config) => {
     requestPath === '/admin/stores' ||
     requestPath.startsWith('/admin/stores/') ||
     requestPath.startsWith('/admin/media') ||
-    requestPath.startsWith('/admin/barcodes');
+    requestPath.startsWith('/admin/barcodes') ||
+    requestPath.startsWith('/admin/campaigns');
   const usesAdminStoreContext =
     requestPath.startsWith('/pos') ||
     (requestPath.startsWith('/admin/') && !isGlobalAdminRequest);

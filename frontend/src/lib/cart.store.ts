@@ -16,6 +16,17 @@ export interface CartItem {
   available: number;
   inStock: boolean;
   lineTotal: number;
+  batchId: string | null;
+  selectedBatchId: string | null;
+  batchOptions: {
+    id: string;
+    batchCode: string;
+    expiryDate: string;
+    available: number;
+    unitPrice: number;
+    originalPrice: number;
+    onSale: boolean;
+  }[];
 }
 
 interface CartView {
@@ -38,7 +49,7 @@ interface CartState {
   loading: boolean;
   fetch: () => Promise<void>;
   add: (variantId: string, quantity: number) => Promise<void>;
-  update: (itemId: string, quantity: number) => Promise<void>;
+  update: (itemId: string, quantity: number, batchId?: string | null) => Promise<void>;
   remove: (itemId: string) => Promise<void>;
 }
 
@@ -78,9 +89,12 @@ export const useCartStore = create<CartState>((set) => ({
     );
     apply(set, view);
   },
-  update: async (itemId, quantity) => {
+  update: async (itemId, quantity, batchId) => {
     const view = await unwrap<CartView>(
-      api.patch(`/cart/items/${itemId}`, { quantity }),
+      api.patch(`/cart/items/${itemId}`, {
+        quantity,
+        ...(batchId !== undefined ? { batchId } : {}),
+      }),
     );
     apply(set, view);
   },

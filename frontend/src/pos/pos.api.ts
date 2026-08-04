@@ -45,6 +45,16 @@ export interface SaleItem {
   quantity: number;
   discountAmount: number;
   lineTotal: number;
+  batchId: string | null;
+  batchOptions: {
+    id: string;
+    batchCode: string;
+    expiryDate: string;
+    available: number;
+    unitPrice: number;
+    originalPrice: number;
+    onSale: boolean;
+  }[];
 }
 
 export interface SalePayment {
@@ -186,8 +196,11 @@ export const posApi = {
     unwrap<{ sale: POSSale; scanned: BarcodeLookup }>(
       api.post(`/pos/sales/${saleId}/scan`, { barcode, quantity }),
     ),
-  updateItem: (saleId: string, itemId: string, quantity: number) =>
-    unwrap<POSSale>(api.patch(`/pos/sales/${saleId}/items/${itemId}`, { quantity })),
+  updateItem: (saleId: string, itemId: string, quantity: number, batchId?: string | null) =>
+    unwrap<POSSale>(api.patch(`/pos/sales/${saleId}/items/${itemId}`, {
+      quantity,
+      ...(batchId !== undefined ? { batchId } : {}),
+    })),
   removeItem: (saleId: string, itemId: string) =>
     unwrap<POSSale>(api.delete(`/pos/sales/${saleId}/items/${itemId}`)),
   hold: (saleId: string) => unwrap<POSSale>(api.post(`/pos/sales/${saleId}/hold`, {})),

@@ -22,6 +22,8 @@ const MAP: Record<string, { label: string; cls: string }> = {
   ARRIVED_AT_CUSTOMER: { label: 'Đến khách hàng', cls: 'dash-badge-blue' },
   FAILED: { label: 'Thất bại', cls: 'dash-badge-red' },
   ACTIVE: { label: 'Hoạt động', cls: 'dash-badge-green' },
+  SCHEDULED: { label: 'Đã lên lịch', cls: 'dash-badge-blue' },
+  ENDED: { label: 'Đã kết thúc', cls: 'dash-badge-slate' },
   PAUSED: { label: 'Tạm dừng', cls: 'dash-badge-amber' },
   CLOSED: { label: 'Đóng cửa', cls: 'dash-badge-slate' },
   SUSPENDED: { label: 'Tạm khóa', cls: 'dash-badge-red' },

@@ -19,6 +19,7 @@ describe('CatalogService vector sync events', () => {
     } as unknown as PrismaService;
     const inventory = {
       getAggregateAvailabilityMap: jest.fn(),
+      getScheduledSalePrices: jest.fn().mockResolvedValue(new Map()),
     } as unknown as StoreInventoryService;
     const vectorIndex = {
       relatedProductIds: jest.fn(),

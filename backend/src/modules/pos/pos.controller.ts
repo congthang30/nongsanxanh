@@ -141,7 +141,7 @@ export class POSController {
     @Param('itemId') itemId: string,
     @Body() dto: UpdateItemDto,
   ) {
-    return this.sales.updateItem(user, id, itemId, dto.quantity);
+    return this.sales.updateItem(user, id, itemId, dto.quantity, dto.batchId);
   }
 
   @Delete('sales/:id/items/:itemId')
@@ -193,7 +193,7 @@ export class POSController {
     @Param('id') id: string,
     @Req() req: Request,
   ) {
-    const sale = await this.sales.getSale(user, id);
+    const sale = await this.sales.refreshScheduledPrices(user, id);
     if (
       (sale.status !== POSSaleStatus.DRAFT && sale.status !== POSSaleStatus.HELD) ||
       sale.items.length === 0 ||

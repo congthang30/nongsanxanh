@@ -92,6 +92,11 @@ export class UpdateItemDto {
   @IsNumber()
   @Min(0.001)
   quantity: number;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Lô cụ thể; null để dùng FEFO' })
+  @IsOptional()
+  @IsString()
+  batchId?: string | null;
 }
 
 class PayPaymentDto {

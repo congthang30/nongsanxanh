@@ -311,6 +311,30 @@
   font-size: 16px;
 }
 .pos-item-del:hover { background: var(--pos-danger-bg); }
+.pos-batch-picker {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: min(100%, 390px);
+  margin-top: 7px;
+  padding: 4px 7px;
+  border: 1px solid rgba(0, 110, 47, .22);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(0, 110, 47, .07), rgba(255, 255, 255, .8));
+}
+.pos-batch-picker .material-symbols-outlined { color: var(--pos-accent); font-size: 16px; }
+.pos-batch-picker select {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--pos-text);
+  font: 600 11px/1.4 inherit;
+  cursor: pointer;
+}
+.pos-batch-picker:focus-within { box-shadow: 0 0 0 2px rgba(0, 110, 47, .14); }
+.pos-batch-picker select:disabled { cursor: not-allowed; opacity: .58; }
 
 /* ---------- Summary / payment ---------- */
 .pos-col-pay { min-height: 0; }

@@ -13,6 +13,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import { customAlphabet } from 'nanoid';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { StoreInventoryService } from '../inventory/inventory.service';
 import { PromotionService } from '../promotion/promotion.service';
@@ -82,6 +83,7 @@ export class OrdersService {
 
     const cartItems = cart.items.map((it) => ({
       variantId: it.variantId,
+      batchId: it.batchId,
       quantity: Number(it.quantity),
     }));
 
@@ -114,24 +116,27 @@ export class OrdersService {
       });
     }
 
-    // Gia thuc te tai store
-    const variantIds = cartItems.map((i) => i.variantId);
-    const priceMap = await this.inventory.getStorePrices(storeId, variantIds);
-
-    const lines = cart.items.map((it) => {
-      const unitPrice = priceMap.get(it.variantId) ?? it.variant.price;
-      const quantity = Number(it.quantity);
-      return {
+    const pricedBatches = await this.inventory.getPricedBatchAllocations(storeId, cartItems);
+    if (pricedBatches.some((result) => !result.fulfilled)) {
+      throw new BadRequestException({
+        code: 'INSUFFICIENT_BATCH_STOCK',
+        message: 'Một lô đã chọn không còn đủ số lượng. Vui lòng kiểm tra lại giỏ hàng.',
+      });
+    }
+    const lines = cart.items.flatMap((it, index) =>
+      pricedBatches[index].allocations.map((allocation) => ({
+        id: randomUUID(),
         productId: it.variant.productId,
         variantId: it.variantId,
+        batchId: allocation.batchId,
         productName: it.variant.product.name,
         sku: it.variant.sku,
         unit: it.variant.unit,
-        unitPrice,
-        quantity,
-        lineTotal: Math.round(unitPrice * quantity),
-      };
-    });
+        unitPrice: allocation.unitPrice,
+        quantity: allocation.quantity,
+        lineTotal: allocation.lineTotal,
+      })),
+    );
 
     const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
 
@@ -173,6 +178,29 @@ export class OrdersService {
             'Don hang dang duoc xu ly. Vui long kiem tra lai danh sach don hang.',
         });
       }
+
+      const transactionBatches = await this.inventory.getPricedBatchAllocations(
+        storeId,
+        cartItems,
+        tx,
+      );
+      const transactionSignature = transactionBatches.flatMap((result) =>
+        result.allocations.map((allocation) =>
+          `${allocation.batchId}:${allocation.quantity}:${allocation.unitPrice}`,
+        ),
+      ).join('|');
+      const expectedSignature = lines.map((line) =>
+        `${line.batchId}:${line.quantity}:${line.unitPrice}`,
+      ).join('|');
+      if (
+        transactionBatches.some((result) => !result.fulfilled) ||
+        transactionSignature !== expectedSignature
+      ) {
+        throw new BadRequestException({
+          code: 'PRICE_CHANGED',
+          message: 'Giá hoặc lô hàng vừa thay đổi. Vui lòng kiểm tra lại tổng tiền.',
+        });
+      }
       const created = await tx.order.create({
         data: {
           orderNumber: `NS${orderNo()}`,
@@ -198,6 +226,7 @@ export class OrdersService {
           couponCode: coupon?.code,
           items: {
             create: lines.map((l) => ({
+              id: l.id,
               productId: l.productId,
               variantId: l.variantId,
               productNameSnapshot: l.productName,
@@ -219,7 +248,12 @@ export class OrdersService {
         tx,
         storeId,
         created.id,
-        cartItems,
+        lines.map((line) => ({
+          orderItemId: line.id,
+          variantId: line.variantId,
+          batchId: line.batchId,
+          quantity: line.quantity,
+        })),
         userId,
       );
 

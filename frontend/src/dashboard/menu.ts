@@ -39,6 +39,7 @@ const ADMIN_GROUPS: MenuGroup[] = [
       { to: '/admin/orders', label: 'Đơn hàng', icon: 'ShoppingCart' },
       { to: '/admin/returns', label: 'Trả hàng', icon: 'Undo2' },
       { to: '/admin/products', label: 'Sản phẩm', icon: 'Sprout' },
+      { to: '/admin/campaigns', label: 'Quản lý giá', icon: 'Tag' },
       { to: '/admin/inventory', label: 'Tồn kho', icon: 'Package' },
     ],
   },

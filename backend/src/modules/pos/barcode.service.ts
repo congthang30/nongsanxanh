@@ -21,6 +21,7 @@ export interface BarcodeLookupResult {
   barcodeType: BarcodeType;
   productId: string;
   variantId: string;
+  storeId: string;
   productName: string;
   sku: string;
   unit: string;
@@ -84,18 +85,18 @@ export class BarcodeService {
       });
     }
 
-    const inv = await this.prisma.storeInventory.findUnique({
-      where: { storeId_variantId: { storeId, variantId: variant.id } },
-    });
-    const available = await this.inventory.getAvailableInStore(storeId, variant.id);
-    const unitPrice =
-      inv?.salePrice ?? inv?.priceOverride ?? variant.price;
+    const [available, prices] = await Promise.all([
+      this.inventory.getAvailableInStore(storeId, variant.id),
+      this.inventory.getStorePrices(storeId, [variant.id]),
+    ]);
+    const unitPrice = prices.get(variant.id) ?? variant.price;
 
     return {
       barcode: record.barcode,
       barcodeType: record.type,
       productId: variant.productId,
       variantId: variant.id,
+      storeId,
       productName: variant.product.name,
       sku: variant.sku,
       unit: variant.unit,
@@ -138,23 +139,25 @@ export class BarcodeService {
       take: 30,
     });
 
-    const availability = await this.inventory.getAvailabilityMap(
-      storeId,
-      rows.map((row) => row.variantId),
-    );
+    const variantIds = rows.map((row) => row.variantId);
+    const [availability, prices] = await Promise.all([
+      this.inventory.getAvailabilityMap(storeId, variantIds),
+      this.inventory.getStorePrices(storeId, variantIds),
+    ]);
     return rows.map((r) => {
       const available = availability.get(r.variantId) ?? 0;
       const primary = r.variant.barcodes.find((b) => b.isPrimary) ?? r.variant.barcodes[0];
       return {
         productId: r.variant.productId,
         variantId: r.variantId,
+        storeId,
         productName: r.variant.product.name,
         sku: r.variant.sku,
         unit: r.variant.unit,
         saleMode: r.variant.saleMode,
         allowDecimalQuantity: r.variant.allowDecimalQuantity,
         barcode: primary?.barcode ?? null,
-        unitPrice: r.salePrice ?? r.priceOverride ?? r.variant.price,
+        unitPrice: prices.get(r.variantId) ?? r.variant.price,
         available,
         inStock: available > 0,
       };

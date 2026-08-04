@@ -6,9 +6,11 @@ import {
   Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { CampaignsService } from '../campaigns/campaigns.service';
 
 export interface ReserveLine {
   variantId: string;
+  batchId?: string | null;
   quantity: number;
   orderItemId?: string;
   saleItemId?: string;
@@ -30,7 +32,10 @@ export interface ImportBatchInput {
  */
 @Injectable()
 export class StoreInventoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly campaigns: CampaignsService,
+  ) {}
 
   private dateOnly(value: string, field: string) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -173,15 +178,156 @@ export class StoreInventoryService {
     return map;
   }
 
-  async getStorePrices(storeId: string, variantIds: string[]) {
-    const map = new Map<string, number>();
-    if (variantIds.length === 0) return map;
-    const rows = await this.prisma.storeInventory.findMany({
-      where: { storeId, variantId: { in: variantIds } },
-      include: { variant: { select: { price: true } } },
+  getScheduledSalePrices(
+    variantIds: string[],
+    tx?: Prisma.TransactionClient,
+  ) {
+    return this.campaigns.getActiveSalePrices(variantIds, tx);
+  }
+
+  async getBatchOptions(
+    storeId: string,
+    variantIds: string[],
+    tx?: Prisma.TransactionClient,
+  ) {
+    if (variantIds.length === 0) return [];
+    const client = tx ?? this.prisma;
+    const [batches, storeRows, scheduledPrices] = await Promise.all([
+      client.inventoryBatch.findMany({
+        where: {
+          storeId,
+          variantId: { in: variantIds },
+          status: InventoryBatchStatus.ACTIVE,
+          expiryDate: { gte: this.today() },
+          quantityOnHand: { gt: 0 },
+        },
+        include: { variant: { select: { price: true } } },
+        orderBy: [{ expiryDate: 'asc' }, { receivedDate: 'asc' }, { createdAt: 'asc' }],
+      }),
+      client.storeInventory.findMany({
+        where: { storeId, variantId: { in: variantIds } },
+        select: { variantId: true, salePrice: true, priceOverride: true },
+      }),
+      this.campaigns.getActiveSalePrices(variantIds, tx, true),
+    ]);
+    const storePrices = new Map(
+      storeRows.map((row) => [row.variantId, row.salePrice ?? row.priceOverride]),
+    );
+    return batches.flatMap((batch) => {
+      const available = Math.max(
+        0,
+        Number(batch.quantityOnHand) - Number(batch.reservedQuantity),
+      );
+      if (available <= 0) return [];
+      const basePrice =
+        storePrices.get(batch.variantId) ?? batch.variant.price;
+      const unitPrice =
+        scheduledPrices.get(`${batch.variantId}:${batch.id}`) ??
+        scheduledPrices.get(batch.variantId) ??
+        basePrice;
+      return [{
+        id: batch.id,
+        variantId: batch.variantId,
+        batchCode: batch.batchCode,
+        expiryDate: batch.expiryDate,
+        available,
+        unitPrice,
+        originalPrice: batch.variant.price,
+        onSale: unitPrice < batch.variant.price,
+      }];
     });
-    for (const row of rows) {
-      map.set(row.variantId, row.salePrice ?? row.priceOverride ?? row.variant.price);
+  }
+
+  async getBatchPrices(
+    storeId: string,
+    lines: { variantId: string; batchId?: string | null }[],
+    tx?: Prisma.TransactionClient,
+  ) {
+    const options = await this.getBatchOptions(
+      storeId,
+      [...new Set(lines.map((line) => line.variantId))],
+      tx,
+    );
+    const batchMap = new Map(options.map((option) => [option.id, option]));
+    const defaultMap = new Map<string, (typeof options)[number]>();
+    for (const option of options) {
+      if (!defaultMap.has(option.variantId)) defaultMap.set(option.variantId, option);
+    }
+    return lines.map((line) => {
+      const option = line.batchId ? batchMap.get(line.batchId) : defaultMap.get(line.variantId);
+      if (!option || option.variantId !== line.variantId) {
+        throw new BadRequestException({
+          code: 'BATCH_NOT_SELLABLE',
+          message: 'Lô đã chọn không còn bán tại cửa hàng này',
+        });
+      }
+      return option;
+    });
+  }
+
+  async getPricedBatchAllocations(
+    storeId: string,
+    lines: { variantId: string; batchId?: string | null; quantity: number }[],
+    tx?: Prisma.TransactionClient,
+  ) {
+    if (tx) {
+      const lockKeys = [...new Map(
+        lines.map((line) => [
+          `${line.variantId}:${line.batchId ?? ''}`,
+          { variantId: line.variantId, batchId: line.batchId },
+        ]),
+      ).values()].sort((a, b) =>
+        a.variantId.localeCompare(b.variantId) ||
+        (a.batchId ?? '').localeCompare(b.batchId ?? ''),
+      );
+      for (const key of lockKeys) {
+        await this.lockSellableBatches(tx, storeId, key.variantId, key.batchId);
+      }
+    }
+    const options = await this.getBatchOptions(
+      storeId,
+      [...new Set(lines.map((line) => line.variantId))],
+      tx,
+    );
+    return lines.map((line) => {
+      const candidates = options.filter(
+        (option) =>
+          option.variantId === line.variantId &&
+          (!line.batchId || option.id === line.batchId),
+      );
+      let remaining = line.quantity;
+      const allocations = candidates.flatMap((option) => {
+        if (remaining <= 0) return [];
+        const quantity = Math.min(remaining, option.available);
+        remaining -= quantity;
+        return quantity > 0
+          ? [{
+              batchId: option.id,
+              batchCode: option.batchCode,
+              expiryDate: option.expiryDate,
+              quantity,
+              unitPrice: option.unitPrice,
+              lineTotal: Math.round(option.unitPrice * quantity),
+            }]
+          : [];
+      });
+      return {
+        available: candidates.reduce((sum, option) => sum + option.available, 0),
+        fulfilled: remaining <= 0,
+        allocations,
+      };
+    });
+  }
+
+  async getStorePrices(
+    storeId: string,
+    variantIds: string[],
+    tx?: Prisma.TransactionClient,
+  ) {
+    const map = new Map<string, number>();
+    const options = await this.getBatchOptions(storeId, variantIds, tx);
+    for (const option of options) {
+      if (!map.has(option.variantId)) map.set(option.variantId, option.unitPrice);
     }
     return map;
   }
@@ -190,6 +336,7 @@ export class StoreInventoryService {
     tx: Prisma.TransactionClient,
     storeId: string,
     variantId: string,
+    batchId?: string | null,
   ) {
     const today = this.today();
     return tx.$queryRaw<
@@ -204,6 +351,7 @@ export class StoreInventoryService {
       FROM inventory_batches
       WHERE store_id = ${storeId}
         AND variant_id = ${variantId}
+        ${batchId ? Prisma.sql`AND id = ${batchId}` : Prisma.empty}
         AND status = 'ACTIVE'::"InventoryBatchStatus"
         AND expiry_date >= ${today}::date
         AND quantity_on_hand > reserved_quantity
@@ -240,7 +388,12 @@ export class StoreInventoryService {
   ) {
     for (const line of lines) {
       const orderItemId = await this.findOrderItemId(tx, orderId, line);
-      const batches = await this.lockSellableBatches(tx, storeId, line.variantId);
+      const batches = await this.lockSellableBatches(
+        tx,
+        storeId,
+        line.variantId,
+        line.batchId,
+      );
       const totalAvailable = batches.reduce(
         (sum, batch) =>
           sum + Number(batch.quantity_on_hand) - Number(batch.reserved_quantity),
@@ -761,7 +914,12 @@ export class StoreInventoryService {
       if (!line.saleItemId) {
         throw new BadRequestException({ code: 'SALE_ITEM_REQUIRED', message: 'Thieu dong hoa don de gan lo' });
       }
-      const batches = await this.lockSellableBatches(tx, storeId, line.variantId);
+      const batches = await this.lockSellableBatches(
+        tx,
+        storeId,
+        line.variantId,
+        line.batchId,
+      );
       const totalAvailable = batches.reduce(
         (sum, batch) => sum + Number(batch.quantity_on_hand) - Number(batch.reserved_quantity),
         0,
@@ -798,7 +956,7 @@ export class StoreInventoryService {
             quantity: allocated,
             beforeQty: before,
             afterQty: after,
-            reason: `POS sale ${saleNumber} (FEFO)`,
+            reason: `POS sale ${saleNumber} (${line.batchId ? 'manual batch' : 'FEFO'})`,
             createdBy: actorId,
           },
         });

@@ -11,6 +11,9 @@
 .detail-info h1 { font-size: 32px; margin: 12px 0; }
 .detail-meta { font-size: 14px; margin-bottom: 16px; }
 .detail-price { font-family: var(--font-display); font-size: 38px; font-weight: 800; color: var(--green-700); margin: 8px 0; }
+.detail-price-sale-meta { display: flex; align-items: center; gap: 9px; margin-top: 3px; font-family: var(--font-body); font-size: 13px; }
+.detail-price-sale-meta del { color: var(--text-muted); font-weight: 600; }
+.detail-price-sale-meta em { padding: 3px 7px; border-radius: 999px; background: #e8f6eb; color: #176b35; font-size: 11px; font-style: normal; font-weight: 800; }
 .detail-unit { font-size: 18px; font-weight: 500; }
 .variant-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
 .detail-stock { font-weight: 600; margin: 12px 0; }

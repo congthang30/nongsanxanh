@@ -27,6 +27,7 @@ import AdminReportsPage from './pages/admin/AdminReportsPage';
 import AdminReturnsPage from './pages/admin/AdminReturnsPage';
 import AdminAuditPage from './pages/admin/AdminAuditPage';
 import AdminRoleSwitchPage from './pages/admin/AdminRoleSwitchPage';
+import AdminCampaignsPage from './pages/admin/AdminCampaignsPage';
 
 // Store manager
 import StoreManagerDashboard from './dashboard/pages/StoreManagerDashboard';
@@ -91,6 +92,7 @@ export default function App() {
           <Route path="/admin/orders" element={<AdminOrdersPage />} />
           <Route path="/admin/returns" element={<AdminReturnsPage />} />
           <Route path="/admin/products" element={<AdminProductsPage />} />
+          <Route path="/admin/campaigns" element={<AdminCampaignsPage />} />
           <Route path="/admin/inventory" element={<AdminInventoryPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/reports" element={<AdminReportsPage />} />

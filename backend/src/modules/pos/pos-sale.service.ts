@@ -118,8 +118,92 @@ export class POSSaleService {
     });
   }
 
-  private lineTotalFor(unitPrice: number, quantity: number, discount = 0): number {
-    return Math.max(0, Math.round(unitPrice * quantity) - discount);
+  private async priceLine(
+    storeId: string,
+    line: { variantId: string; batchId?: string | null; quantity: number },
+    tx?: Prisma.TransactionClient,
+  ) {
+    const [priced] = await this.inventory.getPricedBatchAllocations(storeId, [line], tx);
+    if (!priced.fulfilled) {
+      throw new BadRequestException({
+        code: 'INSUFFICIENT_BATCH_STOCK',
+        message: `Không đủ tồn lô còn hạn (cần ${line.quantity}, còn ${priced.available})`,
+      });
+    }
+    const rawTotal = priced.allocations.reduce(
+      (sum, allocation) => sum + allocation.lineTotal,
+      0,
+    );
+    return {
+      rawTotal,
+      unitPrice: Math.round(rawTotal / line.quantity),
+    };
+  }
+
+  async refreshScheduledPrices(user: AuthUser, saleId: string) {
+    const sale = await this.getSaleInScope(user, saleId, { items: true });
+    this.assertDraft(sale);
+    const currentPrices = await Promise.all(
+      sale.items.map((item) =>
+        this.priceLine(sale.storeId, {
+          variantId: item.variantId,
+          batchId: item.batchId,
+          quantity: Number(item.quantity),
+        }),
+      ),
+    );
+    if (
+      !sale.items.some(
+        (item, index) =>
+          currentPrices[index].rawTotal !== item.lineTotal + item.discountAmount,
+      )
+    ) {
+      return this.buildSaleView(saleId);
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<{ status: POSSaleStatus }[]>(Prisma.sql`
+        SELECT status FROM pos_sales WHERE id = ${saleId} FOR UPDATE
+      `);
+      const current = locked[0];
+      if (
+        !current ||
+        (current.status !== POSSaleStatus.DRAFT &&
+          current.status !== POSSaleStatus.HELD)
+      ) {
+        throw new BadRequestException({
+          code: 'SALE_NOT_EDITABLE',
+          message: 'Hóa đơn không còn ở trạng thái có thể cập nhật giá',
+        });
+      }
+      const items = await tx.pOSSaleItem.findMany({ where: { saleId } });
+      const prices = await Promise.all(
+        items.map((item) =>
+          this.priceLine(
+            sale.storeId,
+            {
+              variantId: item.variantId,
+              batchId: item.batchId,
+              quantity: Number(item.quantity),
+            },
+            tx,
+          ),
+        ),
+      );
+      for (const [index, item] of items.entries()) {
+        const price = prices[index];
+        if (price.rawTotal === item.lineTotal + item.discountAmount) continue;
+        await tx.pOSSaleItem.update({
+          where: { id: item.id },
+          data: {
+            unitPrice: price.unitPrice,
+            lineTotal: Math.max(0, price.rawTotal - item.discountAmount),
+          },
+        });
+      }
+      await this.recalcTotals(tx, saleId);
+    });
+    return this.buildSaleView(saleId);
   }
 
   // ---------------- Sale CRUD ----------------
@@ -179,11 +263,21 @@ export class POSSaleService {
           });
         }
         if (existing) {
+          const price = await this.priceLine(
+            sale.storeId,
+            {
+              variantId: existing.variantId,
+              batchId: existing.batchId,
+              quantity: qty,
+            },
+            tx,
+          );
           await tx.pOSSaleItem.update({
             where: { id: existing.id },
             data: {
               quantity: qty,
-              lineTotal: this.lineTotalFor(existing.unitPrice, qty, existing.discountAmount),
+              unitPrice: price.unitPrice,
+              lineTotal: Math.max(0, price.rawTotal - existing.discountAmount),
             },
           });
         } else {
@@ -194,11 +288,21 @@ export class POSSaleService {
         const addQty = quantity && quantity > 0 ? Math.round(quantity) : 1;
         if (existing) {
           const newQty = Number(existing.quantity) + addQty;
+          const price = await this.priceLine(
+            sale.storeId,
+            {
+              variantId: existing.variantId,
+              batchId: existing.batchId,
+              quantity: newQty,
+            },
+            tx,
+          );
           await tx.pOSSaleItem.update({
             where: { id: existing.id },
             data: {
               quantity: newQty,
-              lineTotal: this.lineTotalFor(existing.unitPrice, newQty, existing.discountAmount),
+              unitPrice: price.unitPrice,
+              lineTotal: Math.max(0, price.rawTotal - existing.discountAmount),
             },
           });
         } else {
@@ -218,25 +322,37 @@ export class POSSaleService {
     lookup: Awaited<ReturnType<BarcodeService['lookup']>>,
     quantity: number,
   ) {
+    const price = await this.priceLine(
+      lookup.storeId,
+      { variantId: lookup.variantId, batchId: null, quantity },
+      tx,
+    );
     await tx.pOSSaleItem.create({
       data: {
         saleId,
         productId: lookup.productId,
         variantId: lookup.variantId,
+        batchId: null,
         barcodeSnapshot: lookup.barcode,
         productNameSnapshot: lookup.productName,
         skuSnapshot: lookup.sku,
         unitSnapshot: lookup.unit,
-        unitPrice: lookup.unitPrice,
+        unitPrice: price.unitPrice,
         quantity,
         discountAmount: 0,
-        lineTotal: this.lineTotalFor(lookup.unitPrice, quantity, 0),
+        lineTotal: price.rawTotal,
       },
     });
   }
 
-  /** Sua so luong mot item. */
-  async updateItem(user: AuthUser, saleId: string, itemId: string, quantity: number) {
+  /** Sua so luong hoac chon lo cu the cho mot item. */
+  async updateItem(
+    user: AuthUser,
+    saleId: string,
+    itemId: string,
+    quantity: number,
+    selectedBatchId?: string | null,
+  ) {
     const sale = await this.getSaleInScope(user, saleId);
     this.assertDraft(sale);
     if (quantity <= 0) {
@@ -253,11 +369,19 @@ export class POSSaleService {
           message: 'Khong tim thay san pham trong hoa don',
         });
       }
+      const batchId = selectedBatchId === undefined ? item.batchId : selectedBatchId;
+      const price = await this.priceLine(
+        sale.storeId,
+        { variantId: item.variantId, batchId, quantity },
+        tx,
+      );
       await tx.pOSSaleItem.update({
         where: { id: itemId },
         data: {
+          batchId,
+          unitPrice: price.unitPrice,
           quantity,
-          lineTotal: this.lineTotalFor(item.unitPrice, quantity, item.discountAmount),
+          lineTotal: Math.max(0, price.rawTotal - item.discountAmount),
         },
       });
       await this.recalcTotals(tx, saleId);
@@ -407,10 +531,11 @@ export class POSSaleService {
     const lines = sale.items.map((it) => ({
       saleItemId: it.id,
       variantId: it.variantId,
+      batchId: it.batchId,
       quantity: Number(it.quantity),
     }));
 
-    await this.prisma.$transaction(async (tx) => {
+    const priceChanged = await this.prisma.$transaction(async (tx) => {
       // P0-05: lock row hoa don + kiem tra lai trang thai trong tx de chong
       // double-click thanh toan (2 request cung doc DRAFT roi cung tru kho).
       const locked = await tx.$queryRaw<{ status: POSSaleStatus }[]>(Prisma.sql`
@@ -426,6 +551,29 @@ export class POSSaleService {
           code: 'SALE_NOT_PAYABLE',
           message: 'Hoa don nay khong the thanh toan (da xu ly hoac dang xu ly)',
         });
+      }
+
+      const transactionPrices = await Promise.all(
+        lines.map((line) => this.priceLine(sale.storeId, line, tx)),
+      );
+      const repricedItems = sale.items.filter(
+        (item, index) =>
+          transactionPrices[index].rawTotal !== item.lineTotal + item.discountAmount,
+      );
+      if (repricedItems.length > 0) {
+        for (const item of repricedItems) {
+          const index = sale.items.findIndex((candidate) => candidate.id === item.id);
+          const price = transactionPrices[index];
+          await tx.pOSSaleItem.update({
+            where: { id: item.id },
+            data: {
+              unitPrice: price.unitPrice,
+              lineTotal: Math.max(0, price.rawTotal - item.discountAmount),
+            },
+          });
+        }
+        await this.recalcTotals(tx, saleId);
+        return true;
       }
 
       // 1. Tru ton (lock rows + validate) + InventoryTransaction POS_SALE
@@ -495,7 +643,15 @@ export class POSSaleService {
         },
         tx,
       );
+      return false;
     });
+
+    if (priceChanged) {
+      throw new BadRequestException({
+        code: 'PRICE_CHANGED',
+        message: 'Giá sản phẩm vừa thay đổi theo lịch. Vui lòng kiểm tra lại tổng tiền.',
+      });
+    }
 
     return this.buildSaleView(saleId);
   }
@@ -675,6 +831,17 @@ export class POSSaleService {
     if (!sale) {
       throw new NotFoundException({ code: 'SALE_NOT_FOUND', message: 'Khong tim thay hoa don' });
     }
+    const batchOptions = await this.inventory.getBatchOptions(
+      sale.storeId,
+      sale.items.map((item) => item.variantId),
+    );
+    const optionsByVariant = new Map<string, typeof batchOptions>();
+    for (const option of batchOptions) {
+      optionsByVariant.set(
+        option.variantId,
+        [...(optionsByVariant.get(option.variantId) ?? []), option],
+      );
+    }
     return {
       id: sale.id,
       saleNumber: sale.saleNumber,
@@ -698,6 +865,10 @@ export class POSSaleService {
         quantity: Number(it.quantity),
         discountAmount: it.discountAmount,
         lineTotal: it.lineTotal,
+        batchId: it.batchId,
+        batchOptions: (optionsByVariant.get(it.variantId) ?? []).map(
+          ({ variantId: _variantId, ...option }) => option,
+        ),
       })),
       subtotal: sale.subtotal,
       discountTotal: sale.discountTotal,

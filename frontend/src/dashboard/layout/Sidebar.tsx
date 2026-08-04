@@ -15,6 +15,7 @@ import {
   LifeBuoy,
   Truck,
   HelpCircle,
+  Tag,
   LogOut
 } from 'lucide-react';
 import { RoleConfig } from '../menu';
@@ -34,7 +35,8 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   History,
   LifeBuoy,
   Truck,
-  HelpCircle
+  HelpCircle,
+  Tag
 };
 
 interface Props {

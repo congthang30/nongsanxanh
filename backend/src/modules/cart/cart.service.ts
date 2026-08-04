@@ -32,6 +32,17 @@ export interface CartItemView {
   available: number;
   inStock: boolean;
   lineTotal: number;
+  batchId: string | null;
+  selectedBatchId: string | null;
+  batchOptions: {
+    id: string;
+    batchCode: string;
+    expiryDate: Date;
+    available: number;
+    unitPrice: number;
+    originalPrice: number;
+    onSale: boolean;
+  }[];
 }
 
 export interface CartView {
@@ -181,9 +192,32 @@ export class CartService {
         message: `Toan he thong chi con ${available}`,
       });
     }
+    let batchId = item.batchId;
+    if (dto.batchId !== undefined) {
+      batchId = dto.batchId;
+      if (batchId) {
+        const storeId = cart.storeId;
+        if (!storeId) {
+          throw new BadRequestException({
+            code: 'CART_STORE_REQUIRED',
+            message: 'Vui lòng chọn địa chỉ giao hàng trước khi chọn lô',
+          });
+        }
+        const [option] = await this.inventory.getBatchPrices(storeId, [{
+          variantId: item.variantId,
+          batchId,
+        }]);
+        if (dto.quantity > option.available) {
+          throw new BadRequestException({
+            code: 'INSUFFICIENT_BATCH_STOCK',
+            message: `Lô ${option.batchCode} chỉ còn ${option.available}`,
+          });
+        }
+      }
+    }
     await this.prisma.cartItem.update({
       where: { id: itemId },
-      data: { quantity: dto.quantity },
+      data: { quantity: dto.quantity, batchId },
     });
     return this.buildCartView(cart.id);
   }
@@ -243,17 +277,21 @@ export class CartService {
       }
     }
 
+    const storeChanged = !!targetStoreId && targetStoreId !== cart.storeId;
+    if (storeChanged) {
+      await this.prisma.$transaction([
+        this.prisma.cart.update({
+          where: { id: cart.id },
+          data: { storeId: targetStoreId },
+        }),
+        this.prisma.cartItem.updateMany({
+          where: { cartId: cart.id },
+          data: { batchId: null },
+        }),
+      ]);
+    }
     const view = await this.buildCartView(cart.id, targetStoreId ?? undefined);
 
-    // Cap nhat store cua gio neu thay doi
-    if (targetStoreId && targetStoreId !== cart.storeId) {
-      await this.prisma.cart.update({
-        where: { id: cart.id },
-        data: { storeId: targetStoreId },
-      });
-    }
-
-    const storeChanged = !!targetStoreId && targetStoreId !== cart.storeId;
     return {
       ...view,
       storeChanged,
@@ -324,6 +362,18 @@ export class CartService {
 
     const selected = resolveResult.selectedStore;
     const storeId = selected.storeId;
+    if (cart.storeId !== storeId) {
+      await this.prisma.$transaction([
+        this.prisma.cart.update({
+          where: { id: cart.id },
+          data: { storeId },
+        }),
+        this.prisma.cartItem.updateMany({
+          where: { cartId: cart.id },
+          data: { batchId: null },
+        }),
+      ]);
+    }
     const view = await this.buildCartView(cart.id, storeId);
 
     const subtotal = view.subtotal;
@@ -402,14 +452,23 @@ export class CartService {
     });
 
     const variantIds = items.map((it) => it.variantId);
-    // Co store (sau khi quote checkout) -> dung ton/gia cua store do.
-    // Chua co store -> dung ton GOP toan he thong + gia goc.
-    const availMap = storeId
-      ? await this.inventory.getAvailabilityMap(storeId, variantIds)
-      : await this.inventory.getAggregateAvailabilityMap(variantIds);
-    const priceMap = storeId
-      ? await this.inventory.getStorePrices(storeId, variantIds)
-      : new Map<string, number>();
+    const requestedLines = items.map((item) => ({
+      variantId: item.variantId,
+      batchId: item.batchId,
+      quantity: Number(item.quantity),
+    }));
+    const [availMap, priceMap, batchOptions, pricedAllocations] = await Promise.all([
+      storeId
+        ? this.inventory.getAvailabilityMap(storeId, variantIds)
+        : this.inventory.getAggregateAvailabilityMap(variantIds),
+      storeId
+        ? this.inventory.getStorePrices(storeId, variantIds)
+        : this.inventory.getScheduledSalePrices(variantIds),
+      storeId ? this.inventory.getBatchOptions(storeId, variantIds) : Promise.resolve([]),
+      storeId
+        ? this.inventory.getPricedBatchAllocations(storeId, requestedLines)
+        : Promise.resolve([]),
+    ]);
 
     let store: { id: string; name: string } | null = null;
     if (storeId) {
@@ -420,10 +479,19 @@ export class CartService {
       store = s;
     }
 
-    const mapped: CartItemView[] = items.map((it) => {
-      const unitPrice = priceMap.get(it.variantId) ?? it.variant.price;
+    const mapped: CartItemView[] = items.map((it, index) => {
+      const options = batchOptions.filter((option) => option.variantId === it.variantId);
+      const selected = it.batchId
+        ? options.find((option) => option.id === it.batchId)
+        : options[0];
+      const priced = pricedAllocations[index];
       const quantity = Number(it.quantity);
-      const available = availMap.get(it.variantId) ?? 0;
+      const lineTotal = priced?.allocations.reduce(
+        (sum, allocation) => sum + allocation.lineTotal,
+        0,
+      ) ?? quantity * (selected?.unitPrice ?? priceMap.get(it.variantId) ?? it.variant.price);
+      const unitPrice = quantity > 0 ? Math.round(lineTotal / quantity) : it.variant.price;
+      const available = it.batchId ? selected?.available ?? 0 : availMap.get(it.variantId) ?? 0;
       return {
         id: it.id,
         variantId: it.variantId,
@@ -437,8 +505,11 @@ export class CartService {
         onSale: unitPrice < it.variant.price,
         quantity,
         available,
-        inStock: available >= quantity,
-        lineTotal: quantity * unitPrice,
+        inStock: priced ? priced.fulfilled : available >= quantity,
+        lineTotal,
+        batchId: it.batchId,
+        selectedBatchId: selected?.id ?? null,
+        batchOptions: options.map(({ variantId: _variantId, ...option }) => option),
       };
     });
 

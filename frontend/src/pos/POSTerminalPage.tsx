@@ -181,6 +181,16 @@ export default function POSTerminalPage() {
     }
   };
 
+  const selectBatch = async (itemId: string, quantity: number, batchId: string) => {
+    if (!sale) return;
+    try {
+      setSale(await posApi.updateItem(sale.id, itemId, quantity, batchId || null));
+      setPayError('');
+    } catch (e) {
+      push(getErrorMessage(e), 'error');
+    }
+  };
+
   const removeItem = async (itemId: string) => {
     if (!sale) return;
     try {
@@ -221,6 +231,8 @@ export default function POSTerminalPage() {
       setReceipt(r);
     } catch (e) {
       setPayError(getErrorMessage(e));
+      const latest = await posApi.getSale(sale.id).catch(() => null);
+      if (latest) setSale(latest);
     } finally {
       setPaying(false);
     }
@@ -537,6 +549,28 @@ export default function POSTerminalPage() {
                       <div className="col-span-5">
                         <div className="font-bold text-on-surface">{it.name}</div>
                         <div className="text-xs text-on-surface-variant">{it.sku}</div>
+                        {it.batchOptions.length > 0 && (
+                          <label className="pos-batch-picker" htmlFor={`pos-batch-${it.id}`}>
+                            <span className="material-symbols-outlined">event_available</span>
+                            <select
+                              id={`pos-batch-${it.id}`}
+                              value={it.batchId ?? ''}
+                              disabled={!editable || busy}
+                              aria-label={`Chọn lô cho ${it.name}`}
+                              onChange={(event) =>
+                                selectBatch(it.id, it.quantity, event.target.value)
+                              }
+                            >
+                              <option value="">Tự động FEFO · có thể chia nhiều lô</option>
+                              {it.batchOptions.map((batch) => (
+                                <option key={batch.id} value={batch.id}>
+                                  {batch.batchCode} · HSD {new Date(batch.expiryDate).toLocaleDateString('vi-VN')}
+                                  {' · '}{formatVnd(batch.unitPrice)} · tồn {batch.available}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
                       </div>
                       <div className="col-span-2 flex justify-center">
                         <div className="flex items-center border border-outline-variant rounded-lg bg-surface-container-low overflow-hidden">

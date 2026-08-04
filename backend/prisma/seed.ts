@@ -203,30 +203,6 @@ const PRODUCTS: SeedProduct[] = [
     barcode: '8930000000055',
     saleMode: 'UNIT',
   },
-  {
-    name: 'Trứng gà ta',
-    slug: 'trung-ga-ta',
-    category: 'thit-trung',
-    origin: 'Đồng Nai',
-    description: 'Trứng gà ta nuôi thả vườn, lòng đỏ đậm, thơm béo.',
-    image: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=800',
-    price: 35000,
-    unit: 'hộp 10',
-    barcode: '8930000000062',
-    saleMode: 'UNIT',
-  },
-  {
-    name: 'Nước mắm Phú Quốc 500ml',
-    slug: 'nuoc-mam-phu-quoc-500ml',
-    category: 'gao-hat',
-    origin: 'Phú Quốc, Kiên Giang',
-    description: 'Nước mắm nhĩ truyền thống 40 độ đạm, chai thủy tinh 500ml.',
-    image: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=800',
-    price: 52000,
-    unit: 'chai',
-    barcode: '8930000000079',
-    saleMode: 'UNIT',
-  },
 ];
 
 // Customers o cac khu vuc khac nhau de test resolver
