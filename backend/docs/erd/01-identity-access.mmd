@@ -1,0 +1,101 @@
+%%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ecfdf5","primaryTextColor":"#0f172a","primaryBorderColor":"#166534","lineColor":"#334155","secondaryColor":"#f8fafc","tertiaryColor":"#ffffff","fontFamily":"Arial, sans-serif"},"themeCSS":".er.relationshipLine{stroke:#334155!important;stroke-width:2.5px!important}.er.entityBox{fill:#ecfdf5!important;stroke:#166534!important;stroke-width:2px!important}.er.attributeBoxOdd,.er.attributeBoxEven{fill:#fff!important}.er.relationshipLabelBox{fill:#fff!important;opacity:1!important}"}}%%
+%% 01-identity-access
+erDiagram
+
+  "users" {
+    String id "🗝️"
+    String email "❓"
+    String phone "❓"
+    String password_hash "❓"
+    UserStatus status 
+    DateTime email_verified_at "❓"
+    DateTime phone_verified_at "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    DateTime deleted_at "❓"
+    }
+
+  "user_profiles" {
+    String id "🗝️"
+    String user_id 
+    String full_name 
+    String avatar_url "❓"
+    DateTime dob "❓"
+    String gender "❓"
+    }
+
+  "addresses" {
+    String id "🗝️"
+    String user_id 
+    String recipient_name 
+    String phone 
+    String province 
+    String district 
+    String ward 
+    String line1 
+    String note "❓"
+    String formatted_address "❓"
+    String place_id "❓"
+    Float lat "❓"
+    Float lng "❓"
+    String geocode_provider "❓"
+    Float geocode_confidence "❓"
+    String delivery_note "❓"
+    Boolean is_default 
+    DateTime created_at 
+    }
+
+  "roles" {
+    String id "🗝️"
+    String code 
+    String name 
+    String description "❓"
+    }
+
+  "permissions" {
+    String id "🗝️"
+    String code 
+    String resource 
+    String action 
+    }
+
+  "user_roles" {
+    String user_id 
+    String role_id 
+    String scope_type "❓"
+    String scope_id "❓"
+    }
+
+  "role_permissions" {
+    String role_id 
+    String permission_id 
+    }
+
+  "refresh_tokens" {
+    String id "🗝️"
+    String user_id 
+    String token_hash 
+    String session_id 
+    DateTime expires_at 
+    DateTime revoked_at "❓"
+    DateTime created_at 
+    }
+
+  "otp_codes" {
+    String id "🗝️"
+    String target 
+    String purpose 
+    String code_hash 
+    DateTime expires_at 
+    Int attempt_count 
+    DateTime consumed_at "❓"
+    DateTime created_at 
+    }
+
+    "user_profiles" |o--|| users : "user"
+    "addresses" }o--|| users : "user"
+    "user_roles" }o--|| users : "user"
+    "user_roles" }o--|| roles : "role"
+    "role_permissions" }o--|| roles : "role"
+    "role_permissions" }o--|| permissions : "permission"
+    "refresh_tokens" }o--|| users : "user"

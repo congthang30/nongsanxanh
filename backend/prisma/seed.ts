@@ -463,6 +463,9 @@ async function main() {
 
     let store = await prisma.store.findUnique({ where: { code: s.code } });
     if (!store) {
+      store = await prisma.store.findUnique({ where: { slug: s.slug } });
+    }
+    if (!store) {
       store = await prisma.store.create({
         data: {
           code: s.code,
@@ -485,9 +488,10 @@ async function main() {
         },
       });
     } else {
-      await prisma.store.update({
+      store = await prisma.store.update({
         where: { id: store.id },
         data: {
+          code: s.code,
           name: s.name,
           slug: s.slug,
           status: 'ACTIVE',

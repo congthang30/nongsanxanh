@@ -1,0 +1,134 @@
+%%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ecfdf5","primaryTextColor":"#0f172a","primaryBorderColor":"#166534","lineColor":"#334155","secondaryColor":"#f8fafc","tertiaryColor":"#ffffff","fontFamily":"Arial, sans-serif"},"themeCSS":".er.relationshipLine{stroke:#334155!important;stroke-width:2.5px!important}.er.entityBox{fill:#ecfdf5!important;stroke:#166534!important;stroke-width:2px!important}.er.attributeBoxOdd,.er.attributeBoxEven{fill:#fff!important}.er.relationshipLabelBox{fill:#fff!important;opacity:1!important}"}}%%
+%% 02-store-inventory
+erDiagram
+
+  "users" {
+    String id "🗝️"
+    String email "❓"
+    String phone "❓"
+    String password_hash "❓"
+    UserStatus status 
+    DateTime email_verified_at "❓"
+    DateTime phone_verified_at "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    DateTime deleted_at "❓"
+    }
+
+  "stores" {
+    String id "🗝️"
+    String code 
+    String name 
+    String slug 
+    StoreStatus status 
+    String phone "❓"
+    String email "❓"
+    String address_line "❓"
+    String formatted_address "❓"
+    String province 
+    String district "❓"
+    String ward "❓"
+    Float lat "❓"
+    Float lng "❓"
+    Float service_radius_km "❓"
+    String open_time "❓"
+    String close_time "❓"
+    Int prepare_minutes 
+    String manager_id "❓"
+    String primary_shipper_id "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "store_staff" {
+    String id "🗝️"
+    String store_id 
+    String user_id 
+    StoreStaffRole role 
+    StoreStaffStatus status 
+    DateTime joined_at 
+    DateTime left_at "❓"
+    }
+
+  "store_service_areas" {
+    String id "🗝️"
+    String store_id 
+    String province 
+    String district "❓"
+    String ward "❓"
+    Json polygon_json "❓"
+    Float radius_km "❓"
+    Int priority 
+    String status 
+    DateTime created_at 
+    }
+
+  "product_variants" {
+    String id "🗝️"
+    String product_id 
+    String sku 
+    String unit 
+    Decimal unit_value 
+    String package_type "❓"
+    Int price 
+    Int compare_at_price "❓"
+    String barcode "❓"
+    VariantSaleMode sale_mode 
+    Boolean allow_decimal_quantity 
+    String status 
+    }
+
+  "store_inventories" {
+    String id "🗝️"
+    String store_id 
+    String variant_id 
+    Decimal quantity_on_hand 
+    Decimal reserved_quantity 
+    Decimal low_stock_threshold 
+    Int price_override "❓"
+    Int sale_price "❓"
+    StoreInventoryStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "inventory_batches" {
+    String id "🗝️"
+    String store_id 
+    String variant_id 
+    String batch_code 
+    DateTime received_date 
+    DateTime expiry_date 
+    Decimal quantity_on_hand 
+    Decimal reserved_quantity 
+    InventoryBatchStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "inventory_transactions" {
+    String id "🗝️"
+    String store_id 
+    String variant_id 
+    String batch_id 
+    InventoryTxType type 
+    Decimal quantity 
+    Decimal before_qty 
+    Decimal after_qty 
+    String reason "❓"
+    String order_id "❓"
+    String created_by "❓"
+    DateTime created_at 
+    }
+
+    "stores" |o--|o users : "manager"
+    "stores" |o--|o users : "primaryShipper"
+    "store_staff" }o--|| stores : "store"
+    "store_staff" }o--|| users : "user"
+    "store_service_areas" }o--|| stores : "store"
+    "store_inventories" }o--|| stores : "store"
+    "store_inventories" }o--|| product_variants : "variant"
+    "inventory_batches" }o--|| stores : "store"
+    "inventory_batches" }o--|| product_variants : "variant"
+    "inventory_transactions" }o--|| stores : "store"
+    "inventory_transactions" }o--|| inventory_batches : "batch"

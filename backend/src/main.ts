@@ -19,13 +19,16 @@ async function bootstrap() {
   app.enableCors({
     origin: isDev
       ? (origin, cb) => {
-          if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
-            cb(null, true);
-          } else {
-            cb(null, false);
-          }
+        if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+          cb(null, true);
+        } else {
+          cb(null, false);
         }
-      : config.get<string>('CORS_ORIGIN', 'http://localhost:5173'),
+      }
+      : config
+        .get<string>('CORS_ORIGIN', 'http://localhost:5173')
+        .split(',')
+        .map((origin) => origin.trim()),
     credentials: true,
   });
 

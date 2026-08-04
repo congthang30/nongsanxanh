@@ -1,0 +1,207 @@
+%%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ecfdf5","primaryTextColor":"#0f172a","primaryBorderColor":"#166534","lineColor":"#334155","secondaryColor":"#f8fafc","tertiaryColor":"#ffffff","fontFamily":"Arial, sans-serif"},"themeCSS":".er.relationshipLine{stroke:#334155!important;stroke-width:2.5px!important}.er.entityBox{fill:#ecfdf5!important;stroke:#166534!important;stroke-width:2px!important}.er.attributeBoxOdd,.er.attributeBoxEven{fill:#fff!important}.er.relationshipLabelBox{fill:#fff!important;opacity:1!important}"}}%%
+%% 06-pos
+erDiagram
+
+  "users" {
+    String id "🗝️"
+    String email "❓"
+    String phone "❓"
+    String password_hash "❓"
+    UserStatus status 
+    DateTime email_verified_at "❓"
+    DateTime phone_verified_at "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    DateTime deleted_at "❓"
+    }
+
+  "stores" {
+    String id "🗝️"
+    String code 
+    String name 
+    String slug 
+    StoreStatus status 
+    String phone "❓"
+    String email "❓"
+    String address_line "❓"
+    String formatted_address "❓"
+    String province 
+    String district "❓"
+    String ward "❓"
+    Float lat "❓"
+    Float lng "❓"
+    Float service_radius_km "❓"
+    String open_time "❓"
+    String close_time "❓"
+    Int prepare_minutes 
+    String manager_id "❓"
+    String primary_shipper_id "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "product_variants" {
+    String id "🗝️"
+    String product_id 
+    String sku 
+    String unit 
+    Decimal unit_value 
+    String package_type "❓"
+    Int price 
+    Int compare_at_price "❓"
+    String barcode "❓"
+    VariantSaleMode sale_mode 
+    Boolean allow_decimal_quantity 
+    String status 
+    }
+
+  "inventory_batches" {
+    String id "🗝️"
+    String store_id 
+    String variant_id 
+    String batch_code 
+    DateTime received_date 
+    DateTime expiry_date 
+    Decimal quantity_on_hand 
+    Decimal reserved_quantity 
+    InventoryBatchStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "product_barcodes" {
+    String id "🗝️"
+    String variant_id 
+    String barcode 
+    BarcodeType type 
+    Boolean is_primary 
+    BarcodeStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "cashier_shifts" {
+    String id "🗝️"
+    String store_id 
+    String cashier_id 
+    DateTime opened_at 
+    DateTime closed_at "❓"
+    Int opening_cash 
+    Int expected_cash 
+    Int counted_cash "❓"
+    Int cash_difference "❓"
+    CashierShiftStatus status 
+    String note "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "pos_sales" {
+    String id "🗝️"
+    String sale_number 
+    String store_id 
+    String cashier_id 
+    String shift_id "❓"
+    String customer_id "❓"
+    String customer_phone_snapshot "❓"
+    POSSaleStatus status 
+    Int subtotal 
+    Int discount_total 
+    Int tax_total 
+    Int grand_total 
+    Int amount_paid 
+    Int change_amount 
+    POSPaymentStatus payment_status 
+    String note "❓"
+    DateTime paid_at "❓"
+    DateTime voided_at "❓"
+    String void_reason "❓"
+    String voided_by "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "pos_sale_items" {
+    String id "🗝️"
+    String sale_id 
+    String product_id 
+    String variant_id 
+    String batch_id "❓"
+    String barcode_snapshot "❓"
+    String product_name_snapshot 
+    String sku_snapshot 
+    String unit_snapshot 
+    Int unit_price 
+    Decimal quantity 
+    Int discount_amount 
+    Int line_total 
+    DateTime created_at 
+    }
+
+  "pos_sale_item_batch_allocations" {
+    String id "🗝️"
+    String sale_item_id 
+    String batch_id 
+    Decimal quantity 
+    Decimal returned_quantity 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "pos_payments" {
+    String id "🗝️"
+    String sale_id 
+    POSPaymentMethod method 
+    Int amount 
+    POSPaymentRecordStatus status 
+    String reference "❓"
+    Int tendered "❓"
+    Int change "❓"
+    DateTime paid_at "❓"
+    DateTime created_at 
+    }
+
+  "pos_returns" {
+    String id "🗝️"
+    String original_sale_id 
+    String store_id 
+    String cashier_id 
+    String approved_by "❓"
+    Int refund_amount 
+    String reason 
+    POSReturnStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    DateTime completed_at "❓"
+    }
+
+  "pos_return_items" {
+    String id "🗝️"
+    String return_id 
+    String sale_item_id 
+    Decimal quantity 
+    Int refund_amount 
+    Boolean restockable 
+    }
+
+    "stores" |o--|o users : "manager"
+    "stores" |o--|o users : "primaryShipper"
+    "inventory_batches" }o--|| stores : "store"
+    "inventory_batches" }o--|| product_variants : "variant"
+    "product_barcodes" }o--|| product_variants : "variant"
+    "cashier_shifts" }o--|| stores : "store"
+    "cashier_shifts" }o--|| users : "cashier"
+    "pos_sales" }o--|| stores : "store"
+    "pos_sales" }o--|| users : "cashier"
+    "pos_sales" }o--|o cashier_shifts : "shift"
+    "pos_sale_items" }o--|| pos_sales : "sale"
+    "pos_sale_items" }o--|| product_variants : "variant"
+    "pos_sale_items" }o--|o inventory_batches : "batch"
+    "pos_sale_item_batch_allocations" }o--|| pos_sale_items : "saleItem"
+    "pos_sale_item_batch_allocations" }o--|| inventory_batches : "batch"
+    "pos_payments" }o--|| pos_sales : "sale"
+    "pos_returns" }o--|| stores : "store"
+    "pos_returns" }o--|| users : "cashier"
+    "pos_returns" }o--|| pos_sales : "originalSale"
+    "pos_return_items" }o--|| pos_returns : "returnRef"
+    "pos_return_items" }o--|| pos_sale_items : "saleItem"

@@ -1,0 +1,222 @@
+%%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ecfdf5","primaryTextColor":"#0f172a","primaryBorderColor":"#166534","lineColor":"#334155","secondaryColor":"#f8fafc","tertiaryColor":"#ffffff","fontFamily":"Arial, sans-serif"},"themeCSS":".er.relationshipLine{stroke:#334155!important;stroke-width:2.5px!important}.er.entityBox{fill:#ecfdf5!important;stroke:#166534!important;stroke-width:2px!important}.er.attributeBoxOdd,.er.attributeBoxEven{fill:#fff!important}.er.relationshipLabelBox{fill:#fff!important;opacity:1!important}"}}%%
+%% 03-catalog-pricing
+erDiagram
+
+  "stores" {
+    String id "🗝️"
+    String code 
+    String name 
+    String slug 
+    StoreStatus status 
+    String phone "❓"
+    String email "❓"
+    String address_line "❓"
+    String formatted_address "❓"
+    String province 
+    String district "❓"
+    String ward "❓"
+    Float lat "❓"
+    Float lng "❓"
+    Float service_radius_km "❓"
+    String open_time "❓"
+    String close_time "❓"
+    Int prepare_minutes 
+    String manager_id "❓"
+    String primary_shipper_id "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "categories" {
+    String id "🗝️"
+    String parent_id "❓"
+    String name 
+    String slug 
+    String status 
+    Int sort_order 
+    DateTime created_at 
+    }
+
+  "products" {
+    String id "🗝️"
+    String category_id 
+    String name 
+    String slug 
+    String description "❓"
+    ProductStatus status 
+    String origin_region "❓"
+    String storage_instruction "❓"
+    Int shelf_life_days "❓"
+    Float rating_avg 
+    Int rating_count 
+    DateTime created_at 
+    DateTime updated_at 
+    DateTime deleted_at "❓"
+    }
+
+  "product_variants" {
+    String id "🗝️"
+    String product_id 
+    String sku 
+    String unit 
+    Decimal unit_value 
+    String package_type "❓"
+    Int price 
+    Int compare_at_price "❓"
+    String barcode "❓"
+    VariantSaleMode sale_mode 
+    Boolean allow_decimal_quantity 
+    String status 
+    }
+
+  "product_images" {
+    String id "🗝️"
+    String product_id 
+    String url 
+    String alt "❓"
+    Int sort_order 
+    Boolean is_primary 
+    }
+
+  "product_attributes" {
+    String id "🗝️"
+    String product_id 
+    String key 
+    String value 
+    }
+
+  "price_histories" {
+    String id "🗝️"
+    String variant_id 
+    Int price 
+    Int compare_at_price "❓"
+    DateTime starts_at 
+    DateTime ends_at "❓"
+    }
+
+  "store_inventories" {
+    String id "🗝️"
+    String store_id 
+    String variant_id 
+    Decimal quantity_on_hand 
+    Decimal reserved_quantity 
+    Decimal low_stock_threshold 
+    Int price_override "❓"
+    Int sale_price "❓"
+    StoreInventoryStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "inventory_batches" {
+    String id "🗝️"
+    String store_id 
+    String variant_id 
+    String batch_code 
+    DateTime received_date 
+    DateTime expiry_date 
+    Decimal quantity_on_hand 
+    Decimal reserved_quantity 
+    InventoryBatchStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "campaigns" {
+    String id "🗝️"
+    String name 
+    String slug 
+    String type 
+    DateTime starts_at 
+    DateTime ends_at 
+    CampaignStatus status 
+    DateTime created_at 
+    }
+
+  "campaign_items" {
+    String id "🗝️"
+    String campaign_id 
+    String variant_id 
+    String batch_id "❓"
+    Int sale_price 
+    Int quantity_limit "❓"
+    Int sold_count 
+    }
+
+  "combos" {
+    String id "🗝️"
+    String name 
+    String slug 
+    String description "❓"
+    String image_url "❓"
+    Int price 
+    String status 
+    DateTime created_at 
+    }
+
+  "combo_items" {
+    String id "🗝️"
+    String combo_id 
+    String variant_id 
+    Decimal quantity 
+    }
+
+  "coupons" {
+    String id "🗝️"
+    String code 
+    String name "❓"
+    CouponScope scope 
+    String store_id "❓"
+    String type 
+    Int value 
+    Int max_discount "❓"
+    Int min_order_value 
+    DateTime starts_at 
+    DateTime ends_at 
+    Int usage_limit "❓"
+    Int usage_count 
+    Int per_user_limit "❓"
+    String status 
+    String created_by "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "coupon_redemptions" {
+    String id "🗝️"
+    String coupon_id 
+    String user_id 
+    String order_id 
+    Int discount_amount 
+    DateTime created_at 
+    }
+
+  "product_barcodes" {
+    String id "🗝️"
+    String variant_id 
+    String barcode 
+    BarcodeType type 
+    Boolean is_primary 
+    BarcodeStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+    "categories" |o--|o categories : "parent"
+    "products" }o--|| categories : "category"
+    "product_variants" }o--|| products : "product"
+    "product_images" }o--|| products : "product"
+    "product_attributes" }o--|| products : "product"
+    "price_histories" }o--|| product_variants : "variant"
+    "store_inventories" }o--|| stores : "store"
+    "store_inventories" }o--|| product_variants : "variant"
+    "inventory_batches" }o--|| stores : "store"
+    "inventory_batches" }o--|| product_variants : "variant"
+    "coupons" }o--|o stores : "store"
+    "coupon_redemptions" }o--|| coupons : "coupon"
+    "campaign_items" }o--|| campaigns : "campaign"
+    "campaign_items" }o--|| product_variants : "variant"
+    "campaign_items" }o--|o inventory_batches : "batch"
+    "combo_items" }o--|| combos : "combo"
+    "combo_items" }o--|| product_variants : "variant"
+    "product_barcodes" }o--|| product_variants : "variant"

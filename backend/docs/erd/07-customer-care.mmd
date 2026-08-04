@@ -1,0 +1,144 @@
+%%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ecfdf5","primaryTextColor":"#0f172a","primaryBorderColor":"#166534","lineColor":"#334155","secondaryColor":"#f8fafc","tertiaryColor":"#ffffff","fontFamily":"Arial, sans-serif"},"themeCSS":".er.relationshipLine{stroke:#334155!important;stroke-width:2.5px!important}.er.entityBox{fill:#ecfdf5!important;stroke:#166534!important;stroke-width:2px!important}.er.attributeBoxOdd,.er.attributeBoxEven{fill:#fff!important}.er.relationshipLabelBox{fill:#fff!important;opacity:1!important}"}}%%
+%% 07-customer-care
+erDiagram
+
+  "users" {
+    String id "🗝️"
+    String email "❓"
+    String phone "❓"
+    String password_hash "❓"
+    UserStatus status 
+    DateTime email_verified_at "❓"
+    DateTime phone_verified_at "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    DateTime deleted_at "❓"
+    }
+
+  "products" {
+    String id "🗝️"
+    String category_id 
+    String name 
+    String slug 
+    String description "❓"
+    ProductStatus status 
+    String origin_region "❓"
+    String storage_instruction "❓"
+    Int shelf_life_days "❓"
+    Float rating_avg 
+    Int rating_count 
+    DateTime created_at 
+    DateTime updated_at 
+    DateTime deleted_at "❓"
+    }
+
+  "orders" {
+    String id "🗝️"
+    String order_number 
+    String user_id 
+    String store_id 
+    String shipper_id "❓"
+    OrderStatus status 
+    PaymentStatus payment_status 
+    PaymentMethod payment_method 
+    Int subtotal 
+    Int discount_total 
+    Int shipping_fee 
+    Int grand_total 
+    String recipient_name 
+    String recipient_phone 
+    String delivery_address 
+    Float delivery_lat "❓"
+    Float delivery_lng "❓"
+    String delivery_note "❓"
+    Float assignment_distance_km "❓"
+    String assignment_reason "❓"
+    String note "❓"
+    String coupon_code "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "order_items" {
+    String id "🗝️"
+    String order_id 
+    String product_id 
+    String variant_id 
+    String product_name_snapshot 
+    String sku_snapshot 
+    String unit_snapshot 
+    Int unit_price 
+    Decimal quantity 
+    Decimal quantity_picked "❓"
+    Int line_total 
+    }
+
+  "reviews" {
+    String id "🗝️"
+    String user_id 
+    String product_id 
+    String order_item_id 
+    Int rating 
+    String comment "❓"
+    String status 
+    DateTime created_at 
+    }
+
+  "review_images" {
+    String id "🗝️"
+    String review_id 
+    String url 
+    }
+
+  "notifications" {
+    String id "🗝️"
+    String user_id 
+    String type 
+    String title 
+    String body 
+    Json data "❓"
+    DateTime read_at "❓"
+    DateTime created_at 
+    }
+
+  "notification_templates" {
+    String id "🗝️"
+    String code 
+    String channel 
+    String subject "❓"
+    String body 
+    String locale 
+    }
+
+  "support_tickets" {
+    String id "🗝️"
+    String code 
+    String user_id 
+    String order_id "❓"
+    String subject 
+    String status 
+    String priority 
+    String assigned_to "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+
+  "ticket_messages" {
+    String id "🗝️"
+    String ticket_id 
+    String sender_id "❓"
+    String sender_role 
+    String body 
+    DateTime created_at 
+    }
+
+    "orders" }o--|| users : "user"
+    "order_items" }o--|| orders : "order"
+    "reviews" }o--|| users : "user"
+    "reviews" }o--|| products : "product"
+    "reviews" }o--|| order_items : "orderItem"
+    "review_images" }o--|| reviews : "review"
+    "notifications" }o--|| users : "user"
+    "support_tickets" }o--|| users : "user"
+    "support_tickets" }o--|o orders : "order"
+    "ticket_messages" }o--|| support_tickets : "ticket"

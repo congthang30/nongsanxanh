@@ -1,0 +1,835 @@
+erDiagram
+
+  "users" {
+    String id "🗝️"
+    String email "❓"
+    String phone "❓"
+    String password_hash "❓"
+    UserStatus status 
+    DateTime email_verified_at "❓"
+    DateTime phone_verified_at "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    DateTime deleted_at "❓"
+    }
+  
+
+  "user_profiles" {
+    String id "🗝️"
+    String user_id 
+    String full_name 
+    String avatar_url "❓"
+    DateTime dob "❓"
+    String gender "❓"
+    }
+  
+
+  "addresses" {
+    String id "🗝️"
+    String user_id 
+    String recipient_name 
+    String phone 
+    String province 
+    String district 
+    String ward 
+    String line1 
+    String note "❓"
+    String formatted_address "❓"
+    String place_id "❓"
+    Float lat "❓"
+    Float lng "❓"
+    String geocode_provider "❓"
+    Float geocode_confidence "❓"
+    String delivery_note "❓"
+    Boolean is_default 
+    DateTime created_at 
+    }
+  
+
+  "roles" {
+    String id "🗝️"
+    String code 
+    String name 
+    String description "❓"
+    }
+  
+
+  "permissions" {
+    String id "🗝️"
+    String code 
+    String resource 
+    String action 
+    }
+  
+
+  "user_roles" {
+    String user_id 
+    String role_id 
+    String scope_type "❓"
+    String scope_id "❓"
+    }
+  
+
+  "role_permissions" {
+    String role_id 
+    String permission_id 
+    }
+  
+
+  "refresh_tokens" {
+    String id "🗝️"
+    String user_id 
+    String token_hash 
+    String session_id 
+    DateTime expires_at 
+    DateTime revoked_at "❓"
+    DateTime created_at 
+    }
+  
+
+  "otp_codes" {
+    String id "🗝️"
+    String target 
+    String purpose 
+    String code_hash 
+    DateTime expires_at 
+    Int attempt_count 
+    DateTime consumed_at "❓"
+    DateTime created_at 
+    }
+  
+
+  "stores" {
+    String id "🗝️"
+    String code 
+    String name 
+    String slug 
+    StoreStatus status 
+    String phone "❓"
+    String email "❓"
+    String address_line "❓"
+    String formatted_address "❓"
+    String province 
+    String district "❓"
+    String ward "❓"
+    Float lat "❓"
+    Float lng "❓"
+    Float service_radius_km "❓"
+    String open_time "❓"
+    String close_time "❓"
+    Int prepare_minutes 
+    String manager_id "❓"
+    String primary_shipper_id "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "store_staff" {
+    String id "🗝️"
+    String store_id 
+    String user_id 
+    StoreStaffRole role 
+    StoreStaffStatus status 
+    DateTime joined_at 
+    DateTime left_at "❓"
+    }
+  
+
+  "store_service_areas" {
+    String id "🗝️"
+    String store_id 
+    String province 
+    String district "❓"
+    String ward "❓"
+    Json polygon_json "❓"
+    Float radius_km "❓"
+    Int priority 
+    String status 
+    DateTime created_at 
+    }
+  
+
+  "categories" {
+    String id "🗝️"
+    String parent_id "❓"
+    String name 
+    String slug 
+    String status 
+    Int sort_order 
+    DateTime created_at 
+    }
+  
+
+  "products" {
+    String id "🗝️"
+    String category_id 
+    String name 
+    String slug 
+    String description "❓"
+    ProductStatus status 
+    String origin_region "❓"
+    String storage_instruction "❓"
+    Int shelf_life_days "❓"
+    Float rating_avg 
+    Int rating_count 
+    DateTime created_at 
+    DateTime updated_at 
+    DateTime deleted_at "❓"
+    }
+  
+
+  "product_variants" {
+    String id "🗝️"
+    String product_id 
+    String sku 
+    String unit 
+    Decimal unit_value 
+    String package_type "❓"
+    Int price 
+    Int compare_at_price "❓"
+    String barcode "❓"
+    VariantSaleMode sale_mode 
+    Boolean allow_decimal_quantity 
+    String status 
+    }
+  
+
+  "product_images" {
+    String id "🗝️"
+    String product_id 
+    String url 
+    String alt "❓"
+    Int sort_order 
+    Boolean is_primary 
+    }
+  
+
+  "product_attributes" {
+    String id "🗝️"
+    String product_id 
+    String key 
+    String value 
+    }
+  
+
+  "price_histories" {
+    String id "🗝️"
+    String variant_id 
+    Int price 
+    Int compare_at_price "❓"
+    DateTime starts_at 
+    DateTime ends_at "❓"
+    }
+  
+
+  "store_inventories" {
+    String id "🗝️"
+    String store_id 
+    String variant_id 
+    Decimal quantity_on_hand 
+    Decimal reserved_quantity 
+    Decimal low_stock_threshold 
+    Int price_override "❓"
+    Int sale_price "❓"
+    StoreInventoryStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "inventory_batches" {
+    String id "🗝️"
+    String store_id 
+    String variant_id 
+    String batch_code 
+    DateTime received_date 
+    DateTime expiry_date 
+    Decimal quantity_on_hand 
+    Decimal reserved_quantity 
+    InventoryBatchStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "inventory_transactions" {
+    String id "🗝️"
+    String store_id 
+    String variant_id 
+    String batch_id 
+    InventoryTxType type 
+    Decimal quantity 
+    Decimal before_qty 
+    Decimal after_qty 
+    String reason "❓"
+    String order_id "❓"
+    String created_by "❓"
+    DateTime created_at 
+    }
+  
+
+  "carts" {
+    String id "🗝️"
+    String user_id "❓"
+    String session_id "❓"
+    String store_id "❓"
+    String status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "cart_items" {
+    String id "🗝️"
+    String cart_id 
+    String variant_id 
+    String batch_id "❓"
+    Decimal quantity 
+    }
+  
+
+  "orders" {
+    String id "🗝️"
+    String order_number 
+    String user_id 
+    String store_id 
+    String shipper_id "❓"
+    OrderStatus status 
+    PaymentStatus payment_status 
+    PaymentMethod payment_method 
+    Int subtotal 
+    Int discount_total 
+    Int shipping_fee 
+    Int grand_total 
+    String recipient_name 
+    String recipient_phone 
+    String delivery_address 
+    Float delivery_lat "❓"
+    Float delivery_lng "❓"
+    String delivery_note "❓"
+    Float assignment_distance_km "❓"
+    String assignment_reason "❓"
+    String note "❓"
+    String coupon_code "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "order_items" {
+    String id "🗝️"
+    String order_id 
+    String product_id 
+    String variant_id 
+    String product_name_snapshot 
+    String sku_snapshot 
+    String unit_snapshot 
+    Int unit_price 
+    Decimal quantity 
+    Decimal quantity_picked "❓"
+    Int line_total 
+    }
+  
+
+  "order_item_batch_allocations" {
+    String id "🗝️"
+    String order_item_id 
+    String batch_id 
+    Decimal quantity 
+    Decimal returned_quantity 
+    BatchAllocationStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "order_status_history" {
+    String id "🗝️"
+    String order_id 
+    OrderStatus from_status "❓"
+    OrderStatus to_status 
+    String reason "❓"
+    String actor_id "❓"
+    DateTime created_at 
+    }
+  
+
+  "return_requests" {
+    String id "🗝️"
+    String order_id 
+    String user_id 
+    String status 
+    String reason 
+    String description "❓"
+    DateTime created_at 
+    }
+  
+
+  "return_items" {
+    String id "🗝️"
+    String return_request_id 
+    String order_item_id 
+    Decimal quantity 
+    String resolution "❓"
+    }
+  
+
+  "payments" {
+    String id "🗝️"
+    String order_id 
+    String method 
+    String provider "❓"
+    Int amount 
+    PaymentStatus status 
+    DateTime paid_at "❓"
+    DateTime created_at 
+    }
+  
+
+  "payment_transactions" {
+    String id "🗝️"
+    String payment_id 
+    String provider_transaction_id "❓"
+    String idempotency_key "❓"
+    Json request_payload "❓"
+    Json callback_payload "❓"
+    String status 
+    DateTime created_at 
+    }
+  
+
+  "refunds" {
+    String id "🗝️"
+    String payment_id 
+    String order_id 
+    Int amount 
+    String status 
+    String reason "❓"
+    DateTime processed_at "❓"
+    DateTime created_at 
+    }
+  
+
+  "deliveries" {
+    String id "🗝️"
+    String order_id 
+    String store_id 
+    String shipper_id 
+    DeliveryStatus status 
+    String pickup_name "❓"
+    String pickup_address "❓"
+    Float pickup_lat "❓"
+    Float pickup_lng "❓"
+    String dropoff_name "❓"
+    String dropoff_phone "❓"
+    String dropoff_address "❓"
+    Float dropoff_lat "❓"
+    Float dropoff_lng "❓"
+    Float distance_km "❓"
+    Int cod_amount "❓"
+    Boolean cod_collected 
+    String failure_reason "❓"
+    DateTime picked_at "❓"
+    DateTime delivered_at "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "delivery_events" {
+    String id "🗝️"
+    String delivery_id 
+    DeliveryStatus status 
+    String note "❓"
+    String actor_id "❓"
+    DateTime created_at 
+    }
+  
+
+  "reviews" {
+    String id "🗝️"
+    String user_id 
+    String product_id 
+    String order_item_id 
+    Int rating 
+    String comment "❓"
+    String status 
+    DateTime created_at 
+    }
+  
+
+  "review_images" {
+    String id "🗝️"
+    String review_id 
+    String url 
+    }
+  
+
+  "coupons" {
+    String id "🗝️"
+    String code 
+    String name "❓"
+    CouponScope scope 
+    String store_id "❓"
+    String type 
+    Int value 
+    Int max_discount "❓"
+    Int min_order_value 
+    DateTime starts_at 
+    DateTime ends_at 
+    Int usage_limit "❓"
+    Int usage_count 
+    Int per_user_limit "❓"
+    String status 
+    String created_by "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "coupon_redemptions" {
+    String id "🗝️"
+    String coupon_id 
+    String user_id 
+    String order_id 
+    Int discount_amount 
+    DateTime created_at 
+    }
+  
+
+  "notifications" {
+    String id "🗝️"
+    String user_id 
+    String type 
+    String title 
+    String body 
+    Json data "❓"
+    DateTime read_at "❓"
+    DateTime created_at 
+    }
+  
+
+  "notification_templates" {
+    String id "🗝️"
+    String code 
+    String channel 
+    String subject "❓"
+    String body 
+    String locale 
+    }
+  
+
+  "support_tickets" {
+    String id "🗝️"
+    String code 
+    String user_id 
+    String order_id "❓"
+    String subject 
+    String status 
+    String priority 
+    String assigned_to "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "ticket_messages" {
+    String id "🗝️"
+    String ticket_id 
+    String sender_id "❓"
+    String sender_role 
+    String body 
+    DateTime created_at 
+    }
+  
+
+  "campaigns" {
+    String id "🗝️"
+    String name 
+    String slug 
+    String type 
+    DateTime starts_at 
+    DateTime ends_at 
+    CampaignStatus status 
+    DateTime created_at 
+    }
+  
+
+  "campaign_items" {
+    String id "🗝️"
+    String campaign_id 
+    String variant_id 
+    String batch_id "❓"
+    Int sale_price 
+    Int quantity_limit "❓"
+    Int sold_count 
+    }
+  
+
+  "combos" {
+    String id "🗝️"
+    String name 
+    String slug 
+    String description "❓"
+    String image_url "❓"
+    Int price 
+    String status 
+    DateTime created_at 
+    }
+  
+
+  "combo_items" {
+    String id "🗝️"
+    String combo_id 
+    String variant_id 
+    Decimal quantity 
+    }
+  
+
+  "knowledge_sources" {
+    String id "🗝️"
+    String code 
+    String type 
+    String title 
+    String content 
+    String status 
+    DateTime effective_from "❓"
+    DateTime effective_to "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "ai_vector_index" {
+    String id "🗝️"
+    String object_type 
+    String object_id 
+    String text 
+    Json metadata "❓"
+    String status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "product_co_purchases" {
+    String product_id_a 
+    String product_id_b 
+    Int co_count 
+    DateTime updated_at 
+    }
+  
+
+  "audit_logs" {
+    String id "🗝️"
+    String action 
+    String actor_id "❓"
+    String target_type "❓"
+    String target_id "❓"
+    String store_id "❓"
+    Json metadata "❓"
+    DateTime created_at 
+    }
+  
+
+  "product_barcodes" {
+    String id "🗝️"
+    String variant_id 
+    String barcode 
+    BarcodeType type 
+    Boolean is_primary 
+    BarcodeStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "cashier_shifts" {
+    String id "🗝️"
+    String store_id 
+    String cashier_id 
+    DateTime opened_at 
+    DateTime closed_at "❓"
+    Int opening_cash 
+    Int expected_cash 
+    Int counted_cash "❓"
+    Int cash_difference "❓"
+    CashierShiftStatus status 
+    String note "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "pos_sales" {
+    String id "🗝️"
+    String sale_number 
+    String store_id 
+    String cashier_id 
+    String shift_id "❓"
+    String customer_id "❓"
+    String customer_phone_snapshot "❓"
+    POSSaleStatus status 
+    Int subtotal 
+    Int discount_total 
+    Int tax_total 
+    Int grand_total 
+    Int amount_paid 
+    Int change_amount 
+    POSPaymentStatus payment_status 
+    String note "❓"
+    DateTime paid_at "❓"
+    DateTime voided_at "❓"
+    String void_reason "❓"
+    String voided_by "❓"
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "pos_sale_items" {
+    String id "🗝️"
+    String sale_id 
+    String product_id 
+    String variant_id 
+    String batch_id "❓"
+    String barcode_snapshot "❓"
+    String product_name_snapshot 
+    String sku_snapshot 
+    String unit_snapshot 
+    Int unit_price 
+    Decimal quantity 
+    Int discount_amount 
+    Int line_total 
+    DateTime created_at 
+    }
+  
+
+  "pos_sale_item_batch_allocations" {
+    String id "🗝️"
+    String sale_item_id 
+    String batch_id 
+    Decimal quantity 
+    Decimal returned_quantity 
+    DateTime created_at 
+    DateTime updated_at 
+    }
+  
+
+  "pos_payments" {
+    String id "🗝️"
+    String sale_id 
+    POSPaymentMethod method 
+    Int amount 
+    POSPaymentRecordStatus status 
+    String reference "❓"
+    Int tendered "❓"
+    Int change "❓"
+    DateTime paid_at "❓"
+    DateTime created_at 
+    }
+  
+
+  "pos_returns" {
+    String id "🗝️"
+    String original_sale_id 
+    String store_id 
+    String cashier_id 
+    String approved_by "❓"
+    Int refund_amount 
+    String reason 
+    POSReturnStatus status 
+    DateTime created_at 
+    DateTime updated_at 
+    DateTime completed_at "❓"
+    }
+  
+
+  "pos_return_items" {
+    String id "🗝️"
+    String return_id 
+    String sale_item_id 
+    Decimal quantity 
+    Int refund_amount 
+    Boolean restockable 
+    }
+  
+    "user_profiles" |o--|| users : "user"
+    "addresses" }o--|| users : "user"
+    "user_roles" }o--|| users : "user"
+    "user_roles" }o--|| roles : "role"
+    "role_permissions" }o--|| roles : "role"
+    "role_permissions" }o--|| permissions : "permission"
+    "refresh_tokens" }o--|| users : "user"
+    "stores" |o--|o users : "manager"
+    "stores" |o--|o users : "primaryShipper"
+    "store_staff" }o--|| stores : "store"
+    "store_staff" }o--|| users : "user"
+    "store_service_areas" }o--|| stores : "store"
+    "categories" |o--|o categories : "parent"
+    "products" }o--|| categories : "category"
+    "product_variants" }o--|| products : "product"
+    "product_images" }o--|| products : "product"
+    "product_attributes" }o--|| products : "product"
+    "price_histories" }o--|| product_variants : "variant"
+    "store_inventories" }o--|| stores : "store"
+    "store_inventories" }o--|| product_variants : "variant"
+    "inventory_batches" }o--|| stores : "store"
+    "inventory_batches" }o--|| product_variants : "variant"
+    "inventory_transactions" }o--|| stores : "store"
+    "inventory_transactions" }o--|| inventory_batches : "batch"
+    "carts" }o--|o users : "user"
+    "cart_items" }o--|| carts : "cart"
+    "cart_items" }o--|| product_variants : "variant"
+    "cart_items" }o--|o inventory_batches : "batch"
+    "orders" }o--|| users : "user"
+    "orders" }o--|| stores : "store"
+    "order_items" }o--|| orders : "order"
+    "order_items" }o--|| product_variants : "variant"
+    "order_item_batch_allocations" }o--|| order_items : "orderItem"
+    "order_item_batch_allocations" }o--|| inventory_batches : "batch"
+    "order_status_history" }o--|| orders : "order"
+    "return_requests" }o--|| orders : "order"
+    "return_items" }o--|| return_requests : "returnRequest"
+    "return_items" }o--|| order_items : "orderItem"
+    "payments" }o--|| orders : "order"
+    "payment_transactions" }o--|| payments : "payment"
+    "refunds" }o--|| payments : "payment"
+    "deliveries" |o--|| orders : "order"
+    "deliveries" }o--|| stores : "store"
+    "deliveries" }o--|| users : "shipper"
+    "delivery_events" }o--|| deliveries : "delivery"
+    "reviews" }o--|| users : "user"
+    "reviews" }o--|| products : "product"
+    "reviews" }o--|| order_items : "orderItem"
+    "review_images" }o--|| reviews : "review"
+    "coupons" }o--|o stores : "store"
+    "coupon_redemptions" }o--|| coupons : "coupon"
+    "notifications" }o--|| users : "user"
+    "support_tickets" }o--|| users : "user"
+    "support_tickets" }o--|o orders : "order"
+    "ticket_messages" }o--|| support_tickets : "ticket"
+    "campaign_items" }o--|| campaigns : "campaign"
+    "campaign_items" }o--|| product_variants : "variant"
+    "campaign_items" }o--|o inventory_batches : "batch"
+    "combo_items" }o--|| combos : "combo"
+    "combo_items" }o--|| product_variants : "variant"
+    "audit_logs" }o--|o users : "actor"
+    "product_barcodes" }o--|| product_variants : "variant"
+    "cashier_shifts" }o--|| stores : "store"
+    "cashier_shifts" }o--|| users : "cashier"
+    "pos_sales" }o--|| stores : "store"
+    "pos_sales" }o--|| users : "cashier"
+    "pos_sales" }o--|o cashier_shifts : "shift"
+    "pos_sale_items" }o--|| pos_sales : "sale"
+    "pos_sale_items" }o--|| product_variants : "variant"
+    "pos_sale_items" }o--|o inventory_batches : "batch"
+    "pos_sale_item_batch_allocations" }o--|| pos_sale_items : "saleItem"
+    "pos_sale_item_batch_allocations" }o--|| inventory_batches : "batch"
+    "pos_payments" }o--|| pos_sales : "sale"
+    "pos_returns" }o--|| stores : "store"
+    "pos_returns" }o--|| users : "cashier"
+    "pos_returns" }o--|| pos_sales : "originalSale"
+    "pos_return_items" }o--|| pos_returns : "returnRef"
+    "pos_return_items" }o--|| pos_sale_items : "saleItem"
