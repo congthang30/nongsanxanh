@@ -404,13 +404,8 @@ export class POSSaleService {
     // Tien thoi chi tinh tren phan tien mat vuot grand total
     const changeAmount = cashAmount > 0 ? Math.max(0, cashTendered - grandTotal) : 0;
 
-    const allowNegative =
-      dto.allowNegativeStock === true &&
-      (this.scope.isSystemAdmin(user.roles) ||
-        user.permissions?.includes('ALLOW_NEGATIVE_STOCK') ||
-        user.roles.includes('STORE_MANAGER'));
-
     const lines = sale.items.map((it) => ({
+      saleItemId: it.id,
       variantId: it.variantId,
       quantity: Number(it.quantity),
     }));
@@ -440,7 +435,6 @@ export class POSSaleService {
         lines,
         sale.saleNumber,
         user.id,
-        allowNegative,
       );
 
       // 2. Payment records
@@ -497,7 +491,6 @@ export class POSSaleService {
             methods: dto.payments.map((p) => p.method),
             cashAmount,
             changeAmount,
-            allowNegative,
           },
         },
         tx,
@@ -551,6 +544,7 @@ export class POSSaleService {
       // Neu sale da PAID -> hoan ton lai (hang con ban duoc) + refund payment
       if (isPaid) {
         const restockLines = sale.items.map((it) => ({
+          saleItemId: it.id,
           variantId: it.variantId,
           quantity: Number(it.quantity),
           restockable: true,

@@ -175,9 +175,21 @@ export class CatalogService {
       }
     });
 
+    const storeAvailability = new Map<string, Map<string, number>>();
+    await Promise.all(
+      [...new Set(storeInventories.map((inventory) => inventory.storeId))].map(
+        async (currentStoreId) => {
+          storeAvailability.set(
+            currentStoreId,
+            await this.inventory.getAvailabilityMap(currentStoreId, variantIds),
+          );
+        },
+      ),
+    );
+
     const variantStoresMap = new Map<string, { id: string; name: string; available: number }[]>();
     for (const si of storeInventories) {
-      const avail = Math.max(0, Number(si.quantityOnHand) - Number(si.reservedQuantity));
+      const avail = storeAvailability.get(si.storeId)?.get(si.variantId) ?? 0;
       if (avail > 0) {
         const list = variantStoresMap.get(si.variantId) ?? [];
         list.push({

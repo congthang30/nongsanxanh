@@ -233,6 +233,7 @@ export class FulfillmentService {
       }
     }
     await this.prisma.$transaction(async (tx) => {
+      await this.inventory.assertOrderBatchesSellable(tx, orderId);
       if (pickedItems) {
         for (const p of pickedItems) {
           const updated = await tx.orderItem.updateMany({

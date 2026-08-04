@@ -5,6 +5,7 @@ import { StoreScopeService } from '../store/store-scope.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { AdjustStockDto, ExportStockDto, ImportStockDto } from './dto/warehouse.dto';
 
 /**
  * Service cho nhan vien kho cua cua hang. Tat ca thao tac scope theo store
@@ -53,18 +54,18 @@ export class WarehouseService {
     });
   }
 
-  async importStock(
-    user: AuthUser,
-    variantId: string,
-    quantity: number,
-    reason?: string,
-  ) {
+  async importStock(user: AuthUser, dto: ImportStockDto) {
     const storeId = await this.resolveStoreId(user);
     const result = await this.inventory.importStock(
       storeId,
-      variantId,
-      quantity,
-      reason,
+      dto.variantId,
+      dto.quantity,
+      {
+        batchCode: dto.batchCode,
+        receivedDate: dto.receivedDate,
+        expiryDate: dto.expiryDate,
+      },
+      dto.reason,
       user.id,
     );
     await this.audit.log({
@@ -73,23 +74,27 @@ export class WarehouseService {
       targetType: 'StoreInventory',
       targetId: result.id,
       storeId,
-      metadata: { variantId, quantity, reason },
+      metadata: {
+        variantId: dto.variantId,
+        batchId: result.batch.id,
+        batchCode: dto.batchCode,
+        receivedDate: dto.receivedDate,
+        expiryDate: dto.expiryDate,
+        quantity: dto.quantity,
+        reason: dto.reason,
+      },
     });
     return result;
   }
 
-  async adjustStock(
-    user: AuthUser,
-    variantId: string,
-    newQuantity: number,
-    reason?: string,
-  ) {
+  async adjustStock(user: AuthUser, dto: AdjustStockDto) {
     const storeId = await this.resolveStoreId(user);
     const result = await this.inventory.adjustStock(
       storeId,
-      variantId,
-      newQuantity,
-      reason,
+      dto.variantId,
+      dto.batchId,
+      dto.newQuantity,
+      dto.reason,
       user.id,
     );
     await this.audit.log({
@@ -98,35 +103,42 @@ export class WarehouseService {
       targetType: 'StoreInventory',
       targetId: result.id,
       storeId,
-      metadata: { variantId, newQuantity, reason },
+      metadata: {
+        variantId: dto.variantId,
+        batchId: dto.batchId,
+        newQuantity: dto.newQuantity,
+        reason: dto.reason,
+      },
     });
     return result;
   }
 
   /** Xuat kho hoac danh hu hang. Reason bat buoc. */
-  async exportStock(
-    user: AuthUser,
-    variantId: string,
-    quantity: number,
-    reason: string,
-    kind: 'EXPORT' | 'LOSS',
-  ) {
+  async exportStock(user: AuthUser, dto: ExportStockDto) {
     const storeId = await this.resolveStoreId(user);
+    const kind = dto.kind ?? 'EXPORT';
     const result = await this.inventory.exportStock(
       storeId,
-      variantId,
-      quantity,
-      reason,
+      dto.variantId,
+      dto.batchId,
+      dto.quantity,
+      dto.reason,
       kind,
       user.id,
     );
     await this.audit.log({
       action: kind === 'LOSS' ? 'INVENTORY_LOSS' : 'INVENTORY_EXPORT',
       actorId: user.id,
-      targetType: 'StoreInventory',
-      targetId: result.id,
+      targetType: 'InventoryBatch',
+      targetId: dto.batchId,
       storeId,
-      metadata: { variantId, quantity, reason, kind },
+      metadata: {
+        variantId: dto.variantId,
+        batchId: dto.batchId,
+        quantity: dto.quantity,
+        reason: dto.reason,
+        kind,
+      },
     });
     return result;
   }

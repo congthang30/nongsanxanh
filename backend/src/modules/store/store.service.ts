@@ -106,15 +106,19 @@ export class StoreService {
       },
     });
 
-    // Gom theo product, chi giu variant con hang
+    const availability = await this.inventory.getAvailabilityMap(
+      storeId,
+      inventories.map((inventory) => inventory.variantId),
+    );
+
+    // Gom theo product, chi giu variant con lo ban duoc
     type Row = (typeof inventories)[number];
     const byProduct = new Map<
       string,
       { product: Row['variant']['product']; rows: Row[] }
     >();
     for (const inv of inventories) {
-      const available =
-        Number(inv.quantityOnHand) - Number(inv.reservedQuantity);
+      const available = availability.get(inv.variantId) ?? 0;
       if (available <= 0) continue;
       const product = inv.variant.product;
       if (product.status !== ProductStatus.ACTIVE || product.deletedAt) continue;
@@ -160,8 +164,7 @@ export class StoreService {
       });
       const price =
         cheapest.salePrice ?? cheapest.priceOverride ?? cheapest.variant.price;
-      const available =
-        Number(cheapest.quantityOnHand) - Number(cheapest.reservedQuantity);
+      const available = availability.get(cheapest.variantId) ?? 0;
       return {
         id: product.id,
         name: product.name,

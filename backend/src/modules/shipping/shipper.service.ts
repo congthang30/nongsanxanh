@@ -342,6 +342,9 @@ export class ShipperService {
       });
     }
     await this.prisma.$transaction(async (tx) => {
+      if (to === DeliveryStatus.PICKED_FROM_STORE) {
+        await this.inventory.assertOrderBatchesSellable(tx, delivery.orderId);
+      }
       const data: Prisma.DeliveryUpdateInput = { status: to };
       if (to === DeliveryStatus.PICKED_FROM_STORE) data.pickedAt = new Date();
       await tx.delivery.update({ where: { id: deliveryId }, data });

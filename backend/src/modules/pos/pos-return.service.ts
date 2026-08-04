@@ -193,6 +193,7 @@ export class POSReturnService {
       const lines = ret.items.map((ri) => {
         const saleItem = saleItemMap.get(ri.saleItemId)!;
         return {
+          saleItemId: ri.saleItemId,
           variantId: saleItem.variantId,
           quantity: Number(ri.quantity),
           restockable: ri.restockable,

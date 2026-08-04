@@ -109,28 +109,17 @@ export class WarehouseController {
 
   @Post('inventory/import')
   importStock(@CurrentUser() user: AuthUser, @Body() dto: ImportStockDto) {
-    return this.warehouse.importStock(user, dto.variantId, dto.quantity, dto.reason);
+    return this.warehouse.importStock(user, dto);
   }
 
   @Post('inventory/adjust')
   adjustStock(@CurrentUser() user: AuthUser, @Body() dto: AdjustStockDto) {
-    return this.warehouse.adjustStock(
-      user,
-      dto.variantId,
-      dto.newQuantity,
-      dto.reason,
-    );
+    return this.warehouse.adjustStock(user, dto);
   }
 
   /** Xuat kho hoac danh hu hang (reason bat buoc). */
   @Post('inventory/export')
   exportStock(@CurrentUser() user: AuthUser, @Body() dto: ExportStockDto) {
-    return this.warehouse.exportStock(
-      user,
-      dto.variantId,
-      dto.quantity,
-      dto.reason,
-      dto.kind ?? 'EXPORT',
-    );
+    return this.warehouse.exportStock(user, dto);
   }
 }

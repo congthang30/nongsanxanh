@@ -1,440 +1,675 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InventoryTxType, Prisma } from '@prisma/client';
+import {
+  BatchAllocationStatus,
+  InventoryBatchStatus,
+  InventoryTxType,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 
 export interface ReserveLine {
   variantId: string;
   quantity: number;
+  orderItemId?: string;
+  saleItemId?: string;
+}
+
+export interface ImportBatchInput {
+  batchCode: string;
+  receivedDate: string;
+  expiryDate: string;
 }
 
 /**
- * Quan ly ton kho theo tung cua hang (StoreInventory).
- * KHONG con kho trung tam, KHONG con seller inventory.
+ * Ton kho vat ly duoc quan ly theo lo. StoreInventory chi la bang tong hop de
+ * catalog doc nhanh; moi thay doi phai cap nhat lo va bang tong hop trong cung
+ * transaction.
  *
- *   available = quantityOnHand - reservedQuantity
- *
- * Workflow ton kho gan voi vong doi don:
- *   - addCart / checkout: getAvailableInStore -> chan vuot ton
- *   - createOrder (PLACED): reserveForOrder -> reservedQuantity += qty (RESERVE)
- *   - cancel / delivery failed: releaseForOrder -> reservedQuantity -= qty (RELEASE)
- *   - delivered/completed: commitForOrder -> onHand -= qty, reserved -= qty (COMMIT)
- *
- * Moi thay doi ton deu ghi InventoryTransaction.
+ * FEFO: dat online va POS luon lay lo co han dung som nhat truoc. Lo het han,
+ * BLOCKED hoac DEPLETED khong duoc tinh vao ton co the ban.
  */
 @Injectable()
 export class StoreInventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Ton kha dung cua variant tai mot cua hang cu the. */
-  async getAvailableInStore(
+  private dateOnly(value: string, field: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      throw new BadRequestException({
+        code: 'INVALID_BATCH_DATE',
+        message: `${field} phai co dinh dang YYYY-MM-DD`,
+      });
+    }
+    const date = new Date(`${value}T00:00:00.000Z`);
+    if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+      throw new BadRequestException({
+        code: 'INVALID_BATCH_DATE',
+        message: `${field} khong hop le`,
+      });
+    }
+    return date;
+  }
+
+  private today() {
+    // Vietnam has a fixed UTC+7 offset and no daylight-saving transitions.
+    const vietnamNow = new Date(Date.now() + 7 * 60 * 60 * 1000);
+    return new Date(`${vietnamNow.toISOString().slice(0, 10)}T00:00:00.000Z`);
+  }
+
+  private restockedBatchStatus(expiryDate: Date, status: InventoryBatchStatus) {
+    if (status === InventoryBatchStatus.BLOCKED) return status;
+    return expiryDate >= this.today()
+      ? InventoryBatchStatus.ACTIVE
+      : InventoryBatchStatus.BLOCKED;
+  }
+
+  private async sellableBatches(
+    client: Prisma.TransactionClient | PrismaService,
     storeId: string,
     variantId: string,
-  ): Promise<number> {
-    const inv = await this.prisma.storeInventory.findUnique({
-      where: { storeId_variantId: { storeId, variantId } },
-    });
-    if (!inv || inv.status !== 'ACTIVE') return 0;
-    return Number(inv.quantityOnHand) - Number(inv.reservedQuantity);
-  }
-
-  /** Map ton kha dung cho nhieu variant tai mot store (1 query). */
-  async getAvailabilityMap(
-    storeId: string,
-    variantIds: string[],
-  ): Promise<Map<string, number>> {
-    if (variantIds.length === 0) return new Map();
-    const rows = await this.prisma.storeInventory.findMany({
-      where: { storeId, variantId: { in: variantIds } },
-    });
-    const map = new Map<string, number>();
-    for (const r of rows) {
-      const available =
-        r.status === 'ACTIVE'
-          ? Number(r.quantityOnHand) - Number(r.reservedQuantity)
-          : 0;
-      map.set(r.variantId, available);
-    }
-    for (const id of variantIds) if (!map.has(id)) map.set(id, 0);
-    return map;
-  }
-
-  /**
-   * Ton kha dung GOP toan he thong (tat ca cua hang ACTIVE) cho 1 variant.
-   * Dung khi khach duyet catalog / them gio ma chua resolve cua hang.
-   */
-  async getAggregateAvailable(variantId: string): Promise<number> {
-    const rows = await this.prisma.storeInventory.findMany({
+  ) {
+    return client.inventoryBatch.findMany({
       where: {
+        storeId,
         variantId,
-        status: 'ACTIVE',
-        store: { status: 'ACTIVE' },
+        status: InventoryBatchStatus.ACTIVE,
+        expiryDate: { gte: this.today() },
+        quantityOnHand: { gt: 0 },
       },
-      select: { quantityOnHand: true, reservedQuantity: true },
+      orderBy: [{ expiryDate: 'asc' }, { receivedDate: 'asc' }, { createdAt: 'asc' }],
     });
-    return rows.reduce(
-      (sum, r) => sum + Math.max(0, Number(r.quantityOnHand) - Number(r.reservedQuantity)),
+  }
+
+  async getAvailableInStore(storeId: string, variantId: string): Promise<number> {
+    const batches = await this.sellableBatches(this.prisma, storeId, variantId);
+    return batches.reduce(
+      (sum, batch) =>
+        sum + Math.max(0, Number(batch.quantityOnHand) - Number(batch.reservedQuantity)),
       0,
     );
   }
 
-  /** Map ton kha dung GOP toan he thong cho nhieu variant (1 query). */
-  async getAggregateAvailabilityMap(
-    variantIds: string[],
-  ): Promise<Map<string, number>> {
+  async getAvailabilityMap(storeId: string, variantIds: string[]) {
     const map = new Map<string, number>();
+    for (const id of variantIds) map.set(id, 0);
     if (variantIds.length === 0) return map;
-    const rows = await this.prisma.storeInventory.findMany({
+    const batches = await this.prisma.inventoryBatch.findMany({
+      where: {
+        storeId,
+        variantId: { in: variantIds },
+        status: InventoryBatchStatus.ACTIVE,
+        expiryDate: { gte: this.today() },
+        quantityOnHand: { gt: 0 },
+      },
+      select: { variantId: true, quantityOnHand: true, reservedQuantity: true },
+    });
+    for (const batch of batches) {
+      const available = Math.max(
+        0,
+        Number(batch.quantityOnHand) - Number(batch.reservedQuantity),
+      );
+      map.set(batch.variantId, (map.get(batch.variantId) ?? 0) + available);
+    }
+    return map;
+  }
+
+  async getAggregateAvailable(variantId: string): Promise<number> {
+    const map = await this.getAggregateAvailabilityMap([variantId]);
+    return map.get(variantId) ?? 0;
+  }
+
+  async getAggregateAvailabilityMap(variantIds: string[]) {
+    const map = new Map<string, number>();
+    for (const id of variantIds) map.set(id, 0);
+    if (variantIds.length === 0) return map;
+    const batches = await this.prisma.inventoryBatch.findMany({
       where: {
         variantId: { in: variantIds },
-        status: 'ACTIVE',
+        status: InventoryBatchStatus.ACTIVE,
+        expiryDate: { gte: this.today() },
+        quantityOnHand: { gt: 0 },
         store: { status: 'ACTIVE' },
       },
       select: { variantId: true, quantityOnHand: true, reservedQuantity: true },
     });
-    for (const r of rows) {
-      const avail = Math.max(0, Number(r.quantityOnHand) - Number(r.reservedQuantity));
-      map.set(r.variantId, (map.get(r.variantId) ?? 0) + avail);
+    for (const batch of batches) {
+      const available = Math.max(
+        0,
+        Number(batch.quantityOnHand) - Number(batch.reservedQuantity),
+      );
+      map.set(batch.variantId, (map.get(batch.variantId) ?? 0) + available);
     }
-    for (const id of variantIds) if (!map.has(id)) map.set(id, 0);
     return map;
   }
 
-  /** So cua hang dang con hang cho moi variant (de hien "con o N khu vuc"). */
-  async getStoreCoverageMap(
-    variantIds: string[],
-  ): Promise<Map<string, number>> {
+  async getStoreCoverageMap(variantIds: string[]) {
     const map = new Map<string, number>();
+    for (const id of variantIds) map.set(id, 0);
     if (variantIds.length === 0) return map;
-    const rows = await this.prisma.storeInventory.findMany({
+    const batches = await this.prisma.inventoryBatch.findMany({
       where: {
         variantId: { in: variantIds },
-        status: 'ACTIVE',
+        status: InventoryBatchStatus.ACTIVE,
+        expiryDate: { gte: this.today() },
+        quantityOnHand: { gt: 0 },
         store: { status: 'ACTIVE' },
       },
-      select: { variantId: true, quantityOnHand: true, reservedQuantity: true },
+      select: {
+        storeId: true,
+        variantId: true,
+        quantityOnHand: true,
+        reservedQuantity: true,
+      },
     });
-    for (const r of rows) {
-      const avail = Number(r.quantityOnHand) - Number(r.reservedQuantity);
-      if (avail > 0) map.set(r.variantId, (map.get(r.variantId) ?? 0) + 1);
+    const covered = new Set<string>();
+    for (const batch of batches) {
+      if (Number(batch.quantityOnHand) > Number(batch.reservedQuantity)) {
+        covered.add(`${batch.variantId}:${batch.storeId}`);
+      }
     }
-    for (const id of variantIds) if (!map.has(id)) map.set(id, 0);
+    for (const key of covered) {
+      const variantId = key.split(':')[0];
+      map.set(variantId, (map.get(variantId) ?? 0) + 1);
+    }
     return map;
   }
 
-  /** Gia ban thuc te cua variant tai store (uu tien salePrice -> priceOverride -> basePrice). */
-  async getStorePrices(
-    storeId: string,
-    variantIds: string[],
-  ): Promise<Map<string, number>> {
+  async getStorePrices(storeId: string, variantIds: string[]) {
     const map = new Map<string, number>();
     if (variantIds.length === 0) return map;
     const rows = await this.prisma.storeInventory.findMany({
       where: { storeId, variantId: { in: variantIds } },
       include: { variant: { select: { price: true } } },
     });
-    for (const r of rows) {
-      const price = r.salePrice ?? r.priceOverride ?? r.variant.price;
-      map.set(r.variantId, price);
+    for (const row of rows) {
+      map.set(row.variantId, row.salePrice ?? row.priceOverride ?? row.variant.price);
     }
     return map;
   }
 
-  /**
-   * Giu ton (reserve) cho 1 order tai store. Tang reservedQuantity + log RESERVE.
-   * Loi neu khong du ton kha dung.
-   */
+  private async lockSellableBatches(
+    tx: Prisma.TransactionClient,
+    storeId: string,
+    variantId: string,
+  ) {
+    const today = this.today();
+    return tx.$queryRaw<
+      {
+        id: string;
+        quantity_on_hand: string;
+        reserved_quantity: string;
+        expiry_date: Date;
+      }[]
+    >(Prisma.sql`
+      SELECT id, quantity_on_hand, reserved_quantity, expiry_date
+      FROM inventory_batches
+      WHERE store_id = ${storeId}
+        AND variant_id = ${variantId}
+        AND status = 'ACTIVE'::"InventoryBatchStatus"
+        AND expiry_date >= ${today}::date
+        AND quantity_on_hand > reserved_quantity
+      ORDER BY expiry_date ASC, received_date ASC, created_at ASC
+      FOR UPDATE
+    `);
+  }
+
+  private async findOrderItemId(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+    line: ReserveLine,
+  ) {
+    if (line.orderItemId) return line.orderItemId;
+    const item = await tx.orderItem.findFirst({
+      where: { orderId, variantId: line.variantId },
+      select: { id: true },
+    });
+    if (!item) {
+      throw new BadRequestException({
+        code: 'ORDER_ITEM_NOT_FOUND',
+        message: 'Khong tim thay dong san pham de giu lo',
+      });
+    }
+    return item.id;
+  }
+
   async reserveForOrder(
     tx: Prisma.TransactionClient,
     storeId: string,
     orderId: string,
     lines: ReserveLine[],
     actorId?: string,
-  ): Promise<void> {
+  ) {
     for (const line of lines) {
-      // Lock row store_inventories (SELECT ... FOR UPDATE) de chong race khi
-      // nhieu checkout dat cung luc cho mon cuoi cung -> tranh oversell.
-      // Phai khoa truoc khi validate (check-then-act tren row da khoa).
-      const locked = await tx.$queryRaw<
-        {
-          id: string;
-          quantity_on_hand: string;
-          reserved_quantity: string;
-          status: string;
-        }[]
-      >(Prisma.sql`
-        SELECT id, quantity_on_hand, reserved_quantity, status
-        FROM store_inventories
-        WHERE store_id = ${storeId} AND variant_id = ${line.variantId}
-        FOR UPDATE
-      `);
-      const inv = locked[0];
-      const before = inv ? Number(inv.quantity_on_hand) : 0;
-      const reserved = inv ? Number(inv.reserved_quantity) : 0;
-      const available =
-        inv && inv.status === 'ACTIVE' ? before - reserved : 0;
-      if (!inv || available < line.quantity) {
+      const orderItemId = await this.findOrderItemId(tx, orderId, line);
+      const batches = await this.lockSellableBatches(tx, storeId, line.variantId);
+      const totalAvailable = batches.reduce(
+        (sum, batch) =>
+          sum + Number(batch.quantity_on_hand) - Number(batch.reserved_quantity),
+        0,
+      );
+      if (totalAvailable < line.quantity) {
         throw new BadRequestException({
           code: 'INSUFFICIENT_STOCK',
-          message: `Cua hang khong du ton (variant ${line.variantId}, can ${line.quantity}, con ${available})`,
+          message: `Khong du ton lo con han (can ${line.quantity}, con ${totalAvailable})`,
         });
       }
+
+      let remaining = line.quantity;
+      for (const batch of batches) {
+        if (remaining <= 0) break;
+        const available =
+          Number(batch.quantity_on_hand) - Number(batch.reserved_quantity);
+        const allocated = Math.min(remaining, available);
+        await tx.inventoryBatch.update({
+          where: { id: batch.id },
+          data: { reservedQuantity: { increment: allocated } },
+        });
+        await tx.orderItemBatchAllocation.create({
+          data: {
+            orderItemId,
+            batchId: batch.id,
+            quantity: allocated,
+            status: BatchAllocationStatus.RESERVED,
+          },
+        });
+        await tx.inventoryTransaction.create({
+          data: {
+            storeId,
+            variantId: line.variantId,
+            batchId: batch.id,
+            type: InventoryTxType.RESERVE,
+            quantity: allocated,
+            beforeQty: Number(batch.quantity_on_hand),
+            afterQty: Number(batch.quantity_on_hand),
+            reason: 'Reserve FEFO cho don hang',
+            orderId,
+            createdBy: actorId,
+          },
+        });
+        remaining -= allocated;
+      }
       await tx.storeInventory.update({
-        where: { id: inv.id },
+        where: { storeId_variantId: { storeId, variantId: line.variantId } },
         data: { reservedQuantity: { increment: line.quantity } },
-      });
-      await tx.inventoryTransaction.create({
-        data: {
-          storeId,
-          variantId: line.variantId,
-          type: InventoryTxType.RESERVE,
-          quantity: line.quantity,
-          beforeQty: before,
-          afterQty: before,
-          reason: 'Reserve cho don hang',
-          orderId,
-          createdBy: actorId,
-        },
       });
     }
   }
 
-  /** Nha ton (release) khi huy don / giao that bai. Giam reservedQuantity + log RELEASE. */
   async releaseForOrder(
     tx: Prisma.TransactionClient,
     orderId: string,
     actorId?: string,
-  ): Promise<void> {
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
-      include: { items: true },
-    });
+  ) {
+    const order = await tx.order.findUnique({ where: { id: orderId } });
     if (!order) return;
-    for (const it of order.items) {
-      // P1-02: lock row de tranh lost-update khi release dong thoi (cancel + failed).
-      const locked = await tx.$queryRaw<
-        { id: string; quantity_on_hand: string; reserved_quantity: string }[]
-      >(Prisma.sql`
-        SELECT id, quantity_on_hand, reserved_quantity
-        FROM store_inventories
-        WHERE store_id = ${order.storeId} AND variant_id = ${it.variantId}
-        FOR UPDATE
-      `);
-      const inv = locked[0];
-      if (!inv) continue;
-      const qty = Number(it.quantity);
-      const before = Number(inv.quantity_on_hand);
-      const newReserved = Math.max(0, Number(inv.reserved_quantity) - qty);
-      await tx.storeInventory.update({
-        where: { id: inv.id },
-        data: { reservedQuantity: newReserved },
+    const allocations = await tx.orderItemBatchAllocation.findMany({
+      where: {
+        orderItem: { orderId },
+        status: BatchAllocationStatus.RESERVED,
+      },
+      include: { orderItem: { select: { variantId: true } } },
+    });
+    const totals = new Map<string, number>();
+    for (const allocation of allocations) {
+      const batch = await tx.inventoryBatch.findUnique({ where: { id: allocation.batchId } });
+      if (!batch) continue;
+      const quantity = Number(allocation.quantity);
+      await tx.inventoryBatch.update({
+        where: { id: batch.id },
+        data: { reservedQuantity: { decrement: quantity } },
+      });
+      await tx.orderItemBatchAllocation.update({
+        where: { id: allocation.id },
+        data: { status: BatchAllocationStatus.RELEASED },
       });
       await tx.inventoryTransaction.create({
         data: {
           storeId: order.storeId,
-          variantId: it.variantId,
+          variantId: allocation.orderItem.variantId,
+          batchId: batch.id,
           type: InventoryTxType.RELEASE,
-          quantity: qty,
-          beforeQty: before,
-          afterQty: before,
-          reason: 'Release ton (huy/giao that bai)',
+          quantity,
+          beforeQty: batch.quantityOnHand,
+          afterQty: batch.quantityOnHand,
+          reason: 'Release lo (huy/giao that bai)',
           orderId,
           createdBy: actorId,
         },
       });
+      totals.set(
+        allocation.orderItem.variantId,
+        (totals.get(allocation.orderItem.variantId) ?? 0) + quantity,
+      );
+    }
+    for (const [variantId, quantity] of totals) {
+      await tx.storeInventory.update({
+        where: { storeId_variantId: { storeId: order.storeId, variantId } },
+        data: { reservedQuantity: { decrement: quantity } },
+      });
     }
   }
 
-  /** Tru ton that su khi don giao thanh cong. Giam onHand + reserved + log COMMIT. */
+  async assertOrderBatchesSellable(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+  ) {
+    const allocations = await tx.orderItemBatchAllocation.findMany({
+      where: {
+        orderItem: { orderId },
+        status: BatchAllocationStatus.RESERVED,
+      },
+      include: { batch: true },
+    });
+    const today = this.today();
+    const invalid = allocations.find(
+      ({ batch }) =>
+        batch.status !== InventoryBatchStatus.ACTIVE ||
+        batch.expiryDate < today,
+    );
+    if (invalid) {
+      throw new BadRequestException({
+        code: 'ORDER_BATCH_NOT_SELLABLE',
+        message: `Lo ${invalid.batch.batchCode} da het han hoac bi khoa. Vui long thay lo truoc khi dong goi.`,
+      });
+    }
+  }
+
   async commitForOrder(
     tx: Prisma.TransactionClient,
     orderId: string,
     actorId?: string,
-  ): Promise<void> {
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
-      include: { items: true },
-    });
+  ) {
+    const order = await tx.order.findUnique({ where: { id: orderId } });
     if (!order) return;
-    for (const it of order.items) {
-      // P1-03: lock row de dong bo voi POS sale cung variant (tranh tru vuot).
-      const locked = await tx.$queryRaw<
-        { id: string; quantity_on_hand: string; reserved_quantity: string }[]
-      >(Prisma.sql`
-        SELECT id, quantity_on_hand, reserved_quantity
-        FROM store_inventories
-        WHERE store_id = ${order.storeId} AND variant_id = ${it.variantId}
-        FOR UPDATE
-      `);
-      const inv = locked[0];
-      if (!inv) continue;
-      const qty = Number(it.quantity);
-      const before = Number(inv.quantity_on_hand);
-      const after = Math.max(0, before - qty);
-      const newReserved = Math.max(0, Number(inv.reserved_quantity) - qty);
-      await tx.storeInventory.update({
-        where: { id: inv.id },
-        data: { quantityOnHand: after, reservedQuantity: newReserved },
+    const allocations = await tx.orderItemBatchAllocation.findMany({
+      where: {
+        orderItem: { orderId },
+        status: BatchAllocationStatus.RESERVED,
+      },
+      include: { orderItem: { select: { variantId: true } } },
+    });
+    const totals = new Map<string, number>();
+    const today = this.today();
+    for (const allocation of allocations) {
+      const batch = await tx.inventoryBatch.findUnique({ where: { id: allocation.batchId } });
+      if (!batch) continue;
+      if (
+        batch.status !== InventoryBatchStatus.ACTIVE ||
+        batch.expiryDate < today
+      ) {
+        throw new BadRequestException({
+          code: 'ORDER_BATCH_NOT_SELLABLE',
+          message: `Lo ${batch.batchCode} da het han hoac bi khoa. Khong the giao don nay.`,
+        });
+      }
+      const quantity = Number(allocation.quantity);
+      const before = Number(batch.quantityOnHand);
+      const after = before - quantity;
+      await tx.inventoryBatch.update({
+        where: { id: batch.id },
+        data: {
+          quantityOnHand: after,
+          reservedQuantity: { decrement: quantity },
+          status: after === 0 ? InventoryBatchStatus.DEPLETED : batch.status,
+        },
+      });
+      await tx.orderItemBatchAllocation.update({
+        where: { id: allocation.id },
+        data: { status: BatchAllocationStatus.COMMITTED },
       });
       await tx.inventoryTransaction.create({
         data: {
           storeId: order.storeId,
-          variantId: it.variantId,
+          variantId: allocation.orderItem.variantId,
+          batchId: batch.id,
           type: InventoryTxType.COMMIT,
-          quantity: qty,
+          quantity,
           beforeQty: before,
           afterQty: after,
-          reason: 'Commit ton (don da giao)',
+          reason: 'Commit FEFO (don da giao)',
           orderId,
           createdBy: actorId,
         },
       });
+      totals.set(
+        allocation.orderItem.variantId,
+        (totals.get(allocation.orderItem.variantId) ?? 0) + quantity,
+      );
+    }
+    for (const [variantId, quantity] of totals) {
+      const inventory = await tx.storeInventory.update({
+        where: { storeId_variantId: { storeId: order.storeId, variantId } },
+        data: {
+          quantityOnHand: { decrement: quantity },
+          reservedQuantity: { decrement: quantity },
+        },
+      });
+      if (Number(inventory.quantityOnHand) === 0) {
+        await tx.storeInventory.update({
+          where: { id: inventory.id },
+          data: { status: 'OUT_OF_STOCK' },
+        });
+      }
     }
   }
 
-  // ---------------- Warehouse staff / admin operations ----------------
-
-  /** Nhap hang: tang onHand + log IMPORT. */
   async importStock(
     storeId: string,
     variantId: string,
     quantity: number,
+    batchInput: ImportBatchInput,
     reason: string | undefined,
     actorId: string,
   ) {
-    if (quantity <= 0) {
-      throw new BadRequestException({
-        code: 'INVALID_QUANTITY',
-        message: 'So luong nhap phai > 0',
-      });
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      throw new BadRequestException({ code: 'INVALID_QUANTITY', message: 'So luong nhap phai > 0' });
     }
+    const batchCode = batchInput.batchCode.trim().toUpperCase();
+    if (!batchCode || batchCode.length > 80) {
+      throw new BadRequestException({ code: 'INVALID_BATCH_CODE', message: 'Ma lo bat buoc, toi da 80 ky tu' });
+    }
+    const receivedDate = this.dateOnly(batchInput.receivedDate, 'Ngay nhap');
+    const expiryDate = this.dateOnly(batchInput.expiryDate, 'Han dung');
+    if (expiryDate < receivedDate) {
+      throw new BadRequestException({ code: 'INVALID_BATCH_DATES', message: 'Han dung phai tu ngay nhap tro di' });
+    }
+    if (expiryDate < this.today()) {
+      throw new BadRequestException({ code: 'BATCH_ALREADY_EXPIRED', message: 'Khong the nhap lo da het han' });
+    }
+
     return this.prisma.$transaction(async (tx) => {
-      const inv = await tx.storeInventory.upsert({
+      const existing = await tx.inventoryBatch.findUnique({
+        where: { storeId_variantId_batchCode: { storeId, variantId, batchCode } },
+      });
+      if (
+        existing &&
+        (existing.receivedDate.toISOString().slice(0, 10) !== batchInput.receivedDate ||
+          existing.expiryDate.toISOString().slice(0, 10) !== batchInput.expiryDate)
+      ) {
+        throw new BadRequestException({
+          code: 'BATCH_DATES_MISMATCH',
+          message: 'Ma lo da ton tai nhung ngay nhap/han dung khong khop',
+        });
+      }
+      const before = existing ? Number(existing.quantityOnHand) : 0;
+      const batch = existing
+        ? await tx.inventoryBatch.update({
+            where: { id: existing.id },
+            data: {
+              quantityOnHand: { increment: quantity },
+              status: InventoryBatchStatus.ACTIVE,
+            },
+          })
+        : await tx.inventoryBatch.create({
+            data: {
+              storeId,
+              variantId,
+              batchCode,
+              receivedDate,
+              expiryDate,
+              quantityOnHand: quantity,
+            },
+          });
+      const inventory = await tx.storeInventory.upsert({
         where: { storeId_variantId: { storeId, variantId } },
         create: { storeId, variantId, quantityOnHand: quantity },
-        update: { quantityOnHand: { increment: quantity } },
+        update: { quantityOnHand: { increment: quantity }, status: 'ACTIVE' },
       });
-      const before = Number(inv.quantityOnHand) - quantity;
       await tx.inventoryTransaction.create({
         data: {
           storeId,
           variantId,
+          batchId: batch.id,
           type: InventoryTxType.IMPORT,
           quantity,
           beforeQty: before,
-          afterQty: Number(inv.quantityOnHand),
-          reason: reason ?? 'Nhap hang',
+          afterQty: Number(batch.quantityOnHand),
+          reason: reason ?? 'Nhap hang theo lo',
           createdBy: actorId,
         },
       });
-      // Tu dong reactivate neu dang OUT_OF_STOCK
-      if (Number(inv.quantityOnHand) > 0 && inv.status === 'OUT_OF_STOCK') {
-        await tx.storeInventory.update({
-          where: { id: inv.id },
-          data: { status: 'ACTIVE' },
-        });
-      }
-      return inv;
+      return { ...inventory, batch };
     });
   }
 
-  /** Dieu chinh ton ve so luong moi (kiem ke). Log ADJUST. */
   async adjustStock(
     storeId: string,
     variantId: string,
+    batchId: string,
     newQuantity: number,
     reason: string | undefined,
     actorId: string,
   ) {
-    if (newQuantity < 0) {
-      throw new BadRequestException({
-        code: 'INVALID_QUANTITY',
-        message: 'So luong ton khong duoc am',
-      });
+    if (!Number.isFinite(newQuantity) || newQuantity < 0) {
+      throw new BadRequestException({ code: 'INVALID_QUANTITY', message: 'So luong ton khong duoc am' });
     }
     return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.storeInventory.findUnique({
-        where: { storeId_variantId: { storeId, variantId } },
-      });
-      const before = existing ? Number(existing.quantityOnHand) : 0;
-      const reserved = existing ? Number(existing.reservedQuantity) : 0;
+      const batch = await tx.inventoryBatch.findFirst({ where: { id: batchId, storeId, variantId } });
+      if (!batch) throw new NotFoundException({ code: 'BATCH_NOT_FOUND', message: 'Khong tim thay lo trong kho' });
+      const reserved = Number(batch.reservedQuantity);
       if (newQuantity < reserved) {
         throw new BadRequestException({
           code: 'QTY_BELOW_RESERVED',
-          message: `Khong the dieu chinh ton (${newQuantity}) thap hon so dang giu (${reserved})`,
+          message: `Khong the dieu chinh lo thap hon so dang giu (${reserved})`,
         });
       }
-      const inv = await tx.storeInventory.upsert({
+      const before = Number(batch.quantityOnHand);
+      const delta = newQuantity - before;
+      const updatedBatch = await tx.inventoryBatch.update({
+        where: { id: batch.id },
+        data: {
+          quantityOnHand: newQuantity,
+          status:
+            newQuantity === 0
+              ? InventoryBatchStatus.DEPLETED
+              : batch.status === InventoryBatchStatus.DEPLETED
+                ? InventoryBatchStatus.ACTIVE
+                : batch.status,
+        },
+      });
+      const projection = await tx.storeInventory.findUniqueOrThrow({
         where: { storeId_variantId: { storeId, variantId } },
-        create: { storeId, variantId, quantityOnHand: newQuantity },
-        update: { quantityOnHand: newQuantity },
+      });
+      const aggregateAfter = Number(projection.quantityOnHand) + delta;
+      const inventory = await tx.storeInventory.update({
+        where: { id: projection.id },
+        data: {
+          quantityOnHand: aggregateAfter,
+          status: aggregateAfter === 0 ? 'OUT_OF_STOCK' : 'ACTIVE',
+        },
       });
       await tx.inventoryTransaction.create({
         data: {
           storeId,
           variantId,
+          batchId,
           type: InventoryTxType.ADJUST,
-          quantity: Math.abs(newQuantity - before),
+          quantity: Math.abs(delta),
           beforeQty: before,
           afterQty: newQuantity,
-          reason: reason ?? 'Dieu chinh ton (kiem ke)',
+          reason: reason ?? 'Kiem ke theo lo',
           createdBy: actorId,
         },
       });
-      return inv;
+      return { ...inventory, batch: updatedBatch };
     });
   }
 
-  listInventory(storeId: string, opts?: { lowStockOnly?: boolean; q?: string }) {
-    return this.prisma.storeInventory
-      .findMany({
-        where: { storeId },
-        include: {
-          variant: {
-            include: {
-              product: {
-                select: { id: true, name: true, slug: true },
-              },
-            },
-          },
-        },
-        orderBy: { updatedAt: 'desc' },
-      })
-      .then((rows) => {
-        let mapped = rows.map((r) => {
-          const available =
-            Number(r.quantityOnHand) - Number(r.reservedQuantity);
-          return {
-            id: r.id,
-            variantId: r.variantId,
-            sku: r.variant.sku,
-            unit: r.variant.unit,
-            productId: r.variant.product.id,
-            productName: r.variant.product.name,
-            productSlug: r.variant.product.slug,
-            quantityOnHand: Number(r.quantityOnHand),
-            reservedQuantity: Number(r.reservedQuantity),
-            available,
-            lowStockThreshold: Number(r.lowStockThreshold),
-            isLowStock: available <= Number(r.lowStockThreshold),
-            status: r.status,
-            basePrice: r.variant.price,
-            priceOverride: r.priceOverride,
-            salePrice: r.salePrice,
-          };
-        });
-        if (opts?.lowStockOnly) {
-          mapped = mapped.filter((m) => m.isLowStock);
-        }
-        if (opts?.q) {
-          const q = opts.q.toLowerCase();
-          mapped = mapped.filter(
-            (m) =>
-              m.productName.toLowerCase().includes(q) ||
-              m.sku.toLowerCase().includes(q),
-          );
-        }
-        return mapped;
-      });
+  async listInventory(storeId: string, opts?: { lowStockOnly?: boolean; q?: string }) {
+    const rows = await this.prisma.storeInventory.findMany({
+      where: { storeId },
+      include: {
+        variant: { include: { product: { select: { id: true, name: true, slug: true } } } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+    const batches = await this.prisma.inventoryBatch.findMany({
+      where: { storeId },
+      orderBy: [{ expiryDate: 'asc' }, { receivedDate: 'asc' }],
+    });
+    const byVariant = new Map<string, typeof batches>();
+    for (const batch of batches) {
+      const list = byVariant.get(batch.variantId) ?? [];
+      list.push(batch);
+      byVariant.set(batch.variantId, list);
+    }
+    const today = this.today();
+    let mapped = rows.map((row) => {
+      const variantBatches = byVariant.get(row.variantId) ?? [];
+      const quantityOnHand = variantBatches.reduce((sum, batch) => sum + Number(batch.quantityOnHand), 0);
+      const reservedQuantity = variantBatches.reduce((sum, batch) => sum + Number(batch.reservedQuantity), 0);
+      const available = variantBatches.reduce(
+        (sum, batch) =>
+          sum +
+          (batch.status === InventoryBatchStatus.ACTIVE && batch.expiryDate >= today
+            ? Math.max(0, Number(batch.quantityOnHand) - Number(batch.reservedQuantity))
+            : 0),
+        0,
+      );
+      return {
+        id: row.id,
+        variantId: row.variantId,
+        sku: row.variant.sku,
+        unit: row.variant.unit,
+        productId: row.variant.product.id,
+        productName: row.variant.product.name,
+        productSlug: row.variant.product.slug,
+        quantityOnHand,
+        reservedQuantity,
+        available,
+        expiredQuantity: variantBatches.reduce(
+          (sum, batch) => sum + (batch.expiryDate < today ? Number(batch.quantityOnHand) : 0),
+          0,
+        ),
+        lowStockThreshold: Number(row.lowStockThreshold),
+        isLowStock: available <= Number(row.lowStockThreshold),
+        status: quantityOnHand > 0 ? row.status : 'OUT_OF_STOCK',
+        basePrice: row.variant.price,
+        priceOverride: row.priceOverride,
+        salePrice: row.salePrice,
+        batches: variantBatches.map((batch) => ({
+          id: batch.id,
+          batchCode: batch.batchCode,
+          receivedDate: batch.receivedDate,
+          expiryDate: batch.expiryDate,
+          quantityOnHand: Number(batch.quantityOnHand),
+          reservedQuantity: Number(batch.reservedQuantity),
+          available:
+            batch.status === InventoryBatchStatus.ACTIVE && batch.expiryDate >= today
+              ? Math.max(0, Number(batch.quantityOnHand) - Number(batch.reservedQuantity))
+              : 0,
+          status: batch.status,
+          isExpired: batch.expiryDate < today,
+        })),
+      };
+    });
+    if (opts?.lowStockOnly) mapped = mapped.filter((row) => row.isLowStock);
+    if (opts?.q) {
+      const query = opts.q.toLowerCase();
+      mapped = mapped.filter(
+        (row) => row.productName.toLowerCase().includes(query) || row.sku.toLowerCase().includes(query),
+      );
+    }
+    return mapped;
   }
 
   listTransactions(
@@ -446,8 +681,8 @@ export class StoreInventoryService {
     if (filter?.type) where.type = filter.type;
     if (filter?.from || filter?.to) {
       where.createdAt = {};
-      if (filter.from) (where.createdAt as { gte?: Date; lte?: Date }).gte = new Date(filter.from);
-      if (filter.to) (where.createdAt as { gte?: Date; lte?: Date }).lte = new Date(filter.to);
+      if (filter.from) where.createdAt.gte = new Date(filter.from);
+      if (filter.to) where.createdAt.lte = new Date(filter.to);
     }
     return this.prisma.inventoryTransaction.findMany({
       where,
@@ -455,65 +690,54 @@ export class StoreInventoryService {
       take: 200,
       include: {
         store: { select: { name: true, code: true } },
+        batch: { select: { batchCode: true, receivedDate: true, expiryDate: true } },
       },
     });
   }
 
-  /**
-   * Xuat kho/hu hang. Tru onHand + log EXPORT (chuyen di) hoac POS_LOSS (hu, mat).
-   * Reason bat buoc.
-   */
   async exportStock(
     storeId: string,
     variantId: string,
+    batchId: string,
     quantity: number,
     reason: string,
     kind: 'EXPORT' | 'LOSS',
     actorId: string,
   ) {
-    if (quantity <= 0) {
-      throw new BadRequestException({
-        code: 'INVALID_QUANTITY',
-        message: 'So luong xuat phai > 0',
-      });
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      throw new BadRequestException({ code: 'INVALID_QUANTITY', message: 'So luong xuat phai > 0' });
     }
     if (!reason || reason.trim().length < 3) {
-      throw new BadRequestException({
-        code: 'REASON_REQUIRED',
-        message: 'Vui long ghi ly do xuat/hu',
-      });
+      throw new BadRequestException({ code: 'REASON_REQUIRED', message: 'Vui long ghi ly do xuat/hu' });
     }
     return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.storeInventory.findUnique({
-        where: { storeId_variantId: { storeId, variantId } },
-      });
-      if (!existing) {
-        throw new NotFoundException({
-          code: 'INVENTORY_NOT_FOUND',
-          message: 'San pham chua co trong kho cua hang',
-        });
-      }
-      const before = Number(existing.quantityOnHand);
-      const reserved = Number(existing.reservedQuantity);
-      const available = before - reserved;
+      const batch = await tx.inventoryBatch.findFirst({ where: { id: batchId, storeId, variantId } });
+      if (!batch) throw new NotFoundException({ code: 'BATCH_NOT_FOUND', message: 'Khong tim thay lo trong kho' });
+      const before = Number(batch.quantityOnHand);
+      const available = before - Number(batch.reservedQuantity);
       if (quantity > available) {
         throw new BadRequestException({
           code: 'INSUFFICIENT_AVAILABLE',
-          message: `Ton kha dung con ${available}, khong the xuat ${quantity}`,
+          message: `Lo ${batch.batchCode} chi con ${available} kha dung`,
         });
       }
       const after = before - quantity;
-      const inv = await tx.storeInventory.update({
-        where: { id: existing.id },
+      const updatedBatch = await tx.inventoryBatch.update({
+        where: { id: batch.id },
         data: {
           quantityOnHand: after,
-          status: after === 0 && reserved === 0 ? 'OUT_OF_STOCK' : existing.status,
+          status: after === 0 ? InventoryBatchStatus.DEPLETED : batch.status,
         },
+      });
+      const inventory = await tx.storeInventory.update({
+        where: { storeId_variantId: { storeId, variantId } },
+        data: { quantityOnHand: { decrement: quantity } },
       });
       await tx.inventoryTransaction.create({
         data: {
           storeId,
           variantId,
+          batchId,
           type: kind === 'LOSS' ? InventoryTxType.POS_LOSS : InventoryTxType.EXPORT,
           quantity,
           beforeQty: before,
@@ -522,193 +746,188 @@ export class StoreInventoryService {
           createdBy: actorId,
         },
       });
-      return inv;
+      return { ...inventory, batch: updatedBatch };
     });
   }
 
-  // ---------------- POS (ban tai quay) ----------------
-
-  /**
-   * Tru ton ngay khi POS thanh toan thanh cong. Phai chay trong transaction.
-   * Lock tung row store_inventories (SELECT ... FOR UPDATE) de chong race khi
-   * nhieu quay ban cung luc. Validate ton kha dung (tru khi allowNegative).
-   * Ghi InventoryTransaction type POS_SALE cho moi item.
-   */
   async commitPosSale(
     tx: Prisma.TransactionClient,
     storeId: string,
     lines: ReserveLine[],
     saleNumber: string,
     actorId: string,
-    allowNegative = false,
-  ): Promise<void> {
+  ) {
     for (const line of lines) {
-      const locked = await tx.$queryRaw<
-        {
-          id: string;
-          quantity_on_hand: string;
-          reserved_quantity: string;
-          status: string;
-        }[]
-      >(Prisma.sql`
-        SELECT id, quantity_on_hand, reserved_quantity, status
-        FROM store_inventories
-        WHERE store_id = ${storeId} AND variant_id = ${line.variantId}
-        FOR UPDATE
-      `);
-      const inv = locked[0];
-      if (!inv || inv.status !== 'ACTIVE') {
-        throw new BadRequestException({
-          code: 'NO_INVENTORY',
-          message: `San pham chua co ton kho tai cua hang nay (variant ${line.variantId})`,
-        });
+      if (!line.saleItemId) {
+        throw new BadRequestException({ code: 'SALE_ITEM_REQUIRED', message: 'Thieu dong hoa don de gan lo' });
       }
-      const before = Number(inv.quantity_on_hand);
-      const reserved = Number(inv.reserved_quantity);
-      const available = before - reserved;
-      if (!allowNegative && available < line.quantity) {
+      const batches = await this.lockSellableBatches(tx, storeId, line.variantId);
+      const totalAvailable = batches.reduce(
+        (sum, batch) => sum + Number(batch.quantity_on_hand) - Number(batch.reserved_quantity),
+        0,
+      );
+      if (totalAvailable < line.quantity) {
         throw new BadRequestException({
           code: 'INSUFFICIENT_STOCK',
-          message: `Cua hang khong du ton (can ${line.quantity}, con ${available})`,
+          message: `Khong du ton lo con han (can ${line.quantity}, con ${totalAvailable})`,
         });
       }
-      const after = before - line.quantity;
-      // P2-07: danh dau ban am ton de truy vet doi soat (when allowNegative + vuot ton).
-      const isNegativeOverride = allowNegative && available < line.quantity;
-      await tx.storeInventory.update({
-        where: { id: inv.id },
-        data: {
-          quantityOnHand: after,
-          ...(after <= 0 ? { status: 'OUT_OF_STOCK' } : {}),
-        },
+      let remaining = line.quantity;
+      for (const batch of batches) {
+        if (remaining <= 0) break;
+        const available = Number(batch.quantity_on_hand) - Number(batch.reserved_quantity);
+        const allocated = Math.min(remaining, available);
+        const before = Number(batch.quantity_on_hand);
+        const after = before - allocated;
+        await tx.inventoryBatch.update({
+          where: { id: batch.id },
+          data: {
+            quantityOnHand: after,
+            status: after === 0 ? InventoryBatchStatus.DEPLETED : InventoryBatchStatus.ACTIVE,
+          },
+        });
+        await tx.pOSSaleItemBatchAllocation.create({
+          data: { saleItemId: line.saleItemId, batchId: batch.id, quantity: allocated },
+        });
+        await tx.inventoryTransaction.create({
+          data: {
+            storeId,
+            variantId: line.variantId,
+            batchId: batch.id,
+            type: InventoryTxType.POS_SALE,
+            quantity: allocated,
+            beforeQty: before,
+            afterQty: after,
+            reason: `POS sale ${saleNumber} (FEFO)`,
+            createdBy: actorId,
+          },
+        });
+        remaining -= allocated;
+      }
+      const inventory = await tx.storeInventory.update({
+        where: { storeId_variantId: { storeId, variantId: line.variantId } },
+        data: { quantityOnHand: { decrement: line.quantity } },
       });
-      await tx.inventoryTransaction.create({
-        data: {
-          storeId,
-          variantId: line.variantId,
-          type: InventoryTxType.POS_SALE,
-          quantity: line.quantity,
-          beforeQty: before,
-          afterQty: after,
-          reason: isNegativeOverride
-            ? `POS sale ${saleNumber} [BAN AM TON: ${available} -> ${after}]`
-            : `POS sale ${saleNumber}`,
-          createdBy: actorId,
-        },
-      });
+      if (Number(inventory.quantityOnHand) === 0) {
+        await tx.storeInventory.update({ where: { id: inventory.id }, data: { status: 'OUT_OF_STOCK' } });
+      }
     }
   }
 
-  /**
-   * Cong ton lai khi tra hang POS (hang con ban duoc). Ghi POS_RETURN.
-   * Neu hang hong (restockable=false) thi khong cong ton, ghi POS_LOSS.
-   */
   async returnPosSale(
     tx: Prisma.TransactionClient,
     storeId: string,
-    lines: { variantId: string; quantity: number; restockable: boolean }[],
+    lines: { saleItemId: string; variantId: string; quantity: number; restockable: boolean }[],
     saleNumber: string,
     actorId: string,
-  ): Promise<void> {
+  ) {
     for (const line of lines) {
-      const locked = await tx.$queryRaw<
-        { id: string; quantity_on_hand: string; status: string }[]
-      >(Prisma.sql`
-        SELECT id, quantity_on_hand, status
-        FROM store_inventories
-        WHERE store_id = ${storeId} AND variant_id = ${line.variantId}
-        FOR UPDATE
-      `);
-      const inv = locked[0];
-      const before = inv ? Number(inv.quantity_on_hand) : 0;
-
-      if (line.restockable && inv) {
-        const after = before + line.quantity;
-        await tx.storeInventory.update({
-          where: { id: inv.id },
-          data: {
-            quantityOnHand: after,
-            ...(inv.status === 'OUT_OF_STOCK' && after > 0
-              ? { status: 'ACTIVE' }
-              : {}),
-          },
+      const allocations = await tx.pOSSaleItemBatchAllocation.findMany({
+        where: { saleItemId: line.saleItemId },
+        include: { batch: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      let remaining = line.quantity;
+      for (const allocation of allocations) {
+        if (remaining <= 0) break;
+        const returnable = Number(allocation.quantity) - Number(allocation.returnedQuantity);
+        const quantity = Math.min(remaining, returnable);
+        if (quantity <= 0) continue;
+        const before = Number(allocation.batch.quantityOnHand);
+        const after = line.restockable ? before + quantity : before;
+        if (line.restockable) {
+          await tx.inventoryBatch.update({
+            where: { id: allocation.batchId },
+            data: {
+              quantityOnHand: after,
+              status: this.restockedBatchStatus(allocation.batch.expiryDate, allocation.batch.status),
+            },
+          });
+          await tx.storeInventory.update({
+            where: { storeId_variantId: { storeId, variantId: line.variantId } },
+            data: { quantityOnHand: { increment: quantity }, status: 'ACTIVE' },
+          });
+        }
+        await tx.pOSSaleItemBatchAllocation.update({
+          where: { id: allocation.id },
+          data: { returnedQuantity: { increment: quantity } },
         });
         await tx.inventoryTransaction.create({
           data: {
             storeId,
             variantId: line.variantId,
-            type: InventoryTxType.POS_RETURN,
-            quantity: line.quantity,
+            batchId: allocation.batchId,
+            type: line.restockable ? InventoryTxType.POS_RETURN : InventoryTxType.POS_LOSS,
+            quantity,
             beforeQty: before,
             afterQty: after,
-            reason: `POS return ${saleNumber}`,
+            reason: line.restockable ? `POS return ${saleNumber}` : `POS return loss ${saleNumber}`,
             createdBy: actorId,
           },
         });
-      } else {
-        // Hang hong hoac chua co ban ghi ton: ghi loss, khong cong ton.
-        await tx.inventoryTransaction.create({
-          data: {
-            storeId,
-            variantId: line.variantId,
-            type: InventoryTxType.POS_LOSS,
-            quantity: line.quantity,
-            beforeQty: before,
-            afterQty: before,
-            reason: `POS return loss ${saleNumber}`,
-            createdBy: actorId,
-          },
-        });
+        remaining -= quantity;
+      }
+      if (remaining > 0) {
+        throw new BadRequestException({ code: 'BATCH_ALLOCATION_MISSING', message: 'Khong du du lieu lo cua hang da ban de hoan' });
       }
     }
   }
 
-  /**
-   * Cong ton lai khi tra hang ONLINE (order return) duoc duyet. Lock row + ghi
-   * InventoryTransaction type POS_RETURN. Dung cho admin processReturn (P1-01).
-   */
   async restockReturnedItems(
     tx: Prisma.TransactionClient,
     storeId: string,
-    lines: { variantId: string; quantity: number }[],
+    lines: { orderItemId: string; variantId: string; quantity: number }[],
     orderId: string,
     actorId: string,
-  ): Promise<void> {
+  ) {
     for (const line of lines) {
-      const locked = await tx.$queryRaw<
-        { id: string; quantity_on_hand: string; status: string }[]
-      >(Prisma.sql`
-        SELECT id, quantity_on_hand, status
-        FROM store_inventories
-        WHERE store_id = ${storeId} AND variant_id = ${line.variantId}
-        FOR UPDATE
-      `);
-      const inv = locked[0];
-      if (!inv) continue;
-      const before = Number(inv.quantity_on_hand);
-      const after = before + line.quantity;
-      await tx.storeInventory.update({
-        where: { id: inv.id },
-        data: {
-          quantityOnHand: after,
-          ...(inv.status === 'OUT_OF_STOCK' && after > 0
-            ? { status: 'ACTIVE' }
-            : {}),
-        },
+      const allocations = await tx.orderItemBatchAllocation.findMany({
+        where: { orderItemId: line.orderItemId, status: BatchAllocationStatus.COMMITTED },
+        include: { batch: true },
+        orderBy: { createdAt: 'asc' },
       });
-      await tx.inventoryTransaction.create({
-        data: {
-          storeId,
-          variantId: line.variantId,
-          type: InventoryTxType.POS_RETURN,
-          quantity: line.quantity,
-          beforeQty: before,
-          afterQty: after,
-          reason: 'Tra hang online (return duyet)',
-          orderId,
-          createdBy: actorId,
-        },
-      });
+      let remaining = line.quantity;
+      for (const allocation of allocations) {
+        if (remaining <= 0) break;
+        const returnable = Number(allocation.quantity) - Number(allocation.returnedQuantity);
+        const quantity = Math.min(remaining, returnable);
+        if (quantity <= 0) continue;
+        const before = Number(allocation.batch.quantityOnHand);
+        const after = before + quantity;
+        await tx.inventoryBatch.update({
+          where: { id: allocation.batchId },
+          data: {
+            quantityOnHand: after,
+            status: this.restockedBatchStatus(allocation.batch.expiryDate, allocation.batch.status),
+          },
+        });
+        await tx.orderItemBatchAllocation.update({
+          where: { id: allocation.id },
+          data: { returnedQuantity: { increment: quantity } },
+        });
+        await tx.storeInventory.update({
+          where: { storeId_variantId: { storeId, variantId: line.variantId } },
+          data: { quantityOnHand: { increment: quantity }, status: 'ACTIVE' },
+        });
+        await tx.inventoryTransaction.create({
+          data: {
+            storeId,
+            variantId: line.variantId,
+            batchId: allocation.batchId,
+            type: InventoryTxType.POS_RETURN,
+            quantity,
+            beforeQty: before,
+            afterQty: after,
+            reason: 'Tra hang online ve dung lo goc',
+            orderId,
+            createdBy: actorId,
+          },
+        });
+        remaining -= quantity;
+      }
+      if (remaining > 0) {
+        throw new BadRequestException({ code: 'BATCH_ALLOCATION_MISSING', message: 'Khong du du lieu lo goc de hoan hang' });
+      }
     }
   }
 }

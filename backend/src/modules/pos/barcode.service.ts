@@ -87,10 +87,7 @@ export class BarcodeService {
     const inv = await this.prisma.storeInventory.findUnique({
       where: { storeId_variantId: { storeId, variantId: variant.id } },
     });
-    const available =
-      inv && inv.status === 'ACTIVE'
-        ? Number(inv.quantityOnHand) - Number(inv.reservedQuantity)
-        : 0;
+    const available = await this.inventory.getAvailableInStore(storeId, variant.id);
     const unitPrice =
       inv?.salePrice ?? inv?.priceOverride ?? variant.price;
 
@@ -141,10 +138,12 @@ export class BarcodeService {
       take: 30,
     });
 
+    const availability = await this.inventory.getAvailabilityMap(
+      storeId,
+      rows.map((row) => row.variantId),
+    );
     return rows.map((r) => {
-      const available = r.status === 'ACTIVE'
-        ? Number(r.quantityOnHand) - Number(r.reservedQuantity)
-        : 0;
+      const available = availability.get(r.variantId) ?? 0;
       const primary = r.variant.barcodes.find((b) => b.isPrimary) ?? r.variant.barcodes[0];
       return {
         productId: r.variant.productId,

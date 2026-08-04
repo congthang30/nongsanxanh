@@ -33,7 +33,10 @@ describe('FulfillmentService warehouse flow', () => {
       auditLog: { create: jest.fn().mockResolvedValue({}) },
       $transaction: jest.fn(async (callback: (tx: any) => unknown) => callback(prisma)),
     };
-    inventory = { releaseForOrder: jest.fn().mockResolvedValue(undefined) };
+    inventory = {
+      releaseForOrder: jest.fn().mockResolvedValue(undefined),
+      assertOrderBatchesSellable: jest.fn().mockResolvedValue(undefined),
+    };
     scope = {
       requireUserStoreId: jest.fn().mockResolvedValue('store-1'),
       getOrderInScope: jest.fn().mockResolvedValue({
@@ -105,6 +108,11 @@ describe('FulfillmentService warehouse flow', () => {
     });
 
     await service.markPacked(user, 'order-1');
+
+    expect(inventory.assertOrderBatchesSellable).toHaveBeenCalledWith(
+      prisma,
+      'order-1',
+    );
 
     expect(prisma.order.updateMany).toHaveBeenNthCalledWith(1, {
       where: { id: 'order-1', status: OrderStatus.PICKING },

@@ -4,13 +4,16 @@ import { api } from '../../lib/api';
 import { PageHeader } from '../components/PageHeader';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
-import { StockMovementModal } from '../components/StockMovementModal';
+import {
+  StockMovementModal,
+  type InventoryBatchRow,
+  type StockMovementRow,
+} from '../components/StockMovementModal';
 
-interface InvRow {
-  id: string; variantId: string; sku: string; productName: string; unit: string;
-  quantityOnHand: number; reservedQuantity: number; available: number;
+interface InvRow extends StockMovementRow {
   lowStockThreshold: number; isLowStock: boolean; status: string;
-  basePrice: number; salePrice: number | null;
+  expiredQuantity: number; basePrice: number; salePrice: number | null;
+  batches: InventoryBatchRow[];
 }
 
 export default function WarehouseInventory() {
@@ -39,8 +42,9 @@ export default function WarehouseInventory() {
         rowKey={(r) => r.id}
         emptyText="Không có sản phẩm tồn kho"
         columns={[
-          { key: 'product', title: 'Sản phẩm', render: (r) => <strong>{r.productName}</strong> },
+          { key: 'product', title: 'Sản phẩm', render: (r) => <div><strong>{r.productName}</strong><div className="muted">{r.batches.length} lô{r.expiredQuantity > 0 ? ` · ${r.expiredQuantity} hết hạn` : ''}</div></div> },
           { key: 'sku', title: 'SKU', render: (r) => <span className="muted">{r.sku}</span> },
+          { key: 'batch', title: 'Lô FEFO kế tiếp', render: (r) => { const batch = r.batches.find((item) => item.available > 0); return batch ? <span>{batch.batchCode}<br /><small className="muted">HSD {batch.expiryDate.slice(0, 10)}</small></span> : <span className="muted">—</span>; } },
           { key: 'onHand', title: 'Tồn kho', align: 'right', render: (r) => `${r.quantityOnHand} ${r.unit}` },
           { key: 'reserved', title: 'Đang giữ', align: 'right', render: (r) => r.reservedQuantity },
           { key: 'available', title: 'Khả dụng', align: 'right', render: (r) => <strong style={{ color: r.isLowStock ? '#dc2626' : '#16a34a' }}>{r.available}</strong> },

@@ -300,6 +300,7 @@ export class AdminOrdersService {
 
       // approve = true: cong ton lai cho cac item tra
       const lines = ret.items.map((ri) => ({
+        orderItemId: ri.orderItemId,
         variantId: ri.orderItem.variantId,
         quantity: Number(ri.quantity),
       }));

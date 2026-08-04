@@ -10,9 +10,10 @@ import { AiVectorSyncWorker } from './ai-vector-sync.worker';
 import { AiVectorSyncListener } from './ai-vector-sync.listener';
 import { AiVectorExpiryScheduler } from './ai-vector-expiry.scheduler';
 import { AiVectorBootstrapService } from './ai-vector-bootstrap.service';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, InventoryModule],
   controllers: [AiController],
   providers: [
     AiService,

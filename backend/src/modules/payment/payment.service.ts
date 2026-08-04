@@ -438,6 +438,7 @@ export class PaymentService {
         tx,
         sale.storeId,
         items.map((item) => ({
+          saleItemId: item.id,
           variantId: item.variantId,
           quantity: Number(item.quantity),
         })),

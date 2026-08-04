@@ -32,12 +32,16 @@ describe('AiService', () => {
       reindexDomainObjects: jest.fn(),
       relatedProductIds: jest.fn().mockResolvedValue([]),
     } as unknown as AiVectorIndexerService;
+    const inventory = {
+      getAggregateAvailabilityMap: jest.fn().mockResolvedValue(new Map()),
+    };
     return {
-      service: new AiService(prisma, ai, memory, indexer, config),
+      service: new AiService(prisma, ai, memory, indexer, inventory as any, config),
       prisma,
       ai,
       memory,
       indexer,
+      inventory,
     };
   }
 
@@ -68,14 +72,16 @@ describe('AiService', () => {
         ],
       },
     ];
-    const { service, ai, indexer } = createService({
+    const { service, ai, indexer, inventory } = createService({
       product: { findMany: jest.fn().mockResolvedValue(products) },
-      storeInventory: {
-        aggregate: jest.fn().mockResolvedValue({
-          _sum: { quantityOnHand: 50, reservedQuantity: 0 },
-        }),
-      },
     });
+    inventory.getAggregateAvailabilityMap.mockResolvedValue(
+      new Map([
+        ['v-mam', 50],
+        ['v-gao', 50],
+        ['v-tuong', 50],
+      ]),
+    );
     (indexer.relatedProductIds as jest.Mock).mockResolvedValue([
       { objectId: 'tuong-id', score: 0.8 },
       { objectId: 'gao-id', score: 0.5 },
@@ -94,7 +100,7 @@ describe('AiService', () => {
   });
 
   it('answers product price from domain tables without calling AI', async () => {
-    const { service, ai } = createService({
+    const { service, ai, inventory } = createService({
       product: {
         findMany: jest.fn().mockResolvedValue([
           {
@@ -107,12 +113,10 @@ describe('AiService', () => {
           },
         ]),
       },
-      storeInventory: {
-        aggregate: jest.fn().mockResolvedValue({
-          _sum: { quantityOnHand: 20, reservedQuantity: 2 },
-        }),
-      },
     });
+    inventory.getAggregateAvailabilityMap.mockResolvedValue(
+      new Map([['variant-1', 18]]),
+    );
 
     const result = await service.chat({
       message: 'Gia xoai bao nhieu?',

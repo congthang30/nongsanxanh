@@ -24,9 +24,13 @@ describe('CoPurchaseService', () => {
       ),
     } as unknown as PrismaService;
 
+    const inventory = {
+      getAggregateAvailabilityMap: jest.fn().mockResolvedValue(new Map()),
+    };
     return {
-      service: new CoPurchaseService(prisma),
+      service: new CoPurchaseService(prisma, inventory as any),
       prisma,
+      inventory,
     };
   }
 
@@ -74,7 +78,7 @@ describe('CoPurchaseService', () => {
   });
 
   it('scores partners from cache without scanning orders online', async () => {
-    const { service, prisma } = createService();
+    const { service, prisma, inventory } = createService();
     (prisma.productCoPurchase.findMany as jest.Mock).mockResolvedValue([
       { productIdA: 'cart-a', productIdB: 'cand-1', coCount: 5 },
       { productIdA: 'cand-2', productIdB: 'cart-a', coCount: 3 },
@@ -96,16 +100,12 @@ describe('CoPurchaseService', () => {
         return [];
       },
     );
-    (prisma.storeInventory.groupBy as jest.Mock).mockResolvedValue([
-      {
-        variantId: 'v-cand-1',
-        _sum: { quantityOnHand: 10, reservedQuantity: 0 },
-      },
-      {
-        variantId: 'v-cand-2',
-        _sum: { quantityOnHand: 4, reservedQuantity: 0 },
-      },
-    ]);
+    inventory.getAggregateAvailabilityMap.mockResolvedValue(
+      new Map([
+        ['v-cand-1', 10],
+        ['v-cand-2', 4],
+      ]),
+    );
 
     const result = await service.recommendForCart(['cart-a'], 8);
 

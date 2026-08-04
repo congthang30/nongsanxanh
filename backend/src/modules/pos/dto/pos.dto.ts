@@ -124,11 +124,6 @@ export class PaySaleDto {
   @ValidateNested({ each: true })
   @Type(() => PayPaymentDto)
   payments: PayPaymentDto[];
-
-  @ApiPropertyOptional({ description: 'Cho phep ban am ton (can quyen)' })
-  @IsOptional()
-  @IsBoolean()
-  allowNegativeStock?: boolean;
 }
 
 export class VoidSaleDto {

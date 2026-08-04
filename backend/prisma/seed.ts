@@ -574,18 +574,35 @@ async function main() {
           lowStockThreshold: 10,
           status: 'ACTIVE',
         },
-        update: { quantityOnHand: base },
+        update: { quantityOnHand: base, reservedQuantity: 0, status: 'ACTIVE' },
       });
-      // Log IMPORT transaction
+      const batchCode = `SEED-${slug.toUpperCase().slice(0, 40)}`;
+      const batch = await prisma.inventoryBatch.upsert({
+        where: {
+          storeId_variantId_batchCode: { storeId: store.id, variantId, batchCode },
+        },
+        create: {
+          storeId: store.id,
+          variantId,
+          batchCode,
+          receivedDate: new Date('2026-08-01T00:00:00.000Z'),
+          expiryDate: new Date('2027-08-01T00:00:00.000Z'),
+          quantityOnHand: base,
+          reservedQuantity: 0,
+          status: 'ACTIVE',
+        },
+        update: { quantityOnHand: base, reservedQuantity: 0, status: 'ACTIVE' },
+      });
       await prisma.inventoryTransaction.create({
         data: {
           storeId: store.id,
           variantId,
+          batchId: batch.id,
           type: 'IMPORT',
           quantity: base,
           beforeQty: 0,
           afterQty: base,
-          reason: 'Nhập hàng khởi tạo (seed)',
+          reason: 'Nhap lo khoi tao (seed)',
         },
       });
     }

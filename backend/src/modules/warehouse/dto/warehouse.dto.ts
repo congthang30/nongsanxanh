@@ -6,6 +6,7 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   MaxLength,
   Min,
@@ -54,8 +55,24 @@ export class ImportStockDto {
   @ApiProperty({ example: 100 })
   @Type(() => Number)
   @IsNumber()
-  @Min(0.001)
+  @IsPositive()
   quantity: number;
+
+  @ApiProperty({ description: 'Ma lo duy nhat trong san pham/cua hang', example: 'LOT-2026-0803-A' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
+  batchCode: string;
+
+  @ApiProperty({ format: 'date', example: '2026-08-03' })
+  @IsString()
+  @IsNotEmpty()
+  receivedDate: string;
+
+  @ApiProperty({ format: 'date', example: '2026-08-20' })
+  @IsString()
+  @IsNotEmpty()
+  expiryDate: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -69,7 +86,12 @@ export class AdjustStockDto {
   @IsNotEmpty()
   variantId: string;
 
-  @ApiProperty({ example: 50, description: 'So luong ton moi (kiem ke)' })
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  batchId: string;
+
+  @ApiProperty({ example: 50, description: 'So luong ton moi cua lo (kiem ke)' })
   @Type(() => Number)
   @IsNumber()
   @Min(0)
@@ -87,10 +109,15 @@ export class ExportStockDto {
   @IsNotEmpty()
   variantId: string;
 
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  batchId: string;
+
   @ApiProperty({ example: 5, description: 'So luong xuat kho hoac hu hong' })
   @Type(() => Number)
   @IsNumber()
-  @Min(0.001)
+  @IsPositive()
   quantity: number;
 
   @ApiProperty({ description: 'Ly do (bat buoc)' })

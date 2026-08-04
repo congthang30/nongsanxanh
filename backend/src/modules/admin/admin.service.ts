@@ -845,25 +845,7 @@ export class AdminService {
   // ============ Inventory by store ============
 
   async inventoryByStore(storeId: string) {
-    const rows = await this.prisma.storeInventory.findMany({
-      where: { storeId },
-      include: {
-        variant: { include: { product: { select: { name: true } } } },
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
-    return rows.map((r) => ({
-      id: r.id,
-      variantId: r.variantId,
-      sku: r.variant.sku,
-      productName: r.variant.product.name,
-      unit: r.variant.unit,
-      quantityOnHand: Number(r.quantityOnHand),
-      reservedQuantity: Number(r.reservedQuantity),
-      available: Number(r.quantityOnHand) - Number(r.reservedQuantity),
-      lowStockThreshold: Number(r.lowStockThreshold),
-      status: r.status,
-    }));
+    return this.inventory.listInventory(storeId);
   }
 
   inventoryTransactions(
@@ -884,16 +866,28 @@ export class AdminService {
       storeId,
       dto.variantId,
       dto.quantity,
+      {
+        batchCode: dto.batchCode,
+        receivedDate: dto.receivedDate,
+        expiryDate: dto.expiryDate,
+      },
       dto.reason,
       actorId,
     );
     await this.audit.log({
       action: 'INVENTORY_IMPORT',
       actorId,
-      targetType: 'StoreInventory',
-      targetId: result.id,
+      targetType: 'InventoryBatch',
+      targetId: result.batch.id,
       storeId,
-      metadata: { variantId: dto.variantId, quantity: dto.quantity, reason: dto.reason },
+      metadata: {
+        variantId: dto.variantId,
+        batchCode: dto.batchCode,
+        receivedDate: dto.receivedDate,
+        expiryDate: dto.expiryDate,
+        quantity: dto.quantity,
+        reason: dto.reason,
+      },
     });
     return result;
   }
@@ -903,6 +897,7 @@ export class AdminService {
     const result = await this.inventory.adjustStock(
       storeId,
       dto.variantId,
+      dto.batchId,
       dto.newQuantity,
       dto.reason,
       actorId,
@@ -910,10 +905,15 @@ export class AdminService {
     await this.audit.log({
       action: 'INVENTORY_ADJUST',
       actorId,
-      targetType: 'StoreInventory',
-      targetId: result.id,
+      targetType: 'InventoryBatch',
+      targetId: dto.batchId,
       storeId,
-      metadata: { variantId: dto.variantId, newQuantity: dto.newQuantity, reason: dto.reason },
+      metadata: {
+        variantId: dto.variantId,
+        batchId: dto.batchId,
+        newQuantity: dto.newQuantity,
+        reason: dto.reason,
+      },
     });
     return result;
   }
@@ -924,6 +924,7 @@ export class AdminService {
     const result = await this.inventory.exportStock(
       storeId,
       dto.variantId,
+      dto.batchId,
       dto.quantity,
       dto.reason,
       kind,
@@ -932,10 +933,16 @@ export class AdminService {
     await this.audit.log({
       action: kind === 'LOSS' ? 'INVENTORY_LOSS' : 'INVENTORY_EXPORT',
       actorId,
-      targetType: 'StoreInventory',
-      targetId: result.id,
+      targetType: 'InventoryBatch',
+      targetId: dto.batchId,
       storeId,
-      metadata: { variantId: dto.variantId, quantity: dto.quantity, reason: dto.reason, kind },
+      metadata: {
+        variantId: dto.variantId,
+        batchId: dto.batchId,
+        quantity: dto.quantity,
+        reason: dto.reason,
+        kind,
+      },
     });
     return result;
   }

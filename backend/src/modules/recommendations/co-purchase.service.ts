@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OrderStatus, ProductStatus } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { StoreInventoryService } from '../inventory/inventory.service';
 
 export type CrossSellReason =
   | 'CO_PURCHASE'
@@ -34,7 +35,10 @@ export interface CrossSellResult {
 export class CoPurchaseService {
   private readonly logger = new Logger(CoPurchaseService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly inventory: StoreInventoryService,
+  ) {}
 
   /**
    * Full rebuild: dem cap product trong don DELIVERED/COMPLETED.
@@ -189,20 +193,8 @@ export class CoPurchaseService {
       .map((p) => p.variants[0]?.id)
       .filter((id): id is string => !!id);
 
-    const invRows =
-      variantIds.length === 0
-        ? []
-        : await this.prisma.storeInventory.groupBy({
-            by: ['variantId'],
-            where: { variantId: { in: variantIds }, status: 'ACTIVE' },
-            _sum: { quantityOnHand: true, reservedQuantity: true },
-          });
-    const availMap = new Map<string, number>();
-    for (const row of invRows) {
-      const onHand = Number(row._sum.quantityOnHand ?? 0);
-      const reserved = Number(row._sum.reservedQuantity ?? 0);
-      availMap.set(row.variantId, Math.max(0, onHand - reserved));
-    }
+    const availMap =
+      await this.inventory.getAggregateAvailabilityMap(variantIds);
 
     const items: CrossSellItem[] = [];
     for (const [productId, meta] of ranked) {

@@ -5,6 +5,7 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AiHttpService } from './ai-http.service';
 import { ChatMemoryStore } from './chat-memory.store';
 import { AiVectorIndexerService } from './ai-vector-indexer.service';
+import { StoreInventoryService } from '../inventory/inventory.service';
 
 const SYSTEM_PROMPT = `Bạn là trợ lý bán hàng của Nông Sản Xanh.
 Chỉ trả lời dựa trên ngữ cảnh và kết quả tool được cung cấp. Không bịa giá, tồn kho, khuyến mãi hoặc chính sách.
@@ -36,6 +37,7 @@ export class AiService {
     private readonly ai: AiHttpService,
     private readonly memory: ChatMemoryStore,
     private readonly indexer: AiVectorIndexerService,
+    private readonly inventory: StoreInventoryService,
     config: ConfigService,
   ) {
     this.topK = Math.max(
@@ -432,30 +434,24 @@ export class AiService {
       take: 50,
     });
 
-    return Promise.all(
-      products.map(async (product) => {
-        const variant = product.variants[0];
-        let available: number | null = null;
-        if (variant) {
-          const aggregate = await this.prisma.storeInventory.aggregate({
-            where: { variantId: variant.id, status: 'ACTIVE' },
-            _sum: { quantityOnHand: true, reservedQuantity: true },
-          });
-          available =
-            Number(aggregate._sum.quantityOnHand ?? 0) -
-            Number(aggregate._sum.reservedQuantity ?? 0);
-        }
-        return {
-          id: product.id,
-          name: product.name,
-          price: variant?.price ?? 0,
-          unit: variant?.unit ?? null,
-          originRegion: product.originRegion,
-          available,
-          variantId: variant?.id ?? null,
-        };
-      }),
-    );
+    const variantIds = products
+      .map((product) => product.variants[0]?.id)
+      .filter((id): id is string => !!id);
+    const availability =
+      await this.inventory.getAggregateAvailabilityMap(variantIds);
+
+    return products.map((product) => {
+      const variant = product.variants[0];
+      return {
+        id: product.id,
+        name: product.name,
+        price: variant?.price ?? 0,
+        unit: variant?.unit ?? null,
+        originRegion: product.originRegion,
+        available: variant ? availability.get(variant.id) ?? 0 : null,
+        variantId: variant?.id ?? null,
+      };
+    });
   }
 
   private matchProduct<T extends { name: string }>(message: string, products: T[]) {
